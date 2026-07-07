@@ -27,7 +27,7 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.STUDENT
     department: Optional[str] = None
     phone: Optional[str] = None
-    student_id: Optional[str] = Field(None, description="Student/Staff ID card number")
+    employee_id: Optional[str] = Field(None, description="Mã nhân viên / Sinh viên")
 
 
 class UserUpdate(BaseModel):
@@ -46,7 +46,7 @@ class UserResponse(BaseModel):
     role: UserRole
     department: Optional[str] = None
     phone: Optional[str] = None
-    student_id: Optional[str] = None
+    employee_id: Optional[str] = None
     status: UserStatus
     face_registered: bool = False
     created_at: str

@@ -12,17 +12,17 @@ from . import repository as repo
 
 def _to_response(item: dict) -> UserResponse:
     return UserResponse(
-        user_id=item["userId"],
+        user_id=item["user_id"],
         email=item["email"],
         name=item["name"],
         role=item["role"],
         department=item.get("department"),
         phone=item.get("phone"),
-        student_id=item.get("studentId"),
+        employee_id=item.get("employee_id"),
         status=item.get("status", UserStatus.ACTIVE),
-        face_registered=item.get("faceRegistered", False),
-        created_at=item["createdAt"],
-        updated_at=item.get("updatedAt"),
+        face_registered=item.get("face_registered", False),
+        created_at=item["created_at"],
+        updated_at=item.get("updated_at"),
     )
 
 
@@ -38,17 +38,17 @@ def create_user(payload: UserCreate) -> UserResponse:
 
     now = datetime.now(timezone.utc).isoformat()
     item = {
-        "userId": str(uuid.uuid4()),
+        "user_id": str(uuid.uuid4()),
         "email": payload.email,
         "name": payload.name,
         "role": payload.role.value,
         "department": payload.department,
         "phone": payload.phone,
-        "studentId": payload.student_id,
+        "employee_id": payload.employee_id,
         "status": UserStatus.ACTIVE.value,
-        "faceRegistered": False,
-        "createdAt": now,
-        "updatedAt": None,
+        "face_registered": False,
+        "created_at": now,
+        "updated_at": None,
     }
     repo.create_user(item)
     return _to_response(item)
@@ -100,4 +100,4 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
 
 def mark_face_registered(user_id: str) -> None:
     """Called by Face service after successful IndexFaces."""
-    repo.update_user(user_id, {"faceRegistered": True})
+    repo.update_user(user_id, {"face_registered": True})

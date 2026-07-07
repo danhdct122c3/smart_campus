@@ -1,9 +1,8 @@
 """DynamoDB repository for the Users module.
 
 Table: smart-campus-users
-PK: userId (UUID)
-SK: "PROFILE"
-GSI: email-index  (email → userId lookup)
+PK: user_id (UUID)
+GSI: email-index  (email → user_id lookup)
 """
 
 from datetime import datetime, timezone
@@ -20,14 +19,11 @@ from app.shared.aws.dynamodb import (
 )
 
 TABLE = settings.users_table
-_SK = "PROFILE"
-
 
 # ── Write ──────────────────────────────────────────────────────────────────────
 
 def create_user(item: dict) -> dict:
-    """Persist a new user. `item` must already contain userId, email, etc."""
-    item["sk"] = _SK
+    """Persist a new user. `item` must already contain user_id, email, etc."""
     put_item(TABLE, item)
     return item
 
@@ -49,22 +45,23 @@ def update_user(user_id: str, fields: dict) -> dict:
         expr_names[name_alias] = k
 
     expr_values[":ua"] = datetime.now(timezone.utc).isoformat()
-    set_parts.append("updatedAt = :ua")
+    set_parts.append("#ua = :ua")
+    expr_names["#ua"] = "updated_at"
 
     expression = "SET " + ", ".join(set_parts)
     return update_item(
         TABLE,
-        key={"userId": user_id, "sk": _SK},
+        key={"user_id": user_id},
         update_expression=expression,
         expression_values=expr_values,
-        expression_names=expr_names or None,
+        expression_names=expr_names,
     )
 
 
 # ── Read ───────────────────────────────────────────────────────────────────────
 
 def get_user_by_id(user_id: str) -> dict | None:
-    return get_item(TABLE, key={"userId": user_id, "sk": _SK})
+    return get_item(TABLE, key={"user_id": user_id})
 
 
 def get_user_by_email(email: str) -> dict | None:
@@ -80,9 +77,12 @@ def get_user_by_email(email: str) -> dict | None:
 
 def list_users(role: str | None = None, status: str | None = None) -> list[dict]:
     """Scan all users, optionally filtered by role/status."""
-    filter_expr = Attr("sk").eq(_SK)
+    filter_expr = None
     if role:
-        filter_expr &= Attr("role").eq(role)
+        filter_expr = Attr("role").eq(role)
     if status:
-        filter_expr &= Attr("status").eq(status)
+        if filter_expr:
+            filter_expr &= Attr("status").eq(status)
+        else:
+            filter_expr = Attr("status").eq(status)
     return scan_items(TABLE, filter_expression=filter_expr)
