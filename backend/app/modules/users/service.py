@@ -84,6 +84,17 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
     fields = {}
     if payload.name is not None:
         fields["name"] = payload.name
+    if payload.email is not None and payload.email != existing.get("email"):
+        check_email = repo.get_user_by_email(payload.email)
+        if check_email:
+            raise AppException(
+                error_code=ErrorCode.USER_ALREADY_EXISTS,
+                status_code=status.HTTP_409_CONFLICT,
+                message=f"Email '{payload.email}' đã được sử dụng.",
+            )
+        fields["email"] = payload.email
+    if payload.role is not None:
+        fields["role"] = payload.role.value
     if payload.department is not None:
         fields["department"] = payload.department
     if payload.phone is not None:

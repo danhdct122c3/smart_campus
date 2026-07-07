@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -18,6 +19,14 @@ def create_app() -> FastAPI:
     application.include_router(
         api_router,
         prefix="/api",
+    )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Trong thực tế nên cấu hình domain cụ thể
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @application.get("/", tags=["Root"])
