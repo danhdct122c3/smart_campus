@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Loader, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Loader, Edit2, Camera } from 'lucide-react';
 import Card from '../components/Card';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api/users';
@@ -13,6 +13,16 @@ const Users = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editUserId, setEditUserId] = useState(null);
+
+  // Face Registration State
+  const [showFaceModal, setShowFaceModal] = useState(false);
+  const [faceUserId, setFaceUserId] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  
+  // Webcam State
+  const [useWebcam, setUseWebcam] = useState(false);
+  const videoRef = useRef(null);
+  const [stream, setStream] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -119,6 +129,89 @@ const Users = () => {
     }
   };
 
+  const handleOpenFace = (user) => {
+    setFaceUserId(user.user_id);
+    setImagePreview(null);
+    setUseWebcam(false);
+    setShowFaceModal(true);
+  };
+
+  const stopWebcam = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  };
+
+  const handleCloseFaceModal = () => {
+    stopWebcam();
+    setShowFaceModal(false);
+  };
+
+  const startWebcam = async () => {
+    setUseWebcam(true);
+    setImagePreview(null);
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setStream(mediaStream);
+      // Wait for React to render the video element
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (err) {
+      alert("Không thể mở Camera: " + err.message);
+      setUseWebcam(false);
+    }
+  };
+
+  const captureImage = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      setImagePreview(dataUrl);
+      stopWebcam();
+      setUseWebcam(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRegisterFace = async () => {
+    if (!imagePreview) return;
+    try {
+      setIsSubmitting(true);
+      const res = await fetch('http://127.0.0.1:8000/api/faces/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: faceUserId, image_base64: imagePreview })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Lỗi đăng ký khuôn mặt');
+      alert('Đăng ký thành công!');
+      handleCloseFaceModal();
+      fetchUsers();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -194,9 +287,13 @@ const Users = () => {
                         <ShieldCheck size={16} /> Đã ĐK
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                        <ShieldAlert size={16} /> Chưa có
-                      </div>
+                      <button onClick={() => handleOpenFace(user)} style={{
+                        background: 'rgba(6, 182, 212, 0.1)', color: 'var(--accent-primary)', border: '1px solid var(--accent-primary)',
+                        padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem',
+                        display: 'flex', alignItems: 'center', gap: '0.25rem'
+                      }}>
+                        <Camera size={14} /> Đăng ký
+                      </button>
                     )}
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'center' }}>
@@ -306,6 +403,94 @@ const Users = () => {
                 {isSubmitting ? 'Đang lưu...' : (editMode ? 'Cập nhật' : 'Tạo mới')}
               </button>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {/* FACE REGISTER MODAL */}
+      {showFaceModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <Card style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', position: 'relative' }}>
+            <button 
+              onClick={handleCloseFaceModal}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem' }}>Đăng ký khuôn mặt</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{
+                width: '100%', height: '240px', background: 'rgba(0,0,0,0.2)',
+                border: '2px dashed var(--glass-border)', borderRadius: '8px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden', position: 'relative'
+              }}>
+                {useWebcam ? (
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : imagePreview ? (
+                  <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', padding: '2rem', textAlign: 'center' }}>
+                    Chọn ảnh rõ mặt để đăng ký.<br/>
+                    (Nên dùng ảnh thẻ hoặc chụp thẳng mặt)
+                  </p>
+                )}
+              </div>
+
+              {!useWebcam && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input 
+                    type="file" 
+                    accept="image/jpeg, image/png" 
+                    onChange={handleFileChange} 
+                    style={{ fontSize: '0.875rem', color: 'var(--text-primary)', flex: 1 }} 
+                  />
+                  <button 
+                    onClick={startWebcam}
+                    style={{
+                      background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '8px',
+                      padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+                    }}>
+                    <Camera size={16} /> Chụp Webcam
+                  </button>
+                </div>
+              )}
+
+              {useWebcam && (
+                <button 
+                  onClick={captureImage}
+                  style={{
+                    background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
+                    padding: '0.75rem', cursor: 'pointer', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem'
+                  }}>
+                  <Camera size={18} /> Chụp ảnh ngay
+                </button>
+              )}
+
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+                * Hỗ trợ định dạng JPEG, PNG (Tối đa 5MB)
+              </p>
+
+              <button 
+                onClick={handleRegisterFace}
+                disabled={isSubmitting || !imagePreview}
+                style={{
+                  background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
+                  padding: '0.875rem', marginTop: '0.5rem', cursor: (isSubmitting || !imagePreview) ? 'not-allowed' : 'pointer', fontWeight: 600
+                }}>
+                {isSubmitting ? 'Đang xử lý...' : 'Xác nhận Đăng ký'}
+              </button>
+            </div>
           </Card>
         </div>
       )}
