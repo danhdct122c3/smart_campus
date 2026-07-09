@@ -109,11 +109,12 @@ def register_face(payload: FaceRegisterRequest) -> FaceResponse:
 
     # 5. Save face metadata to DynamoDB
     face_item = {
+        "face_id": result["faceId"],   # DynamoDB PK (snake_case)
         "userId": payload.user_id,
         "faceId": result["faceId"],
         "s3Key": s3_key,
         "confidence": str(result["confidence"]),
-        "boundingBox": result["boundingBox"],
+        "boundingBox": {k: str(v) for k, v in result["boundingBox"].items()},
         "status": "ACTIVE",
         "registeredAt": now.isoformat(),
     }
