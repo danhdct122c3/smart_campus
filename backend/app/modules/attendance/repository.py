@@ -1,9 +1,9 @@
 """DynamoDB repository for the Attendance module.
 
 Table: smart-campus-attendance
-PK: date#sessionType    e.g. "2026-07-05#MORNING"
-SK: userId
-GSI: userId-date-index  (PK=userId, SK=date) – query history by user
+PK: record_id  (UUID, snake_case – theo schema DynamoDB thực tế)
+GSI 1: date-index    (PK=date)      – query by date
+GSI 2: userid-index  (PK=user_id)  – query by user
 """
 
 from boto3.dynamodb.conditions import Key
@@ -14,39 +14,46 @@ from app.shared.aws.dynamodb import put_item, get_item, query_items, scan_items
 TABLE = settings.attendance_table
 
 
-def make_pk(date: str, session_type: str) -> str:
-    return f"{date}#{session_type}"
-
-
 def save_record(item: dict) -> dict:
-    """Persist an attendance record."""
+    """Persist an attendance record. item must contain record_id as PK."""
     put_item(TABLE, item)
     return item
 
 
-def get_record(date: str, session_type: str, user_id: str) -> dict | None:
-    """Check if an attendance record already exists (for idempotency)."""
-    return get_item(
+def get_record_by_id(record_id: str) -> dict | None:
+    """Fetch a single record by PK."""
+    return get_item(TABLE, key={"record_id": record_id})
+
+
+def get_record(date: str, session_name: str, user_id: str) -> dict | None:
+    """Check for duplicate: query date-index then filter by user_id + session_type."""
+    items = query_items(
         TABLE,
-        key={"pk": make_pk(date, session_type), "userId": user_id},
+        key_condition=Key("date").eq(date),
+        index_name="date-index",
     )
+    for item in items:
+        if item.get("user_id") == user_id and item.get("session_type") == session_name:
+            return item
+    return None
 
 
-def list_by_date_session(date: str, session_type: str) -> list[dict]:
-    """List all attendance records for a specific date + session."""
+def list_by_date(date: str) -> list[dict]:
+    """List all attendance records for a specific date (uses date-index GSI)."""
     return query_items(
         TABLE,
-        key_condition=Key("pk").eq(make_pk(date, session_type)),
+        key_condition=Key("date").eq(date),
+        index_name="date-index",
     )
 
 
 def list_by_user(user_id: str, date: str | None = None) -> list[dict]:
-    """List attendance records for a specific user (uses GSI)."""
-    key_cond = Key("userId").eq(user_id)
-    if date:
-        key_cond &= Key("date").begins_with(date)
-    return query_items(
+    """List attendance records for a specific user (uses userid-index GSI)."""
+    items = query_items(
         TABLE,
-        key_condition=key_cond,
-        index_name="userId-date-index",
+        key_condition=Key("user_id").eq(user_id),
+        index_name="userid-index",
     )
+    if date:
+        items = [i for i in items if i.get("date") == date]
+    return items

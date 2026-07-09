@@ -137,7 +137,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     existing = None
     rule = evaluate(capture_time, existing_record=None)  # first check session
     if rule.allowed:
-        existing = repo.get_record(date_str, rule.session_name, user_id)
+        existing = repo.get_record(date=date_str, session_name=rule.session_name, user_id=user_id)
         rule = evaluate(capture_time, existing_record=existing)
 
     if not rule.allowed:
@@ -169,13 +169,12 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     # ── Step 6: Save attendance record ────────────────────────────────────────
     attendance_id = str(uuid.uuid4())
     item = {
-        "pk": repo.make_pk(date_str, rule.session_name),
-        "userId": user_id,
-        "attendanceId": attendance_id,
-        "faceId": face_id,
-        "cameraId": payload.camera_id,
-        "roomId": payload.room_id,
-        "sessionType": rule.session_name,
+        "record_id": attendance_id,      # DynamoDB PK
+        "user_id": user_id,
+        "face_id": face_id,
+        "camera_id": payload.camera_id,
+        "room_id": payload.room_id or "",
+        "session_type": rule.session_name,
         "status": rule.status,
         "confidence": str(confidence),
         "timestamp": capture_time.isoformat(),
@@ -215,21 +214,18 @@ def list_attendance(user_id: str | None, date: str | None) -> list[AttendanceRec
     if user_id:
         items = repo.list_by_user(user_id, date=date)
     else:
-        from .rule_engine import SESSIONS
-        items = []
-        for session in SESSIONS:
-            items.extend(repo.list_by_date_session(date, session.name))
+        items = repo.list_by_date(date)
     return [_item_to_record(i) for i in items]
 
 
 def _item_to_record(item: dict, is_duplicate: bool = False) -> AttendanceRecord:
     return AttendanceRecord(
-        attendance_id=item.get("attendanceId", ""),
-        user_id=item["userId"],
-        face_id=item.get("faceId", ""),
-        camera_id=item.get("cameraId", ""),
-        room_id=item.get("roomId", ""),
-        session_type=item.get("sessionType", ""),
+        attendance_id=item.get("record_id", ""),
+        user_id=item.get("user_id", ""),
+        face_id=item.get("face_id", ""),
+        camera_id=item.get("camera_id", ""),
+        room_id=item.get("room_id", ""),
+        session_type=item.get("session_type", ""),
         status=item.get("status", "PRESENT"),
         confidence=float(item.get("confidence", 0)),
         timestamp=item.get("timestamp", ""),
