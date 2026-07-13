@@ -21,7 +21,7 @@ from .eventbridge import (
     publish_notification_sent,
 )
 from .sns import publish_to_topic, publish_security_alert, publish_attendance_notification
-from . import athena, bedrock
+from . import athena, bedrock, ses
 
 __all__ = [
     # DynamoDB
@@ -38,6 +38,6 @@ __all__ = [
     "publish_security_incident_created", "publish_notification_sent",
     # SNS
     "publish_to_topic", "publish_security_alert", "publish_attendance_notification",
-    # Athena & Bedrock (as modules)
-    "athena", "bedrock",
+    # Athena, Bedrock & SES (as modules)
+    "athena", "bedrock", "ses",
 ]

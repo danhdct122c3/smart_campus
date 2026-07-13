@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     security_alert_topic_arn: str = ""
     notification_topic_arn: str = ""
 
+    # Amazon SES (Workflow 4 – Personal Email Notification)
+    ses_sender_email: str = ""  # Email đã verify trên SES Console, VD: noreply@yourdomain.com
+
     # Amazon Bedrock (AI Assistant – Workflow 6)
     bedrock_model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"
 

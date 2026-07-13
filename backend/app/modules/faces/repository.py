@@ -1,8 +1,8 @@
 """DynamoDB repository for the Faces module.
 
 Table: smart-campus-faces
-PK: face_id
-GSI: user_id (for querying faces by user)
+PK: face_id  (snake_case — theo schema DynamoDB table)
+GSI: user_id-index
 """
 
 from boto3.dynamodb.conditions import Key, Attr

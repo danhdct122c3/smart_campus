@@ -53,3 +53,18 @@ Tài liệu này tổng hợp toàn bộ các công việc, kiến trúc và tí
   - **Tự động sinh mã (Auto-generate Code):** Viết logic tự động tạo Mã nhân sự (`STU-1234`, `MAN-4561`) tương ứng ngay khi người dùng chọn Vai trò trong Form, đồng thời khóa cứng ô Mã nhân sự không cho phép nhập tay.
   - **Chỉnh sửa User (PATCH API):** Tái sử dụng Modal để làm Form cập nhật thông tin. Mở khóa cho phép sửa `email` và `role` trực tiếp trên web, gọi API gửi thẳng xuống Backend (kèm theo tính năng backend tự kiểm tra xem email cập nhật có bị trùng không).
   - **UX/UI Fix:** Khắc phục triệt để lỗi màu chữ trắng khó nhìn trên background trắng của thẻ thả xuống (Dropdown Select).
+
+## Giai đoạn 6: Tích hợp Hệ thống Nhận diện Khuôn mặt (AWS Rekognition & S3)
+- **Thiết lập tài nguyên AWS (AWS Console & CLI):**
+  - Khởi tạo S3 Bucket (`smart-campus-images`) để lưu trữ ảnh chụp.
+  - Tạo Rekognition Collection (`smart-campus-faces`) để lập chỉ mục khuôn mặt.
+- **Phát triển luồng đăng ký khuôn mặt (WF2 - Face Registration - End-to-End):**
+  - **Giao diện Frontend (React):** Thêm Modal "Đăng ký khuôn mặt" trên trang `Users.jsx`. Hỗ trợ 2 phương thức: Upload file ảnh có sẵn hoặc **bật Webcam chụp trực tiếp** trên trình duyệt (sử dụng HTML5 `navigator.mediaDevices`).
+  - **Xử lý Backend (FastAPI):** 
+    - Nhận dữ liệu base64, decode và validate định dạng ảnh (JPEG/PNG) cũng như giới hạn kích thước (tối đa 5MB).
+    - Gọi API lưu ảnh gốc lên S3 Bucket.
+    - Tích hợp **AWS Rekognition (`IndexFaces`)** để nhận diện, tạo `faceId`, tính độ tin cậy (`confidence`) và lấy tọa độ khuôn mặt (`BoundingBox`).
+  - **Khắc phục lỗi Dữ liệu (DynamoDB & Boto3):** 
+    - Fix lỗi `500 Internal Server Error` do Boto3 không hỗ trợ kiểu `Float` trả về từ Rekognition, tự động parse các giá trị BoundingBox sang `String` trước khi lưu vào cơ sở dữ liệu.
+    - Đồng bộ tên Khóa chính PK từ `faceId` sang `face_id` chuẩn theo schema của bảng `smart-campus-faces`.
+  - **Khắc phục lỗi Hệ thống (CORS Policy):** Sửa lỗi thiết lập cấu hình CORS trong `main.py` của FastAPI để chặn tình trạng browser báo lỗi `Failed to fetch` khi backend phát sinh exception.

@@ -31,8 +31,7 @@ def create_user(payload: UserCreate) -> UserResponse:
     existing = repo.get_user_by_email(payload.email)
     if existing:
         raise AppException(
-            error_code=ErrorCode.USER_ALREADY_EXISTS,
-            status_code=status.HTTP_409_CONFLICT,
+            ErrorCode.USER_ALREADY_EXISTS,
             message=f"Email '{payload.email}' đã được đăng ký trong hệ thống.",
         )
 
@@ -59,8 +58,7 @@ def get_user(user_id: str) -> UserResponse:
     item = repo.get_user_by_id(user_id)
     if not item:
         raise AppException(
-            error_code=ErrorCode.USER_NOT_FOUND,
-            status_code=status.HTTP_404_NOT_FOUND,
+            ErrorCode.USER_NOT_FOUND,
             message=f"Người dùng '{user_id}' không tồn tại.",
         )
     return _to_response(item)
@@ -76,8 +74,7 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
     existing = repo.get_user_by_id(user_id)
     if not existing:
         raise AppException(
-            error_code=ErrorCode.USER_NOT_FOUND,
-            status_code=status.HTTP_404_NOT_FOUND,
+            ErrorCode.USER_NOT_FOUND,
             message=f"Người dùng '{user_id}' không tồn tại.",
         )
 
@@ -88,8 +85,7 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
         check_email = repo.get_user_by_email(payload.email)
         if check_email:
             raise AppException(
-                error_code=ErrorCode.USER_ALREADY_EXISTS,
-                status_code=status.HTTP_409_CONFLICT,
+                ErrorCode.USER_ALREADY_EXISTS,
                 message=f"Email '{payload.email}' đã được sử dụng.",
             )
         fields["email"] = payload.email
