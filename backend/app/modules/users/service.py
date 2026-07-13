@@ -1,0 +1,110 @@
+"""Business logic for the Users module."""
+
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import status
+
+from app.core.exceptions import AppException, ErrorCode
+from .schemas import UserCreate, UserUpdate, UserResponse, UserStatus
+from . import repository as repo
+
+
+def _to_response(item: dict) -> UserResponse:
+    return UserResponse(
+        user_id=item["user_id"],
+        email=item["email"],
+        name=item["name"],
+        role=item["role"],
+        department=item.get("department"),
+        phone=item.get("phone"),
+        employee_id=item.get("employee_id"),
+        status=item.get("status", UserStatus.ACTIVE),
+        face_registered=item.get("face_registered", False),
+        created_at=item["created_at"],
+        updated_at=item.get("updated_at"),
+    )
+
+
+def create_user(payload: UserCreate) -> UserResponse:
+    """Create a new user. Raises 409 if email already exists."""
+    existing = repo.get_user_by_email(payload.email)
+    if existing:
+        raise AppException(
+            ErrorCode.USER_ALREADY_EXISTS,
+            message=f"Email '{payload.email}' đã được đăng ký trong hệ thống.",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    item = {
+        "user_id": str(uuid.uuid4()),
+        "email": payload.email,
+        "name": payload.name,
+        "role": payload.role.value,
+        "department": payload.department,
+        "phone": payload.phone,
+        "employee_id": payload.employee_id,
+        "status": UserStatus.ACTIVE.value,
+        "face_registered": False,
+        "created_at": now,
+        "updated_at": None,
+    }
+    repo.create_user(item)
+    return _to_response(item)
+
+
+def get_user(user_id: str) -> UserResponse:
+    """Fetch a single user by ID. Raises 404 if not found."""
+    item = repo.get_user_by_id(user_id)
+    if not item:
+        raise AppException(
+            ErrorCode.USER_NOT_FOUND,
+            message=f"Người dùng '{user_id}' không tồn tại.",
+        )
+    return _to_response(item)
+
+
+def list_users(role: str | None, status_filter: str | None) -> list[UserResponse]:
+    items = repo.list_users(role=role, status=status_filter)
+    return [_to_response(i) for i in items]
+
+
+def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
+    """Partially update a user. Raises 404 if not found."""
+    existing = repo.get_user_by_id(user_id)
+    if not existing:
+        raise AppException(
+            ErrorCode.USER_NOT_FOUND,
+            message=f"Người dùng '{user_id}' không tồn tại.",
+        )
+
+    fields = {}
+    if payload.name is not None:
+        fields["name"] = payload.name
+    if payload.email is not None and payload.email != existing.get("email"):
+        check_email = repo.get_user_by_email(payload.email)
+        if check_email:
+            raise AppException(
+                ErrorCode.USER_ALREADY_EXISTS,
+                message=f"Email '{payload.email}' đã được sử dụng.",
+            )
+        fields["email"] = payload.email
+    if payload.role is not None:
+        fields["role"] = payload.role.value
+    if payload.department is not None:
+        fields["department"] = payload.department
+    if payload.phone is not None:
+        fields["phone"] = payload.phone
+    if payload.status is not None:
+        fields["status"] = payload.status.value
+
+    if fields:
+        repo.update_user(user_id, fields)
+
+    updated = repo.get_user_by_id(user_id)
+    return _to_response(updated)
+
+
+def mark_face_registered(user_id: str) -> None:
+    """Called by Face service after successful IndexFaces."""
+    repo.update_user(user_id, {"face_registered": True})

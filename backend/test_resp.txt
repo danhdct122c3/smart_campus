@@ -1,0 +1,2 @@
+503
+{"success":false,"code":"AWS_001","message":"Lỗi dịch vụ nhận diện khuôn mặt: An error occurred (InvalidImageFormatException) when calling the IndexFaces operation: Request has invalid image format","data":null}
