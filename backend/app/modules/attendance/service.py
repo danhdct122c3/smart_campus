@@ -151,13 +151,13 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     # ── Step 6: Save attendance record ────────────────────────────────────────
     attendance_id = str(uuid.uuid4())
     item = {
-        "pk": repo.make_pk(date_str, rule.session_name),
-        "userId": user_id,
-        "attendanceId": attendance_id,
-        "faceId": face_id,
-        "cameraId": payload.camera_id,
-        "roomId": payload.room_id,
-        "sessionType": rule.session_name,
+        "record_id": attendance_id,
+        "user_id": user_id,
+        "attendance_id": attendance_id,
+        "face_id": face_id,
+        "camera_id": payload.camera_id,
+        "room_id": payload.room_id,
+        "session_type": rule.session_name,
         "status": rule.status,
         "confidence": str(confidence),
         "timestamp": capture_time.isoformat(),
@@ -216,12 +216,12 @@ def list_attendance(user_id: str | None, date: str | None) -> list[AttendanceRec
 
 def _item_to_record(item: dict, is_duplicate: bool = False) -> AttendanceRecord:
     return AttendanceRecord(
-        attendance_id=item.get("attendanceId", ""),
-        user_id=item["userId"],
-        face_id=item.get("faceId", ""),
-        camera_id=item.get("cameraId", ""),
-        room_id=item.get("roomId", ""),
-        session_type=item.get("sessionType", ""),
+        attendance_id=item.get("attendance_id") or item.get("attendanceId", ""),
+        user_id=item.get("user_id") or item.get("userId", ""),
+        face_id=item.get("face_id") or item.get("faceId", ""),
+        camera_id=item.get("camera_id") or item.get("cameraId", ""),
+        room_id=item.get("room_id") or item.get("roomId", ""),
+        session_type=item.get("session_type") or item.get("sessionType", ""),
         status=item.get("status", "PRESENT"),
         confidence=float(item.get("confidence", 0)),
         timestamp=item.get("timestamp", ""),
