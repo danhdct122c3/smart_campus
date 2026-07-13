@@ -40,16 +40,11 @@ def _decode_image(image_base64: str) -> bytes:
     try:
         image_bytes = base64.b64decode(image_base64)
     except Exception:
-        raise AppException(
-            error_code=ErrorCode.FACE_INVALID_IMAGE,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Dữ liệu ảnh base64 không hợp lệ.",
-        )
+        raise AppException(ErrorCode.FACE_INVALID_IMAGE)
 
     if len(image_bytes) > _MAX_SIZE_BYTES:
         raise AppException(
-            error_code=ErrorCode.FACE_IMAGE_TOO_LARGE,
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            ErrorCode.FACE_IMAGE_TOO_LARGE,
             message=f"Ảnh vượt quá kích thước tối đa {_MAX_SIZE_BYTES // 1024 // 1024} MB.",
         )
 
@@ -57,11 +52,7 @@ def _decode_image(image_base64: str) -> bytes:
         if image_bytes[: len(magic)] == magic:
             return image_bytes
 
-    raise AppException(
-        error_code=ErrorCode.FACE_UNSUPPORTED_FORMAT,
-        status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-        message="Định dạng ảnh không được hỗ trợ. Chỉ chấp nhận JPEG và PNG.",
-    )
+    raise AppException(ErrorCode.FACE_UNSUPPORTED_FORMAT)
 
 
 def register_face(payload: FaceRegisterRequest) -> FaceResponse:
@@ -80,8 +71,7 @@ def register_face(payload: FaceRegisterRequest) -> FaceResponse:
         s3.upload_bytes(settings.image_bucket, s3_key, image_bytes)
     except Exception as exc:
         raise AppException(
-            error_code=ErrorCode.AWS_S3_ERROR,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ErrorCode.AWS_S3_ERROR,
             message=f"Không thể upload ảnh lên S3: {exc}",
         )
 
@@ -89,21 +79,12 @@ def register_face(payload: FaceRegisterRequest) -> FaceResponse:
     try:
         result = reko.index_face(image_bytes, external_image_id=payload.user_id)
     except reko.NoFaceDetectedError:
-        raise AppException(
-            error_code=ErrorCode.FACE_NO_FACE_DETECTED,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            message="Không phát hiện khuôn mặt trong ảnh. Vui lòng tải ảnh chụp rõ khuôn mặt.",
-        )
+        raise AppException(ErrorCode.FACE_NO_FACE_DETECTED)
     except reko.MultipleFacesError:
-        raise AppException(
-            error_code=ErrorCode.FACE_MULTIPLE_DETECTED,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            message="Phát hiện nhiều khuôn mặt. Vui lòng tải ảnh chỉ có một người.",
-        )
+        raise AppException(ErrorCode.FACE_MULTIPLE_DETECTED)
     except reko.RekognitionError as exc:
         raise AppException(
-            error_code=ErrorCode.AWS_REKOGNITION_ERROR,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ErrorCode.AWS_REKOGNITION_ERROR,
             message=f"Lỗi dịch vụ nhận diện khuôn mặt: {exc}",
         )
 

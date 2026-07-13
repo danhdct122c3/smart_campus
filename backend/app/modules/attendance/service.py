@@ -31,6 +31,7 @@ from app.shared.aws import (
     publish_attendance_recorded,
     publish_unknown_face_detected,
     publish_attendance_rejected,
+    ses,
 )
 from app.modules.users import service as user_service
 from app.modules.faces import repository as face_repo
@@ -53,22 +54,16 @@ def _decode_image(image_base64: str) -> bytes:
     try:
         data = base64.b64decode(image_base64)
     except Exception:
-        raise AppException(
-            error_code=ErrorCode.ATTENDANCE_INVALID_IMAGE,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Dữ liệu ảnh base64 không hợp lệ.",
-        )
+        raise AppException(ErrorCode.ATTENDANCE_INVALID_IMAGE)
     if len(data) > _MAX_SIZE_BYTES:
         raise AppException(
-            error_code=ErrorCode.ATTENDANCE_INVALID_IMAGE,
+            ErrorCode.ATTENDANCE_INVALID_IMAGE,
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            message="Ảnh vượt quá kích thước tối đa 5 MB.",
         )
     if not any(data[: len(magic)] == magic for magic in _ALLOWED_MAGIC):
         raise AppException(
-            error_code=ErrorCode.ATTENDANCE_INVALID_IMAGE,
+            ErrorCode.ATTENDANCE_INVALID_IMAGE,
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            message="Định dạng ảnh không được hỗ trợ. Chỉ chấp nhận JPEG và PNG.",
         )
     return data
 
@@ -84,11 +79,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
         try:
             capture_time = datetime.fromisoformat(payload.timestamp)
         except ValueError:
-            raise AppException(
-                error_code=ErrorCode.ATTENDANCE_INVALID_TIMESTAMP,
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Định dạng timestamp không hợp lệ. Sử dụng ISO-8601 (VD: 2026-07-06T09:00:00Z).",
-            )
+            raise AppException(ErrorCode.ATTENDANCE_INVALID_TIMESTAMP)
     else:
         capture_time = datetime.now(timezone.utc)
 
@@ -98,11 +89,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     try:
         match = reko.search_faces_by_image(image_bytes, threshold=80.0)
     except reko.NoFaceDetectedError:
-        raise AppException(
-            error_code=ErrorCode.FACE_NO_FACE_DETECTED,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            message="Không phát hiện khuôn mặt trong ảnh.",
-        )
+        raise AppException(ErrorCode.FACE_NO_FACE_DETECTED)
     except reko.FaceNotFoundError:
         # Unknown face – publish event and return 404
         s3_key = f"attendance/unknown/{payload.camera_id}/{capture_time.isoformat()}.jpg"
@@ -114,15 +101,10 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             )
         except Exception:
             pass
-        raise AppException(
-            error_code=ErrorCode.ATTENDANCE_UNKNOWN_FACE,
-            status_code=status.HTTP_404_NOT_FOUND,
-            message="Không nhận diện được khuôn mặt. Sự kiện UnknownFaceDetected đã được ghi nhận.",
-        )
+        raise AppException(ErrorCode.ATTENDANCE_UNKNOWN_FACE)
     except reko.RekognitionError as exc:
         raise AppException(
-            error_code=ErrorCode.AWS_REKOGNITION_ERROR,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ErrorCode.AWS_REKOGNITION_ERROR,
             message=f"Lỗi dịch vụ Rekognition: {exc}",
         )
 
@@ -196,6 +178,20 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     except Exception:
         pass  # Non-critical
 
+    # ── Step 8: Send personal email via SES ───────────────────────────────────
+    if user.email:
+        try:
+            ses.send_attendance_email(
+                to_email=user.email,
+                user_name=user.name,
+                timestamp=capture_time.isoformat(),
+                room_id=payload.room_id,
+                status=rule.status,
+                session_type=rule.session_name,
+            )
+        except Exception:
+            pass
+
     return AttendanceRecognizeResponse(
         success=True,
         message=f"Điểm danh thành công: {rule.status}",
@@ -206,11 +202,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
 def list_attendance(user_id: str | None, date: str | None) -> list[AttendanceRecord]:
     """Query attendance history."""
     if not user_id and not date:
-        raise AppException(
-            error_code=ErrorCode.ATTENDANCE_MISSING_FILTER,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Vui lòng cung cấp ít nhất một trong hai tham số: user_id hoặc date.",
-        )
+        raise AppException(ErrorCode.ATTENDANCE_MISSING_FILTER)
 
     if user_id:
         items = repo.list_by_user(user_id, date=date)

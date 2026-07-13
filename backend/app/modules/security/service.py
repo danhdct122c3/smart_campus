@@ -160,8 +160,7 @@ def get_incident(incident_id: str) -> SecurityIncident:
     item = repo.get_incident(incident_id)
     if not item:
         raise AppException(
-            error_code=ErrorCode.INTERNAL_ERROR,
-            status_code=status.HTTP_404_NOT_FOUND,
+            ErrorCode.INTERNAL_ERROR,
             message=f"Security incident '{incident_id}' không tồn tại.",
         )
     return _to_incident(item)
@@ -171,8 +170,7 @@ def resolve_incident(incident_id: str, payload: ResolveIncidentRequest) -> Secur
     existing = repo.get_incident(incident_id)
     if not existing:
         raise AppException(
-            error_code=ErrorCode.INTERNAL_ERROR,
-            status_code=status.HTTP_404_NOT_FOUND,
+            ErrorCode.INTERNAL_ERROR,
             message=f"Security incident '{incident_id}' không tồn tại.",
         )
     updated = repo.resolve_incident(incident_id, payload.resolution_note)

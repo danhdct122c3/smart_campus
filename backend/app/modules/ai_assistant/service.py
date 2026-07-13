@@ -85,7 +85,7 @@ def ask(payload: AIQueryRequest) -> AIQueryResponse:
         sql_query = _clean_sql(raw_sql)
     except BedrockError as exc:
         raise AppException(
-            error_code=ErrorCode.INTERNAL_ERROR,
+            ErrorCode.INTERNAL_ERROR,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             message=f"AI Service không khả dụng: {exc}",
         )
@@ -126,7 +126,7 @@ def _clean_sql(raw: str) -> str:
     # Safety: block non-SELECT statements
     if not sql.upper().lstrip().startswith("SELECT"):
         raise AppException(
-            error_code=ErrorCode.INTERNAL_ERROR,
+            ErrorCode.INTERNAL_ERROR,
             status_code=status.HTTP_400_BAD_REQUEST,
             message="AI chỉ được phép tạo câu SELECT.",
         )
