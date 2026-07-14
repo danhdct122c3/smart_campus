@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot } from 'lucide-react';
+import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2 } from 'lucide-react';
 
 const Sidebar = () => {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { name: 'Attendance', icon: Camera, path: '/attendance' },
+    { name: 'Analytics', icon: BarChart2, path: '/analytics' },
     { name: 'AI Assistant', icon: Bot, path: '/ai' },
     { name: 'Security', icon: ShieldAlert, path: '/security' },
     { name: 'Users & Faces', icon: Users, path: '/users' },

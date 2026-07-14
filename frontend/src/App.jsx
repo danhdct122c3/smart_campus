@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Notifications from './pages/Notifications';
 import Attendance from './pages/Attendance';
+import Analytics from './pages/Analytics';
 
 function App() {
   // Tạm thời tắt cơ chế bắt buộc đăng nhập (cho phép truy cập thẳng)
@@ -30,6 +31,7 @@ function App() {
           <Route path="ai" element={<AIAssistant />} />
           <Route path="users" element={<Users />} />
           <Route path="attendance" element={<Attendance />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="security" element={<div style={{padding:'2rem'}}>Security Page (Mock)</div>} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="*" element={<Navigate to="/" replace />} />
