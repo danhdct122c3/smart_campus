@@ -68,3 +68,90 @@ Tài liệu này tổng hợp toàn bộ các công việc, kiến trúc và tí
     - Fix lỗi `500 Internal Server Error` do Boto3 không hỗ trợ kiểu `Float` trả về từ Rekognition, tự động parse các giá trị BoundingBox sang `String` trước khi lưu vào cơ sở dữ liệu.
     - Đồng bộ tên Khóa chính PK từ `faceId` sang `face_id` chuẩn theo schema của bảng `smart-campus-faces`.
   - **Khắc phục lỗi Hệ thống (CORS Policy):** Sửa lỗi thiết lập cấu hình CORS trong `main.py` của FastAPI để chặn tình trạng browser báo lỗi `Failed to fetch` khi backend phát sinh exception.
+
+---
+
+## Giai đoạn 7: Hoàn thiện WF3 – Luồng Điểm danh (Attendance)
+
+- **Rule Engine (Nghiệp vụ Điểm danh):**
+  - Định nghĩa 3 ca học: `MORNING` (7:00–12:00), `AFTERNOON` (13:00–17:30), `EVENING` (17:30–21:00).
+  - Phân loại tự động: `PRESENT` (đúng giờ), `LATE` (muộn sau ngưỡng 15 phút), `REJECTED` (trùng lặp, ngoài ca).
+  - Cơ chế **Idempotency**: ngăn điểm danh trùng trong cùng một ca học.
+- **Backend – `attendance` module:**
+  - Repository với 3 GSI hỗ trợ truy vấn nhanh: `date-index`, `userid-index`.
+  - Service tích hợp `SearchFacesByImage` từ Rekognition, sau đó gọi Rule Engine và lưu kết quả vào DynamoDB.
+  - Publish event `AttendanceRecorded` / `AttendanceRejected` / `UnknownFaceDetected` lên EventBridge.
+- **Frontend – `Attendance.jsx`:**
+  - Giao diện quản lý bản ghi điểm danh, filter theo ngày và ca học.
+  - Hiển thị badge trạng thái (`PRESENT` / `LATE` / `REJECTED`) với màu sắc trực quan.
+
+---
+
+## Giai đoạn 8: Hoàn thiện WF4 – Luồng Thông báo (Notifications)
+
+- **Backend – `notifications` module (hoàn chỉnh):**
+  - **Message Templates:** Định nghĩa template thông báo cho 5 loại sự kiện: `AttendanceRecorded`, `AttendanceRejected`, `UnknownFaceDetected`, `SecurityIncidentCreated`, `Custom`.
+  - **Đa kênh (Multi-channel):** Hỗ trợ gửi qua `EMAIL`, `SMS`, `PUSH`, `TEAMS`, `SLACK`, `WEBHOOK`.
+  - **Gửi thực qua SNS:** Tích hợp `publish_to_topic()` qua Amazon SNS ARN.
+  - **Audit Trail:** Mỗi thông báo được lưu vào bảng `smart-campus-notifications` DynamoDB (trạng thái `SENT` / `FAILED`).
+  - **Publish Event:** Sau khi gửi thành công, publish sự kiện `NotificationSent` lên EventBridge để các module khác theo dõi.
+  - **Repository** với GSI `userId-sentAt-index` cho phép tra cứu lịch sử thông báo theo user và thời gian.
+- **Endpoints:**
+  - `GET /api/notifications` – Lịch sử thông báo (filter theo `user_id`).
+  - `POST /api/notifications/send` – Gửi thông báo thủ công (Admin).
+- **Frontend – `Notifications.jsx`:** Giao diện xem lịch sử thông báo đã gửi.
+
+---
+
+## Giai đoạn 9: Hoàn thiện WF5 – Analytics Pipeline (Báo cáo & Phân tích)
+
+### Backend
+
+- **Thiết kế 2 Phase:**
+  - **Phase 1 (DynamoDB):** Truy vấn trực tiếp bảng `smart-campus-attendance` — luôn sẵn sàng, không cần cấu hình thêm.
+  - **Phase 2 (Athena/S3 Data Lake):** Khi biến môi trường `ATHENA_OUTPUT_LOCATION` được cấu hình, hệ thống tự động chuyển sang query Athena với auto-fallback về DynamoDB nếu Athena lỗi.
+- **`analytics_worker.py` (Lambda):** Lắng nghe sự kiện `AttendanceRecorded` từ EventBridge → stream dữ liệu qua **Kinesis Firehose** → lưu xuống **S3 Data Lake** theo phân vùng `year/month/day` cho Glue Catalog và Athena.
+- **`reports/repository.py` (Tạo mới):** Layer truy cập dữ liệu thống nhất cho cả DynamoDB và Athena, hàm `get_trend_records()` / `get_user_records()` tự chọn nguồn tối ưu.
+- **Fix bug `get_report_summary()`:** Loại bỏ **double-query** (N×M DynamoDB reads) — chuyển sang **single-pass loop** tích lũy dữ liệu per-user trong cùng vòng lặp, giảm đáng kể số lần gọi DB.
+- **Fix `KeyError: userId`:** Xử lý không nhất quán giữa `camelCase` (`userId` trong attendance table) và `snake_case` (`user_id` trong users table) bằng cách dùng `r.get("userId") or r.get("user_id")`.
+- **4 REST Endpoints mới:**
+  | Endpoint | Mô tả | Nguồn dữ liệu |
+  |---|---|---|
+  | `GET /api/reports/summary` | Báo cáo tổng hợp kỳ | DynamoDB |
+  | `GET /api/reports/daily/{date}` | Báo cáo theo ngày/ca | DynamoDB |
+  | `GET /api/reports/trend` | Dữ liệu xu hướng cho biểu đồ | Athena → DynamoDB |
+  | `GET /api/reports/users/{id}/stats` | Thống kê chi tiết 1 user | Athena → DynamoDB |
+
+### Frontend
+
+- **Trang `Analytics.jsx` (Tạo mới):**
+  - **4 KPI Cards** hiển thị: Tỉ lệ điểm danh tổng thể, Tổng user, Số ca ghi nhận, Số người vắng nhiều nhất.
+  - **Area Chart** (Recharts): Xu hướng điểm danh theo ngày — phân biệt `Có mặt` và `Muộn` bằng màu sắc.
+  - **Bar Chart**: Top 8 người có tỉ lệ điểm danh thấp nhất.
+  - **User Lookup Panel**: Tra cứu theo User ID, hiển thị mini bar chart và bảng lịch sử điểm danh chi tiết.
+  - **Date Range Picker**: Chọn khoảng ngày tùy ý, tự động tải lại dữ liệu.
+  - **DataSource Badge**: Hiển thị rõ nguồn dữ liệu thực tế đang dùng (`Amazon Athena` hay `DynamoDB`).
+- **`Dashboard.jsx` (Nâng cấp):** Thay thế placeholder chart bằng **Area Chart thực** từ `/reports/trend`, KPI cards lấy số liệu thực từ `/reports/summary`.
+- **Thêm menu `Analytics`** vào Sidebar với icon `BarChart2`.
+- **Cài đặt thư viện `recharts`** cho data visualization.
+
+### Hạ tầng & Cấu hình
+
+- **Vite Proxy:** Thêm cấu hình proxy `/api → http://localhost:8000` trong `vite.config.js` để giải quyết triệt để CORS khi phát triển local — request từ frontend không cần gọi trực tiếp sang port 8000 nữa.
+- **API Base URL:** Chuẩn hóa `API_BASE = '/api'` (relative path) thay vì absolute URL để đảm bảo proxy hoạt động.
+
+---
+
+## Trạng thái Hiện tại (2026-07-14)
+
+| Workflow | Mô tả | Trạng thái |
+|:---|:---|:---:|
+| WF1 – Authentication | Cognito JWT | ✅ Hoàn thành |
+| WF2 – Face Registration | Rekognition IndexFaces + S3 | ✅ Hoàn thành |
+| WF3 – Attendance | SearchFacesByImage + Rule Engine | ✅ Hoàn thành |
+| WF4 – Notification | SNS Multi-channel + EventBridge | ✅ Hoàn thành |
+| WF5 – Analytics | DynamoDB + Athena + Dashboard | ✅ Hoàn thành |
+| WF6 – AI Assistant | Bedrock NL2SQL + Athena | 🔄 Đang phát triển |
+| WF7 – Security | Risk Engine + Incident Management | 🔄 Đang phát triển |
+| WF8 – Task Management | Event-Driven Task CRUD | 📋 Thiết kế xong |
+
