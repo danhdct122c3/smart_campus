@@ -1,29 +1,26 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield } from 'lucide-react';
+import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield, ScanFace, List } from 'lucide-react';
 import Card from '../components/Card';
+import PageHeader from '../components/ui/PageHeader';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 const CAMERA_ID = 'CAM-MAIN-001';
 const ROOM_ID = 'ROOM-A101';
 
 // ----- Status badge helper -----
 const StatusBadge = ({ status }) => {
   const map = {
-    PRESENT:   { color: 'var(--accent-success)',  label: 'Đúng giờ' },
-    LATE:      { color: 'var(--accent-warning)',  label: 'Muộn' },
-    INACTIVE:  { color: 'var(--text-muted)',      label: 'Không hoạt động' },
-    REJECTED:  { color: 'var(--accent-danger)',   label: 'Từ chối' },
-    DUPLICATE: { color: '#06b6d4',               label: 'Trùng lặp' },
+    PRESENT:   { variant: 'success',  label: 'Đúng giờ' },
+    LATE:      { variant: 'warning',  label: 'Muộn' },
+    INACTIVE:  { variant: 'default',  label: 'Không hoạt động' },
+    REJECTED:  { variant: 'danger',   label: 'Từ chối' },
+    DUPLICATE: { variant: 'info',     label: 'Trùng lặp' },
   };
-  const cfg = map[status] || { color: 'var(--text-muted)', label: status };
-  return (
-    <span style={{
-      fontSize: '0.7rem', fontWeight: 600, padding: '2px 10px', borderRadius: '999px',
-      background: cfg.color + '22', color: cfg.color, border: `1px solid ${cfg.color}55`,
-    }}>
-      {cfg.label}
-    </span>
-  );
+  const cfg = map[status] || { variant: 'default', label: status };
+  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 };
 
 // ----- Format timestamp -----
@@ -54,6 +51,8 @@ export default function Attendance() {
 
   // today string
   const todayStr = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [viewMode, setViewMode] = useState('summary'); // 'summary' | 'raw'
 
   // ---------- Camera ----------
   const startCamera = async () => {
@@ -62,11 +61,17 @@ export default function Attendance() {
       const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
       setStream(s);
       setCamActive(true);
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = s; }, 100);
     } catch (e) {
       setCamError('Không thể mở Camera: ' + e.message);
     }
   };
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(e => console.error("Video play error:", e));
+    }
+  }, [stream, camActive]);
 
   const stopCamera = () => {
     if (stream) stream.getTracks().forEach(t => t.stop());
@@ -74,6 +79,10 @@ export default function Attendance() {
     setCamActive(false);
     setAutoScan(false);
     autoScanRef.current = false;
+  };
+
+  const toggleAutoScan = () => {
+    setAutoScan(prev => !prev);
   };
 
   // ---------- Capture + Recognize ----------
@@ -147,14 +156,50 @@ export default function Attendance() {
   const fetchHistory = async () => {
     setLoadingHist(true);
     try {
-      const res = await fetch(`${API_BASE}/attendance?date=${todayStr}`);
+      const res = await fetch(`${API_BASE}/attendance?date=${selectedDate}`);
       const json = await res.json();
       if (res.ok && json.data) setHistory(json.data.items || []);
     } catch { /* ignore */ }
     finally { setLoadingHist(false); }
   };
 
-  useEffect(() => { fetchHistory(); }, []);
+  useEffect(() => { fetchHistory(); }, [selectedDate]);
+
+  // Aggregation for Check-in / Check-out
+  const aggregatedHistory = React.useMemo(() => {
+    const map = {};
+    history.forEach(item => {
+      const uid = item.userId;
+      if (!map[uid]) map[uid] = { userId: uid, events: [] };
+      map[uid].events.push(item);
+    });
+
+    return Object.values(map).map(userLog => {
+      userLog.events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const first = userLog.events[0];
+      const last = userLog.events[userLog.events.length - 1];
+      
+      const checkInTime = first.timestamp;
+      const checkOutTime = userLog.events.length > 1 ? last.timestamp : null;
+      
+      let workDuration = '—';
+      if (checkOutTime) {
+        const diffMs = new Date(checkOutTime) - new Date(checkInTime);
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+        workDuration = `${diffHrs}h ${diffMins}m`;
+      }
+
+      return {
+        userId: userLog.userId,
+        checkIn: checkInTime,
+        checkOut: checkOutTime,
+        duration: workDuration,
+        status: last.status, 
+        confidence: last.confidence
+      };
+    });
+  }, [history]);
 
   // ---------- Cleanup ----------
   useEffect(() => () => { if (stream) stream.getTracks().forEach(t => t.stop()); }, [stream]);
@@ -176,31 +221,18 @@ export default function Attendance() {
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '100%' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-            <Camera size={22} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: 'var(--accent-primary)' }} />
+      <PageHeader
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Camera size={22} color="var(--accent-primary)" />
             Điểm danh Khuôn mặt
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0.25rem 0 0' }}>
-            Hôm nay: {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{
-            fontSize: '0.75rem', padding: '4px 12px', borderRadius: '999px',
-            background: 'rgba(6,182,212,0.1)', color: 'var(--accent-primary)', border: '1px solid rgba(6,182,212,0.3)'
-          }}>
-            📍 {ROOM_ID}
           </span>
-          <span style={{
-            fontSize: '0.75rem', padding: '4px 12px', borderRadius: '999px',
-            background: 'rgba(139,92,246,0.1)', color: 'var(--accent-secondary)', border: '1px solid rgba(139,92,246,0.3)'
-          }}>
-            🎥 {CAMERA_ID}
-          </span>
-        </div>
-      </div>
+        }
+        description={`Hôm nay: ${new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`}
+      >
+        <Badge variant="info">📍 {ROOM_ID}</Badge>
+        <Badge variant="default" style={{ borderColor: 'var(--accent-secondary)', color: 'var(--accent-secondary)' }}>🎥 {CAMERA_ID}</Badge>
+      </PageHeader>
 
       {/* Main content: Camera + Result side by side */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -270,41 +302,33 @@ export default function Attendance() {
           )}
 
           {/* Controls */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
             {!camActive ? (
-              <button id="btn-start-cam" onClick={startCamera} style={{
-                flex: 1, background: 'var(--accent-primary)', color: 'white', border: 'none',
-                borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
-              }}>
-                <Camera size={18} /> Bật Camera
-              </button>
+              <Button variant="primary" icon={Camera} onClick={startCamera} style={{ flex: 1 }}>
+                Bật Camera
+              </Button>
             ) : (
               <>
-                <button id="btn-capture" onClick={captureAndRecognize} disabled={scanning} style={{
-                  flex: 2, background: scanning ? 'rgba(6,182,212,0.4)' : 'var(--accent-primary)',
-                  color: 'white', border: 'none', borderRadius: '8px',
-                  padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
-                }}>
-                  {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Shield size={18} />}
-                  {scanning ? 'Đang xử lý...' : 'Nhận diện ngay'}
-                </button>
-                <button id="btn-auto-scan" onClick={() => setAutoScan(p => !p)} style={{
-                  flex: 1, background: autoScan ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)',
-                  color: autoScan ? 'var(--accent-success)' : 'var(--text-muted)',
-                  border: `1px solid ${autoScan ? 'var(--accent-success)' : 'var(--glass-border)'}`,
-                  borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem'
-                }}>
-                  {autoScan ? '⏸ Tự động' : '▶ Tự động'}
-                </button>
-                <button id="btn-stop-cam" onClick={stopCamera} style={{
-                  background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
-                  border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px',
-                  padding: '0.75rem 1rem', cursor: 'pointer',
-                }}>
-                  <CameraOff size={18} />
-                </button>
+                <Button 
+                  variant="primary" 
+                  icon={ScanFace} 
+                  onClick={captureAndRecognize} 
+                  disabled={scanning || autoScan} 
+                  style={{ flex: 1 }}
+                >
+                  {scanning ? 'Đang quét...' : 'Nhận diện thủ công'}
+                </Button>
+                
+                <Button 
+                  variant={autoScan ? "danger" : "secondary"} 
+                  icon={RefreshCw} 
+                  onClick={toggleAutoScan}
+                  disabled={scanning && !autoScan}
+                >
+                  {autoScan ? 'Dừng Tự động' : 'Tự động'}
+                </Button>
+
+                <Button variant="danger" icon={CameraOff} onClick={stopCamera} />
               </>
             )}
           </div>
@@ -421,25 +445,108 @@ export default function Attendance() {
 
       {/* ---- History Table ---- */}
       <Card style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-            <Clock size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: 'var(--accent-primary)' }} />
-            Lịch sử điểm danh hôm nay ({todayStr})
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Clock size={16} color="var(--accent-primary)" />
+            Lịch sử Điểm danh
           </h2>
-          <button onClick={fetchHistory} style={{
-            background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)',
-            color: 'var(--text-muted)', borderRadius: '8px', padding: '0.4rem 0.75rem',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem',
-          }}>
-            <RefreshCw size={14} style={loadingHist ? { animation: 'spin 1s linear infinite' } : {}} />
-            Làm mới
-          </button>
+          
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={selectedDate === '' ? 'ALL' : 'DATE'}
+              onChange={e => {
+                if (e.target.value === 'ALL') setSelectedDate('');
+                else setSelectedDate(todayStr);
+              }}
+              style={{ 
+                padding: '0.4rem 0.75rem', height: '34px', fontSize: '0.8rem', 
+                background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', 
+                border: '1px solid var(--glass-border)', borderRadius: '6px' 
+              }}
+            >
+              <option value="DATE">Xem theo ngày</option>
+              <option value="ALL">Xem tất cả</option>
+            </select>
+            
+            {selectedDate !== '' && (
+              <Input 
+                type="date" 
+                value={selectedDate} 
+                onChange={e => setSelectedDate(e.target.value)}
+                style={{ padding: '0.4rem 0.75rem', height: '34px', fontSize: '0.8rem' }}
+              />
+            )}
+            
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
+              <button 
+                onClick={() => setViewMode('summary')}
+                style={{
+                  background: viewMode === 'summary' ? 'var(--accent-primary)' : 'transparent',
+                  color: viewMode === 'summary' ? 'white' : 'var(--text-muted)',
+                  border: 'none', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.8rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600
+                }}>
+                <Users size={14} /> Log Vào/Ra
+              </button>
+              <button 
+                onClick={() => setViewMode('raw')}
+                style={{
+                  background: viewMode === 'raw' ? 'var(--accent-primary)' : 'transparent',
+                  color: viewMode === 'raw' ? 'white' : 'var(--text-muted)',
+                  border: 'none', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.8rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600
+                }}>
+                <List size={14} /> Lịch sử quét
+              </button>
+            </div>
+
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchHistory} disabled={loadingHist}>
+              {loadingHist ? 'Đang tải...' : 'Làm mới'}
+            </Button>
+          </div>
         </div>
 
         {history.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
             <Users size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-            <p style={{ fontSize: '0.875rem' }}>Chưa có dữ liệu điểm danh hôm nay</p>
+            <p style={{ fontSize: '0.875rem' }}>
+              {selectedDate === '' ? 'Chưa có bất kỳ dữ liệu điểm danh nào.' : `Chưa có dữ liệu điểm danh cho ngày ${selectedDate}`}
+            </p>
+          </div>
+        ) : viewMode === 'summary' ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  {['#', 'Mã nhân sự', 'Giờ Vào (Check-in)', 'Giờ Ra (Check-out)', 'Thời gian làm', 'Trạng thái (gần nhất)'].map(h => (
+                    <th key={h} style={{
+                      padding: '0.6rem 0.75rem', textAlign: 'left',
+                      color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.75rem',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {aggregatedHistory.map((item, idx) => (
+                  <tr key={item.userId} style={{
+                    borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.15s'
+                  }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                    <td style={{ padding: '0.7rem 0.75rem', fontWeight: 600 }}>{item.userId}</td>
+                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--accent-success)', fontFamily: 'monospace' }}>
+                      {formatTime(item.checkIn)}
+                    </td>
+                    <td style={{ padding: '0.7rem 0.75rem', color: item.checkOut ? 'var(--accent-warning)' : 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      {item.checkOut ? formatTime(item.checkOut) : 'Đang làm việc'}
+                    </td>
+                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                      {item.duration}
+                    </td>
+                    <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge status={item.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

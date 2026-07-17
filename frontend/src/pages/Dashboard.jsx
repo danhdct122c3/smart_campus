@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, Camera, ShieldAlert, CheckCircle, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
 import Card from '../components/Card';
+import PageHeader from '../components/ui/PageHeader';
+import Badge from '../components/ui/Badge';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -95,10 +97,10 @@ const Dashboard = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div>
-        <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Campus Overview</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Real-time attendance and security monitoring.</p>
-      </div>
+      <PageHeader 
+        title="Campus Overview" 
+        description="Real-time attendance and security monitoring."
+      />
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>

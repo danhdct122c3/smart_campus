@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Mail, MessageSquare, AlertTriangle, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
+import Input from '../components/ui/Input';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -52,19 +56,9 @@ const Notifications = () => {
   const getStatusBadge = (status) => {
     const isSuccess = status === 'SENT';
     return (
-      <span style={{
-        padding: '4px 10px',
-        borderRadius: '20px',
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        background: isSuccess ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-        color: isSuccess ? 'var(--status-success)' : 'var(--status-error)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px'
-      }}>
+      <Badge variant={isSuccess ? 'success' : 'danger'}>
         {isSuccess ? 'Thành công' : 'Thất bại'}
-      </span>
+      </Badge>
     );
   };
 
@@ -76,34 +70,26 @@ const Notifications = () => {
   });
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-            Lịch sử Thông báo (Notifications)
-          </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Quản lý hệ thống gửi Email và SMS tự động.</p>
-        </div>
-      </div>
+    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <PageHeader 
+        title="Lịch sử Thông báo (Notifications)" 
+        description="Quản lý hệ thống gửi Email và SMS tự động."
+      >
+        <Button variant="primary" icon={Mail} onClick={() => alert('Tính năng đang phát triển')}>
+          Gửi thông báo
+        </Button>
+      </PageHeader>
 
       {/* Toolbar */}
-      <div style={{ 
-        display: 'flex', gap: '1rem', marginBottom: '1.5rem', 
-        background: 'var(--bg-panel)', padding: '1rem', borderRadius: '12px',
-        border: '1px solid var(--glass-border)'
+      <div className="glass-panel" style={{ 
+        display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem'
       }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
+        <div style={{ flex: 1 }}>
+          <Input 
+            icon={Search}
             placeholder="Tìm theo chủ đề hoặc Mã người dùng..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem',
-              background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--glass-border)',
-              borderRadius: '8px', color: 'var(--text-primary)', outline: 'none'
-            }}
           />
         </div>
         

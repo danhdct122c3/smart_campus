@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Loader, Edit2 } from 'lucide-react';
+import { Users as UsersIcon, Plus, Search, Filter, Loader, Edit2, ShieldCheck, ShieldAlert, X } from 'lucide-react';
 import Card from '../components/Card';
+import PageHeader from '../components/ui/PageHeader';
+import Input from '../components/ui/Input';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api/users';
 
@@ -121,23 +125,14 @@ const Users = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <UsersIcon color="var(--accent-primary)" /> Users & Faces
-          </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Quản lý người dùng và dữ liệu nhận diện khuôn mặt.</p>
-        </div>
-        <button 
-          onClick={handleOpenAdd}
-          style={{
-            background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
-            padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
-            fontWeight: 500
-          }}>
-          <Plus size={18} /> Add User
-        </button>
-      </div>
+      <PageHeader
+        title={<span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}><UsersIcon color="var(--accent-primary)" /> Users & Faces</span>}
+        description="Quản lý người dùng và dữ liệu nhận diện khuôn mặt."
+      >
+        <Button variant="primary" icon={Plus} onClick={handleOpenAdd}>
+          Add User
+        </Button>
+      </PageHeader>
 
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
@@ -169,24 +164,15 @@ const Users = () => {
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user.email}</p>
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <span style={{ 
-                      background: 'rgba(255,255,255,0.05)', padding: '0.25rem 0.5rem', 
-                      borderRadius: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'
-                    }}>
-                      {user.role}
-                    </span>
+                    <Badge variant="secondary">{user.role}</Badge>
                   </td>
                   <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
                     {user.employee_id || '-'}
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <span style={{ 
-                      background: user.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      color: user.status === 'ACTIVE' ? 'var(--accent-success)' : 'var(--accent-danger)',
-                      padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600
-                    }}>
+                    <Badge variant={user.status === 'ACTIVE' ? 'success' : 'danger'}>
                       {user.status}
-                    </span>
+                    </Badge>
                   </td>
                   <td style={{ padding: '1rem' }}>
                     {user.face_registered ? (
@@ -239,18 +225,16 @@ const Users = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Họ và tên</label>
-                <input 
+                <Input 
                   required name="name" value={formData.name} onChange={handleChange}
-                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }} 
                   placeholder="VD: Nguyễn Văn A"
                 />
               </div>
               
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Email</label>
-                <input 
+                <Input 
                   required type="email" name="email" value={formData.email} onChange={handleChange}
-                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }} 
                   placeholder="VD: a@example.com"
                 />
               </div>
@@ -273,11 +257,11 @@ const Users = () => {
               {!editMode && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Mã nhân sự / SV (Tự động tạo)</label>
-                  <input 
+                  <Input 
                     readOnly
                     name="employee_id" value={formData.employee_id} onChange={handleChange}
-                    style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'not-allowed' }} 
                     placeholder="VD: EMP-001"
+                    style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                   />
                 </div>
               )}
@@ -296,15 +280,14 @@ const Users = () => {
                 </div>
               )}
 
-              <button 
+              <Button 
                 type="submit" 
                 disabled={isSubmitting}
-                style={{
-                  background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
-                  padding: '0.875rem', marginTop: '0.5rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
-                }}>
+                variant="primary"
+                style={{ marginTop: '0.5rem' }}
+              >
                 {isSubmitting ? 'Đang lưu...' : (editMode ? 'Cập nhật' : 'Tạo mới')}
-              </button>
+              </Button>
             </form>
           </Card>
         </div>

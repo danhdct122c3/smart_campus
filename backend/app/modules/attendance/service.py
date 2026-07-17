@@ -202,15 +202,17 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
 def list_attendance(user_id: str | None, date: str | None) -> list[AttendanceRecord]:
     """Query attendance history."""
     if not user_id and not date:
-        raise AppException(ErrorCode.ATTENDANCE_MISSING_FILTER)
-
-    if user_id:
+        items = repo.list_all()
+    elif user_id:
         items = repo.list_by_user(user_id, date=date)
     else:
         from .rule_engine import SESSIONS
         items = []
         for session in SESSIONS:
             items.extend(repo.list_by_date_session(date, session.name))
+    
+    # Sort items by timestamp descending
+    items.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return [_item_to_record(i) for i in items]
 
 

@@ -47,3 +47,8 @@ def list_by_user(user_id: str, date: str | None = None) -> list[dict]:
     if date:
         kwargs["filter_expression"] = Attr("date").begins_with(date)
     return query_items(**kwargs)
+
+def list_all(limit: int = 1000) -> list[dict]:
+    """Scan all attendance records (use with caution in prod)."""
+    from app.shared.aws.dynamodb import scan_items
+    return scan_items(TABLE, limit=limit)
