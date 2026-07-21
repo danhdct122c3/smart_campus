@@ -73,10 +73,12 @@ def create_app() -> FastAPI:
     @application.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Catch-all – tránh lộ stack trace ra ngoài môi trường production."""
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content=APIResponse.error(
-                code=ErrorCode.INTERNAL_ERROR,
+                code=ErrorCode.INTERNAL_ERROR.code,
                 message="Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
             ).model_dump(),
         )

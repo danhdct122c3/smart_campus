@@ -18,6 +18,7 @@ const Users = () => {
     name: '',
     email: '',
     role: 'STUDENT',
+    department: 'NONE',
     employee_id: '',
     status: 'ACTIVE'
   });
@@ -76,6 +77,7 @@ const Users = () => {
       name: user.name, 
       email: user.email, 
       role: user.role, 
+      department: user.department || 'NONE',
       employee_id: user.employee_id || '',
       status: user.status || 'ACTIVE'
     });
@@ -98,6 +100,7 @@ const Users = () => {
           name: formData.name,
           email: formData.email,
           role: formData.role,
+          department: formData.department !== 'NONE' ? formData.department : null,
           status: formData.status
         };
       }
@@ -264,9 +267,25 @@ const Users = () => {
                   <option value="STUDENT" style={{ color: 'black' }}>Sinh viên (Student)</option>
                   <option value="STAFF" style={{ color: 'black' }}>Nhân viên (Staff)</option>
                   <option value="ADMIN" style={{ color: 'black' }}>Quản trị viên (Admin)</option>
+                  <option value="DIRECTOR" style={{ color: 'black' }}>Giám đốc (Director)</option>
                   <option value="MANAGER" style={{ color: 'black' }}>Quản lý (Manager)</option>
                   <option value="SECURITY" style={{ color: 'black' }}>Bảo vệ (Security)</option>
                   <option value="MAINTENANCE" style={{ color: 'black' }}>Bảo trì (Maintenance)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Phòng ban</label>
+                <select 
+                  name="department" value={formData.department} onChange={handleChange}
+                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                >
+                  <option value="NONE" style={{ color: 'black' }}>Không thuộc phòng ban nào</option>
+                  <option value="IT" style={{ color: 'black' }}>Công nghệ thông tin (IT)</option>
+                  <option value="MAINTENANCE" style={{ color: 'black' }}>Bảo trì cơ sở vật chất (Maintenance)</option>
+                  <option value="SECURITY" style={{ color: 'black' }}>An ninh bảo vệ (Security)</option>
+                  <option value="HR" style={{ color: 'black' }}>Nhân sự (HR)</option>
+                  <option value="ADMIN" style={{ color: 'black' }}>Hành chính (Admin)</option>
                 </select>
               </div>
 

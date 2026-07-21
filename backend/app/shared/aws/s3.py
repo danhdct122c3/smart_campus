@@ -7,9 +7,16 @@ from botocore.exceptions import ClientError
 from app.core.config import settings
 
 
+from botocore.config import Config
+
 @lru_cache
 def get_s3_client():
-    return boto3.client("s3", region_name=settings.aws_region)
+    return boto3.client(
+        "s3", 
+        region_name=settings.aws_region,
+        endpoint_url=f"https://s3.{settings.aws_region}.amazonaws.com",
+        config=Config(signature_version='s3v4')
+    )
 
 
 def upload_bytes(
