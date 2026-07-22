@@ -54,6 +54,26 @@ _TEMPLATES: dict[NotificationEventType, dict] = {
         "subject": "[Smart Campus] Thông báo",
         "message": "{message}",
     },
+    NotificationEventType.TASK_ASSIGNED: {
+        "subject": "[Smart Campus] Bạn có công việc mới",
+        "message": "Bạn vừa được giao công việc \"{task_title}\" bởi {reporter_name}. Hãy kiểm tra và bắt đầu thực hiện.",
+    },
+    NotificationEventType.TASK_STATUS_CHANGED: {
+        "subject": "[Smart Campus] Cập nhật trạng thái công việc",
+        "message": "Công việc \"{task_title}\" đã được cập nhật sang trạng thái: {new_status}.",
+    },
+    NotificationEventType.TASK_SUBMITTED: {
+        "subject": "[Smart Campus] Công việc đã được nộp báo cáo",
+        "message": "{assignee_name} đã nộp báo cáo cho công việc \"{task_title}\". Vui lòng kiểm tra và duyệt.",
+    },
+    NotificationEventType.TASK_COMPLETED: {
+        "subject": "[Smart Campus] Công việc đã hoàn thành",
+        "message": "Công việc \"{task_title}\" đã được duyệt hoàn thành.",
+    },
+    NotificationEventType.INCIDENT_REPORTED: {
+        "subject": "[Smart Campus] Sự cố mới cần xử lý",
+        "message": "{reporter_name} vừa báo cáo sự cố \"{task_title}\". Vui lòng kiểm tra và phân công xử lý.",
+    },
 }
 
 
@@ -175,6 +195,39 @@ def send_rejection_notification(
         user_id=user_id,
         channel=channel,
         event_type=NotificationEventType.ATTENDANCE_REJECTED,
+        subject=content["subject"],
+        message=content["message"],
+        status_val=final_status,
+        error_message=error_msg,
+    )
+
+
+def send_task_notification(
+    user_id: str,
+    event_type: NotificationEventType,
+    context: dict,
+    channel: NotificationChannel = NotificationChannel.PUSH,
+) -> NotificationRecord:
+    """Send a task-related notification to a user."""
+    content = _build_message(event_type, context)
+
+    error_msg = None
+    final_status = NotificationStatus.SENT
+    try:
+        if settings.notification_topic_arn:
+            publish_to_topic(
+                topic_arn=settings.notification_topic_arn,
+                subject=content["subject"],
+                message=content["message"],
+            )
+    except Exception as exc:
+        error_msg = str(exc)
+        final_status = NotificationStatus.FAILED
+
+    return _persist_and_notify(
+        user_id=user_id,
+        channel=channel,
+        event_type=event_type,
         subject=content["subject"],
         message=content["message"],
         status_val=final_status,

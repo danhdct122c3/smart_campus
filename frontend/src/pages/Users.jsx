@@ -12,7 +12,7 @@ const Users = () => {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -31,7 +31,7 @@ const Users = () => {
     try {
       if (loadMore) setLoadingMore(true);
       else setLoading(true);
-      
+
       let url = `${API_BASE_URL}?limit=30`;
       if (loadMore && cursor) {
         url += `&cursor=${encodeURIComponent(cursor)}`;
@@ -40,7 +40,7 @@ const Users = () => {
       const res = await fetch(url);
       if (!res.ok) throw new Error('Không thể lấy danh sách API');
       const json = await res.json();
-      
+
       const newItems = json.data.items || [];
       if (loadMore) {
         setUsers(prev => [...prev, ...newItems]);
@@ -49,7 +49,7 @@ const Users = () => {
         setUsers(newItems);
         setCurrentPage(1);
       }
-      
+
       setCursor(json.data.next_key);
       setHasMore(!!json.data.next_key);
       setError(null);
@@ -83,12 +83,12 @@ const Users = () => {
   const handleOpenAdd = () => {
     setEditMode(false);
     setEditUserId(null);
-    setFormData({ 
-      name: '', 
-      email: '', 
-      role: 'STUDENT', 
-      employee_id: `STU-${Math.floor(1000 + Math.random() * 9000)}`, 
-      status: 'ACTIVE' 
+    setFormData({
+      name: '',
+      email: '',
+      role: 'STUDENT',
+      employee_id: `STU-${Math.floor(1000 + Math.random() * 9000)}`,
+      status: 'ACTIVE'
     });
     setShowModal(true);
   };
@@ -96,10 +96,10 @@ const Users = () => {
   const handleOpenEdit = (user) => {
     setEditMode(true);
     setEditUserId(user.user_id);
-    setFormData({ 
-      name: user.name, 
-      email: user.email, 
-      role: user.role, 
+    setFormData({
+      name: user.name,
+      email: user.email,
+      role: user.role,
       department: user.department || 'NONE',
       employee_id: user.employee_id || '',
       status: user.status || 'ACTIVE'
@@ -111,7 +111,7 @@ const Users = () => {
     e.preventDefault();
     try {
       setIsSubmitting(true);
-      
+
       let url = API_BASE_URL;
       let method = 'POST';
       let bodyData = formData;
@@ -135,7 +135,7 @@ const Users = () => {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || `Lỗi khi ${editMode ? 'cập nhật' : 'tạo'} người dùng`);
-      
+
       setShowModal(false);
       fetchUsers(); // Tải lại danh sách
     } catch (err) {
@@ -158,7 +158,7 @@ const Users = () => {
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>Quản lý người dùng và dữ liệu nhận diện khuôn mặt.</p>
         </div>
-        <button 
+        <button
           onClick={handleOpenAdd}
           style={{
             background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
@@ -181,111 +181,111 @@ const Users = () => {
           </div>
         ) : (
           <>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Họ Tên & Email</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Vai trò</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã nhân sự</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Trạng thái</th>
-                <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khuôn mặt</th>
-                <th style={{ padding: '1rem', width: '50px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleUsers.map((user, idx) => (
-                <tr key={user.user_id} style={{ borderBottom: idx === visibleUsers.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '1rem' }}>
-                    <p style={{ margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>{user.name}</p>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user.email}</p>
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{ 
-                      background: 'rgba(255,255,255,0.05)', padding: '0.25rem 0.5rem', 
-                      borderRadius: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'
-                    }}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
-                    {user.employee_id || '-'}
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{ 
-                      background: user.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      color: user.status === 'ACTIVE' ? 'var(--accent-success)' : 'var(--accent-danger)',
-                      padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600
-                    }}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    {user.face_id ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-success)', fontSize: '0.875rem' }}>
-                        <ShieldCheck size={16} /> Đã đăng ký
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                        <ShieldAlert size={16} /> Chưa có
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <button 
-                      onClick={() => handleOpenEdit(user)}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Edit2 size={18} />
-                    </button>
-                  </td>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Họ Tên & Email</th>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Vai trò</th>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã nhân sự</th>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Trạng thái</th>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khuôn mặt</th>
+                  <th style={{ padding: '1rem', width: '50px' }}></th>
                 </tr>
-              ))}
-              {visibleUsers.length === 0 && (
-                <tr>
-                  <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Chưa có người dùng nào.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          
-          {users.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <button 
-                disabled={currentPage === 1} 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>
-                &lt;
-              </button>
-              
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  style={{
-                    background: currentPage === page ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
-                    color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: 'pointer'
-                  }}
-                >
-                  {page}
-                </button>
-              ))}
+              </thead>
+              <tbody>
+                {visibleUsers.map((user, idx) => (
+                  <tr key={user.user_id} style={{ borderBottom: idx === visibleUsers.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '1rem' }}>
+                      <p style={{ margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>{user.name}</p>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user.email}</p>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        background: 'rgba(255,255,255,0.05)', padding: '0.25rem 0.5rem',
+                        borderRadius: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'
+                      }}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
+                      {user.employee_id || '-'}
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        background: user.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        color: user.status === 'ACTIVE' ? 'var(--accent-success)' : 'var(--accent-danger)',
+                        padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600
+                      }}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      {user.face_id ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-success)', fontSize: '0.875rem' }}>
+                          <ShieldCheck size={16} /> Đã đăng ký
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                          <ShieldAlert size={16} /> Chưa có
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleOpenEdit(user)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Edit2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {visibleUsers.length === 0 && (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Chưa có người dùng nào.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
 
-              <button 
-                disabled={currentPage === totalPages && !hasMore}
-                onClick={() => {
-                  if (currentPage < totalPages) {
-                    setCurrentPage(p => p + 1);
-                  } else if (hasMore) {
-                    fetchUsers(true);
-                  }
-                }}
-                style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: (currentPage === totalPages && !hasMore) ? 'not-allowed' : 'pointer', opacity: (currentPage === totalPages && !hasMore) ? 0.5 : 1 }}>
-                {loadingMore && currentPage === totalPages ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : '&gt;'}
-              </button>
-            </div>
-          )}
-        </>
+            {users.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>
+                  &lt;
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    style={{
+                      background: currentPage === page ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                      color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: 'pointer'
+                    }}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  disabled={currentPage === totalPages && !hasMore}
+                  onClick={() => {
+                    if (currentPage < totalPages) {
+                      setCurrentPage(p => p + 1);
+                    } else if (hasMore) {
+                      fetchUsers(true);
+                    }
+                  }}
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: (currentPage === totalPages && !hasMore) ? 'not-allowed' : 'pointer', opacity: (currentPage === totalPages && !hasMore) ? 0.5 : 1 }}>
+                  {loadingMore && currentPage === totalPages ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : '>'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </Card>
 
@@ -297,36 +297,36 @@ const Users = () => {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
           <Card style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', position: 'relative' }}>
-            <button 
+            <button
               onClick={() => setShowModal(false)}
               style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
             >
               <X size={20} />
             </button>
             <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem' }}>{editMode ? 'Chỉnh sửa User' : 'Thêm người dùng'}</h2>
-            
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Họ và tên</label>
-                <input 
+                <input
                   required name="name" value={formData.name} onChange={handleChange}
-                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }} 
+                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                   placeholder="VD: Nguyễn Văn A"
                 />
               </div>
-              
+
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Email</label>
-                <input 
+                <input
                   required type="email" name="email" value={formData.email} onChange={handleChange}
-                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }} 
+                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                   placeholder="VD: a@example.com"
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Vai trò</label>
-                <select 
+                <select
                   name="role" value={formData.role} onChange={handleChange}
                   style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                 >
@@ -342,7 +342,7 @@ const Users = () => {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Phòng ban</label>
-                <select 
+                <select
                   name="department" value={formData.department} onChange={handleChange}
                   style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                 >
@@ -358,10 +358,10 @@ const Users = () => {
               {!editMode && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Mã nhân sự / SV (Tự động tạo)</label>
-                  <input 
+                  <input
                     readOnly
                     name="employee_id" value={formData.employee_id} onChange={handleChange}
-                    style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'not-allowed' }} 
+                    style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                     placeholder="VD: EMP-001"
                   />
                 </div>
@@ -370,7 +370,7 @@ const Users = () => {
               {editMode && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Trạng thái</label>
-                  <select 
+                  <select
                     name="status" value={formData.status} onChange={handleChange}
                     style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                   >
@@ -381,8 +381,8 @@ const Users = () => {
                 </div>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isSubmitting}
                 style={{
                   background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',

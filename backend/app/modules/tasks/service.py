@@ -17,6 +17,26 @@ from . import repository as repo
 from app.shared.aws.s3 import get_presigned_url
 from app.core.config import settings
 
+
+def _get_user_name(user_id: str) -> str:
+    """Helper to get user's display name."""
+    try:
+        from app.modules.users.repository import get_user_by_id
+        user = get_user_by_id(user_id)
+        return user.get("name", user_id) if user else user_id
+    except Exception:
+        return user_id
+
+
+def _send_task_notif(user_id: str, event_type, context: dict):
+    """Fire-and-forget task notification (non-blocking)."""
+    try:
+        from app.modules.notifications.service import send_task_notification
+        from app.modules.notifications.schemas import NotificationEventType
+        send_task_notification(user_id=user_id, event_type=event_type, context=context)
+    except Exception:
+        pass  # Notification failure should never block task operations
+
 def _sign_url(url: str | None) -> str | None:
     if not url: return None
     # Extract the key. We know our keys always start with 'tasks/'
@@ -51,12 +71,22 @@ def create_task(payload: TaskCreate) -> TaskResponse:
     task_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     
+    assignee_id = payload.assignee_id
+    
+    if payload.task_type == TaskType.INCIDENT and payload.department:
+        from app.modules.users.repository import list_users
+        users, _ = list_users(role="MANAGER")
+        for u in users:
+            if u.get("department") == payload.department.value:
+                assignee_id = u.get("user_id")
+                break
+                
     item = {
         "task_id": task_id,
         "title": payload.title,
         "description": payload.description,
         "reporter_id": payload.reporter_id,
-        "assignee_id": payload.assignee_id,
+        "assignee_id": assignee_id,
         "parent_task_id": payload.parent_task_id,
         "status": TaskStatus.OPEN.value,
         "priority": payload.priority.value,
@@ -77,9 +107,23 @@ def create_task(payload: TaskCreate) -> TaskResponse:
     
     repo.save_task(item)
     
-    # Optional: Publish TaskAssigned Event to EventBridge here (Workflow 8 -> Workflow 4)
-    # from app.shared.aws.eventbridge import publish_event
-    # publish_event(DetailType="TaskAssigned", Detail={"task_id": task_id, "assignee_id": payload.assignee_id})
+    # ── Send notifications ──
+    from app.modules.notifications.schemas import NotificationEventType
+    reporter_name = _get_user_name(payload.reporter_id)
+    
+    if payload.task_type == TaskType.INCIDENT:
+        # Notify the maintenance manager about the new incident
+        if assignee_id:
+            _send_task_notif(assignee_id, NotificationEventType.INCIDENT_REPORTED, {
+                "task_title": payload.title,
+                "reporter_name": reporter_name,
+            })
+    elif assignee_id:
+        # Standard task: notify assignee
+        _send_task_notif(assignee_id, NotificationEventType.TASK_ASSIGNED, {
+            "task_title": payload.title,
+            "reporter_name": reporter_name,
+        })
     
     return _item_to_record(item)
 
@@ -111,8 +155,8 @@ def list_tasks(
     return [_item_to_record(i) for i in items], next_key
 
 def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse:
-    from app.modules.users.repository import get_user
-    current_user = get_user(user_id)
+    from app.modules.users.repository import get_user_by_id
+    current_user = get_user_by_id(user_id)
     if not current_user:
         raise AppException(ErrorCode.UNAUTHORIZED, message="User not found")
         
@@ -122,10 +166,19 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
 
     is_admin = current_user.get("role") == "ADMIN"
     is_reporter = current_user.get("user_id") == existing.get("reporter_id")
+    is_assignee = current_user.get("user_id") == existing.get("assignee_id")
     
-    if not (is_admin or is_reporter):
-        raise AppException(ErrorCode.FORBIDDEN, message="Chỉ Admin hoặc người tạo mới được sửa")
+    update_data = payload.model_dump(exclude_unset=True)
+    
+    if not (is_admin or is_reporter or is_assignee):
+        raise AppException(ErrorCode.FORBIDDEN, message="Chỉ Admin, người tạo hoặc người thực hiện mới được thao tác")
         
+    if is_assignee and not (is_admin or is_reporter):
+        if current_user.get("role") != "MANAGER":
+            allowed_assignee_fields = {"status", "submission_file_url", "submission_note"}
+            if any(k not in allowed_assignee_fields for k in update_data.keys()):
+                raise AppException(ErrorCode.FORBIDDEN, message="Người thực hiện không có quyền thay đổi thông tin này")
+            
     if existing.get("status") in ["DONE", "CANCELLED"] and not is_admin:
         raise AppException(ErrorCode.BAD_REQUEST, message="Không thể sửa công việc đã hoàn thành hoặc đã hủy")
         
@@ -133,7 +186,6 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
     expr_vals = {":now": datetime.now(timezone.utc).isoformat()}
     expr_names = {}
     
-    update_data = payload.model_dump(exclude_unset=True)
     for k, v in update_data.items():
         if v is not None:
             # use expression names for reserved words if any (e.g. status)
@@ -154,6 +206,48 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
         kwargs["expr_names"] = expr_names
         
     updated_item = repo.update_task_in_db(**kwargs)
+    
+    # ── Send notifications for important updates ──
+    from app.modules.notifications.schemas import NotificationEventType
+    task_title = existing.get("title", "")
+    
+    # If status changed to IN_REVIEW => notify reporter that assignee submitted
+    new_status = update_data.get("status")
+    if new_status:
+        status_val = new_status.value if hasattr(new_status, 'value') else new_status
+        if status_val == "IN_REVIEW":
+            reporter_id = existing.get("reporter_id")
+            if reporter_id:
+                assignee_name = _get_user_name(user_id)
+                _send_task_notif(reporter_id, NotificationEventType.TASK_SUBMITTED, {
+                    "task_title": task_title,
+                    "assignee_name": assignee_name,
+                })
+        elif status_val == "COMPLETED":
+            # Notify assignee that their work was approved
+            assignee_id = existing.get("assignee_id")
+            if assignee_id:
+                _send_task_notif(assignee_id, NotificationEventType.TASK_COMPLETED, {
+                    "task_title": task_title,
+                })
+        elif status_val == "IN_PROGRESS" and existing.get("status") == "IN_REVIEW":
+            # Rejected: notify assignee to redo
+            assignee_id = existing.get("assignee_id")
+            if assignee_id:
+                _send_task_notif(assignee_id, NotificationEventType.TASK_STATUS_CHANGED, {
+                    "task_title": task_title,
+                    "new_status": "Bị từ chối - Cần làm lại",
+                })
+    
+    # If assignee changed (re-assignment / dispatching)
+    new_assignee = update_data.get("assignee_id")
+    if new_assignee and new_assignee != existing.get("assignee_id"):
+        reporter_name = _get_user_name(user_id)
+        _send_task_notif(new_assignee, NotificationEventType.TASK_ASSIGNED, {
+            "task_title": task_title,
+            "reporter_name": reporter_name,
+        })
+    
     return get_task(task_id)
 
 def update_task_status(task_id: str, payload: TaskStatusUpdate) -> TaskResponse:
@@ -171,10 +265,33 @@ def update_task_status(task_id: str, payload: TaskStatusUpdate) -> TaskResponse:
         expr_names={"#status": "status"}
     )
     
-    # Optional: If status is DONE, publish TaskCompleted Event
-    # if payload.status == TaskStatus.DONE:
-    #     publish_event(DetailType="TaskCompleted", Detail={"task_id": task_id})
-        
+    # ── Send notifications ──
+    from app.modules.notifications.schemas import NotificationEventType
+    task_title = existing.get("title", "")
+    
+    STATUS_LABELS = {
+        "OPEN": "Chờ phân công",
+        "IN_PROGRESS": "Đang thực hiện",
+        "IN_REVIEW": "Chờ duyệt",
+        "COMPLETED": "Hoàn thành",
+        "CANCELLED": "Đã hủy",
+    }
+    
+    # Notify assignee about the status change
+    assignee_id = existing.get("assignee_id")
+    if assignee_id:
+        _send_task_notif(assignee_id, NotificationEventType.TASK_STATUS_CHANGED, {
+            "task_title": task_title,
+            "new_status": STATUS_LABELS.get(payload.status.value, payload.status.value),
+        })
+    
+    # If completed, also notify reporter
+    if payload.status == TaskStatus.COMPLETED:
+        reporter_id = existing.get("reporter_id")
+        if reporter_id and reporter_id != assignee_id:
+            _send_task_notif(reporter_id, NotificationEventType.TASK_COMPLETED, {
+                "task_title": task_title,
+            })
     return get_task(task_id)
 
 def delete_task(task_id: str, user_id: str) -> bool:

@@ -25,6 +25,11 @@ class NotificationEventType(str, Enum):
     ATTENDANCE_REJECTED = "AttendanceRejected"
     UNKNOWN_FACE        = "UnknownFaceDetected"
     SECURITY_ALERT      = "SecurityIncidentCreated"
+    TASK_ASSIGNED       = "TaskAssigned"
+    TASK_STATUS_CHANGED = "TaskStatusChanged"
+    TASK_SUBMITTED      = "TaskSubmitted"
+    TASK_COMPLETED      = "TaskCompleted"
+    INCIDENT_REPORTED   = "IncidentReported"
     CUSTOM              = "Custom"
 
 
