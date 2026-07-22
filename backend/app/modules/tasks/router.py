@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Query, Path
+from fastapi import APIRouter, Query, Path, Header
 from pydantic import BaseModel
 
 from app.core.responses import APIResponse
@@ -28,9 +28,16 @@ def list_tasks(
     status: Optional[str] = Query(None, description="Lọc theo trạng thái"),
     task_type: Optional[str] = Query(None, description="Lọc theo loại (STANDARD/INCIDENT)"),
     department: Optional[str] = Query(None, description="Lọc theo phòng ban"),
+    priority: Optional[str] = Query(None, description="Lọc theo độ ưu tiên"),
+    search: Optional[str] = Query(None, description="Tìm kiếm theo tiêu đề hoặc mô tả"),
+    limit: int = Query(10, description="Số lượng mục tối đa"),
+    cursor: Optional[str] = Query(None, description="Cursor cho phân trang"),
 ):
-    items = service.list_tasks(user_id=user_id, status=status, task_type=task_type, department=department)
-    data = TaskListResponse(items=items, total=len(items))
+    items, next_key = service.list_tasks(
+        user_id=user_id, status=status, task_type=task_type, department=department,
+        priority=priority, search=search, limit=limit, cursor=cursor
+    )
+    data = TaskListResponse(items=items, total=len(items), next_key=next_key)
     return APIResponse.ok(data)
 
 @router.get("/{task_id}", response_model=APIResponse[TaskResponse], summary="Get task by ID")
@@ -39,8 +46,8 @@ def get_task(task_id: str = Path(...)):
     return APIResponse.ok(data)
 
 @router.patch("/{task_id}", response_model=APIResponse[TaskResponse], summary="Update a task")
-def update_task(payload: TaskUpdate, task_id: str = Path(...)):
-    data = service.update_task(task_id, payload)
+def update_task(payload: TaskUpdate, task_id: str = Path(...), x_user_id: str = Header(...)):
+    data = service.update_task(task_id, payload, x_user_id)
     return APIResponse.ok(data)
 
 @router.patch("/{task_id}/status", response_model=APIResponse[TaskResponse], summary="Update task status")
@@ -49,9 +56,9 @@ def update_task_status(payload: TaskStatusUpdate, task_id: str = Path(...)):
     return APIResponse.ok(data)
 
 @router.delete("/{task_id}", response_model=APIResponse[dict], summary="Delete a task")
-def delete_task(task_id: str = Path(...)):
-    service.delete_task(task_id)
-    return APIResponse.ok({"deleted": True})
+def delete_task(task_id: str = Path(...), x_user_id: str = Header(...)):
+    service.delete_task(task_id, x_user_id)
+    return APIResponse.ok({"message": "Task deleted successfully"})
 
 class PresignedUrlRequest(BaseModel):
     file_name: str

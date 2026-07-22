@@ -30,10 +30,42 @@ def list_tasks_by_assignee(assignee_id: str, status: str | None = None) -> list[
         
     return query_items(**kwargs)
 
-def list_all_tasks() -> list[dict]:
-    """Scan all tasks (For admin view)."""
-    from app.shared.aws.dynamodb import scan_items
-    return scan_items(TABLE)
+def list_tasks_paginated(
+    user_id: str | None = None,
+    status: str | None = None,
+    task_type: str | None = None,
+    department: str | None = None,
+    priority: str | None = None,
+    search: str | None = None,
+    limit: int = 20,
+    cursor: str | None = None
+) -> tuple[list[dict], str | None]:
+    from boto3.dynamodb.conditions import Attr
+    from app.shared.aws.dynamodb import scan_items_paginated
+    
+    filter_expr = None
+    
+    def add_condition(cond):
+        nonlocal filter_expr
+        if filter_expr is None:
+            filter_expr = cond
+        else:
+            filter_expr &= cond
+
+    if user_id:
+        add_condition(Attr("assignee_id").eq(user_id) | Attr("reporter_id").eq(user_id))
+    if status:
+        add_condition(Attr("status").eq(status))
+    if task_type:
+        add_condition(Attr("task_type").eq(task_type))
+    if department:
+        add_condition(Attr("department").eq(department))
+    if priority:
+        add_condition(Attr("priority").eq(priority))
+    if search:
+        add_condition(Attr("title").contains(search) | Attr("description").contains(search))
+        
+    return scan_items_paginated(TABLE, filter_expression=filter_expr, limit=limit, cursor=cursor)
 
 def update_task_in_db(task_id: str, update_expr: str, expr_vals: dict, expr_names: dict | None = None) -> dict:
     return update_item(
@@ -46,3 +78,26 @@ def update_task_in_db(task_id: str, update_expr: str, expr_vals: dict, expr_name
 
 def delete_task_in_db(task_id: str) -> bool:
     return delete_item(TABLE, {"task_id": task_id})
+
+def delete_task_with_subtasks(task_id: str) -> bool:
+    from boto3.dynamodb.conditions import Attr
+    from app.shared.aws.dynamodb import scan_items_paginated
+    
+    # 1. Delete all subtasks (loop to fetch all paginated)
+    cursor = None
+    while True:
+        subtasks, next_key = scan_items_paginated(
+            TABLE, 
+            filter_expression=Attr("parent_task_id").eq(task_id), 
+            limit=50, 
+            cursor=cursor
+        )
+        for sub in subtasks:
+            delete_task_in_db(sub["task_id"])
+            
+        cursor = next_key
+        if not cursor:
+            break
+            
+    # 2. Delete the parent task
+    return delete_task_in_db(task_id)

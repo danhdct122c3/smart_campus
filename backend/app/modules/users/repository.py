@@ -16,6 +16,7 @@ from app.shared.aws.dynamodb import (
     update_item,
     query_items,
     scan_items,
+    scan_items_paginated,
 )
 
 TABLE = settings.users_table
@@ -75,7 +76,12 @@ def get_user_by_email(email: str) -> dict | None:
     return items[0] if items else None
 
 
-def list_users(role: str | None = None, status: str | None = None) -> list[dict]:
+def list_users(
+    role: str | None = None, 
+    status: str | None = None,
+    limit: int = 20,
+    cursor: str | None = None
+) -> tuple[list[dict], str | None]:
     """Scan all users, optionally filtered by role/status."""
     filter_expr = None
     if role:
@@ -85,4 +91,4 @@ def list_users(role: str | None = None, status: str | None = None) -> list[dict]
             filter_expr &= Attr("status").eq(status)
         else:
             filter_expr = Attr("status").eq(status)
-    return scan_items(TABLE, filter_expression=filter_expr)
+    return scan_items_paginated(TABLE, filter_expression=filter_expr, limit=limit, cursor=cursor)

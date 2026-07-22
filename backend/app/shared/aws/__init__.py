@@ -1,6 +1,6 @@
 """Shared AWS package – exposes all service clients."""
 
-from .dynamodb import get_table, put_item, get_item, update_item, delete_item, query_items, scan_items
+from .dynamodb import get_table, put_item, get_item, update_item, delete_item, query_items, scan_items, query_items_paginated, scan_items_paginated
 from .s3 import upload_bytes, upload_fileobj, get_presigned_url, delete_object, object_exists
 from .rekognition import (
     index_face,

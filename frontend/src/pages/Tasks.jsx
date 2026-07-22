@@ -3,7 +3,7 @@ import {
   CheckSquare, Plus, Search, FileText, Paperclip,
   Loader, Calendar, User, UserCheck, ChevronDown,
   Clock, AlertTriangle, CheckCircle2, Circle, RotateCcw, Filter,
-  Eye, X, Hash, Link2, MessageSquare
+  Eye, X, Hash, Link2, MessageSquare, Edit2, Trash2
 } from 'lucide-react';
 import Card from '../components/Card';
 
@@ -12,17 +12,17 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  OPEN:        { label: 'Cần làm',    color: 'var(--text-muted)',      bg: 'rgba(100,116,139,0.15)', icon: Circle },
-  IN_PROGRESS: { label: 'Đang làm',   color: 'var(--accent-primary)',  bg: 'rgba(6,182,212,0.15)',   icon: RotateCcw },
-  IN_REVIEW:   { label: 'Chờ duyệt',  color: 'var(--accent-warning)',  bg: 'rgba(245,158,11,0.15)',  icon: Clock },
-  COMPLETED:   { label: 'Hoàn thành', color: 'var(--accent-success)',  bg: 'rgba(16,185,129,0.15)',  icon: CheckCircle2 },
+  OPEN: { label: 'Cần làm', color: 'var(--text-muted)', bg: 'rgba(100,116,139,0.15)', icon: Circle },
+  IN_PROGRESS: { label: 'Đang làm', color: 'var(--accent-primary)', bg: 'rgba(6,182,212,0.15)', icon: RotateCcw },
+  IN_REVIEW: { label: 'Chờ duyệt', color: 'var(--accent-warning)', bg: 'rgba(245,158,11,0.15)', icon: Clock },
+  COMPLETED: { label: 'Hoàn thành', color: 'var(--accent-success)', bg: 'rgba(16,185,129,0.15)', icon: CheckCircle2 },
 };
 
 const PRIORITY_CONFIG = {
-  URGENT: { label: 'Khẩn cấp', color: 'var(--accent-danger)',   bg: 'rgba(239,68,68,0.15)' },
-  HIGH:   { label: 'Cao',       color: 'var(--accent-warning)',  bg: 'rgba(245,158,11,0.15)' },
-  MEDIUM: { label: 'Trung bình',color: 'var(--accent-primary)',  bg: 'rgba(6,182,212,0.15)' },
-  LOW:    { label: 'Thấp',      color: 'var(--text-muted)',      bg: 'rgba(100,116,139,0.1)' },
+  URGENT: { label: 'Khẩn cấp', color: 'var(--accent-danger)', bg: 'rgba(239,68,68,0.15)' },
+  HIGH: { label: 'Cao', color: 'var(--accent-warning)', bg: 'rgba(245,158,11,0.15)' },
+  MEDIUM: { label: 'Trung bình', color: 'var(--accent-primary)', bg: 'rgba(6,182,212,0.15)' },
+  LOW: { label: 'Thấp', color: 'var(--text-muted)', bg: 'rgba(100,116,139,0.1)' },
 };
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -55,11 +55,11 @@ const Avatar = ({ name = '?', size = 28 }) => (
 const Btn = ({ children, variant = 'primary', size = 'sm', ...rest }) => {
   const variants = {
     primary: { background: 'var(--accent-primary)', color: '#fff', border: 'none' },
-    danger:  { background: 'var(--accent-danger)',  color: '#fff', border: 'none' },
+    danger: { background: 'var(--accent-danger)', color: '#fff', border: 'none' },
     success: { background: 'var(--accent-success)', color: '#fff', border: 'none' },
     warning: { background: 'var(--accent-warning)', color: '#000', border: 'none' },
-    ghost:   { background: 'rgba(255,255,255,0.07)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)' },
-    dashed:  { background: 'transparent', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.2)' },
+    ghost: { background: 'rgba(255,255,255,0.07)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)' },
+    dashed: { background: 'transparent', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.2)' },
   };
   const sizes = {
     sm: { padding: '0.3rem 0.7rem', fontSize: '0.75rem', borderRadius: '6px' },
@@ -116,18 +116,18 @@ const DateCard = ({ label, value, danger }) => (
   </div>
 );
 
-const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, onSubmit, onAddSubtask }) => {
+const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, onSubmit, onAddSubtask, onEdit, onDelete }) => {
   if (!task) return null;
 
-  const getUser  = (id) => users.find(x => x.user_id === id) || { name: id || '—', role: '—' };
+  const getUser = (id) => users.find(x => x.user_id === id) || { name: id || '—', role: '—' };
   const reporter = getUser(task.reporter_id);
   const assignee = getUser(task.assignee_id);
 
   const isAssignee = currentUser?.user_id === task.assignee_id;
   const isReporter = currentUser?.user_id === task.reporter_id;
-  const isAdmin    = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN';
 
-  const sc = STATUS_CONFIG[task.status]     || STATUS_CONFIG.OPEN;
+  const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG.OPEN;
   const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MEDIUM;
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'COMPLETED';
 
@@ -326,18 +326,18 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
 
 
 // ── Task Row (list item) ──────────────────────────────────────────────────────
-const TaskRow = ({ task, currentUser, users, onUpdateStatus, onSubmit, onAddSubtask, onViewDetail }) => {
+const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubtask, onViewDetail, onEdit, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
 
-  const getUser  = (id) => users.find(x => x.user_id === id) || { name: id || '—', role: '' };
+  const getUser = (id) => users.find(x => x.user_id === id) || { name: id || '—', role: '' };
   const reporter = getUser(task.reporter_id);
   const assignee = getUser(task.assignee_id);
 
   const isAssignee = currentUser?.user_id === task.assignee_id;
   const isReporter = currentUser?.user_id === task.reporter_id;
-  const isAdmin    = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN';
 
-  const sc = STATUS_CONFIG[task.status]   || STATUS_CONFIG.OPEN;
+  const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG.OPEN;
   const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MEDIUM;
 
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'COMPLETED';
@@ -518,6 +518,16 @@ const TaskRow = ({ task, currentUser, users, onUpdateStatus, onSubmit, onAddSubt
                 <Plus size={13} /> Thêm việc con
               </Btn>
             )}
+            {(isReporter || isAdmin) && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
+              <Btn variant="dashed" onClick={() => onEdit(task)}>
+                <Edit2 size={13} /> Sửa
+              </Btn>
+            )}
+            {(isReporter || isAdmin) && (
+              <Btn variant="danger" style={{ background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--accent-danger)' }} onClick={() => onDelete(task)}>
+                <Trash2 size={13} /> Xóa
+              </Btn>
+            )}
           </div>
         </div>
       )}
@@ -528,31 +538,37 @@ const TaskRow = ({ task, currentUser, users, onUpdateStatus, onSubmit, onAddSubt
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Tasks() {
-  const [tasks, setTasks]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [users, setUsers]         = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
-  const [searchQ, setSearchQ]     = useState('');
+  const [searchQ, setSearchQ] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterPriority, setFilterPriority] = useState('ALL');
   const [detailTask, setDetailTask] = useState(null); // detail drawer
 
+  const [cursor, setCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Create modal
-  const [showModal, setShowModal]   = useState(false);
-  const [newTask, setNewTask]       = useState({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '' });
+  const [showModal, setShowModal] = useState(false);
+  const [editTaskId, setEditTaskId] = useState(null);
+  const [newTask, setNewTask] = useState({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '' });
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploading, setUploading]   = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Submit modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [taskToSubmit, setTaskToSubmit]       = useState(null);
-  const [submissionFile, setSubmissionFile]   = useState(null);
-  const [submitting, setSubmitting]           = useState(false);
-  const [submissionNote, setSubmissionNote]   = useState('');
+  const [taskToSubmit, setTaskToSubmit] = useState(null);
+  const [submissionFile, setSubmissionFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionNote, setSubmissionNote] = useState('');
 
   const fetchUsers = async () => {
     try {
-      const res  = await fetch(`${API_BASE}/users`);
+      const res = await fetch(`${API_BASE}/users?limit=1000`);
       if (!res.ok) return;
       const data = await res.json();
       const list = data.data?.items || [];
@@ -563,20 +579,58 @@ export default function Tasks() {
     } catch (e) { console.error(e); }
   };
 
-  const fetchTasks = async () => {
-    setLoading(true);
+  const fetchTasks = async (loadMore = false) => {
+    if (loadMore) setLoadingMore(true);
+    else setLoading(true);
+
     try {
-      const res  = await fetch(`${API_BASE}/tasks`);
+      let url = `${API_BASE}/tasks?limit=30`;
+      if (loadMore && cursor) {
+        url += `&cursor=${encodeURIComponent(cursor)}`;
+      }
+
+      if (filterStatus !== 'ALL') url += `&status=${filterStatus}`;
+      if (filterPriority !== 'ALL') url += `&priority=${filterPriority}`;
+      if (searchQ) url += `&search=${encodeURIComponent(searchQ)}`;
+
+      // If not admin, filter by user_id
+      if (currentUser && currentUser.role !== 'ADMIN') {
+        url += `&user_id=${currentUser.user_id}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
-      setTasks(data.data?.items || []);
+
+      const newItems = data.data?.items || [];
+      if (loadMore) {
+        setTasks(prev => [...prev, ...newItems]);
+        if (newItems.length > 0) setCurrentPage(prev => prev + 1);
+      } else {
+        setTasks(newItems);
+        setCurrentPage(1);
+      }
+
+      setCursor(data.data?.next_key);
+      setHasMore(!!data.data?.next_key);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
   };
 
-  useEffect(() => { fetchUsers(); fetchTasks(); }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
-  const handleCreateTask = async () => {
+  useEffect(() => {
+    if (!currentUser) return;
+    const timer = setTimeout(() => {
+      fetchTasks(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [currentUser, filterStatus, filterPriority, searchQ]);
+
+  const handleSaveTask = async () => {
     if (!newTask.title) return alert('Vui lòng điền tiêu đề');
     if (newTask.task_type === 'STANDARD' && !newTask.assignee_id) return alert('Công việc thường bắt buộc phải chọn người nhận việc');
     if (newTask.task_type === 'INCIDENT' && !newTask.department) return alert('Báo cáo sự cố bắt buộc phải chọn phòng ban xử lý');
@@ -585,8 +639,8 @@ export default function Tasks() {
 
     if (selectedFile) {
       try {
-        const pr   = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: selectedFile.name, file_type: selectedFile.type }) });
-        const prd  = await pr.json();
+        const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: selectedFile.name, file_type: selectedFile.type }) });
+        const prd = await pr.json();
         if (prd.success) {
           await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': selectedFile.type }, body: selectedFile });
           finalFileUrl = prd.data.public_url;
@@ -595,16 +649,39 @@ export default function Tasks() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...newTask, reporter_id: currentUser.user_id, file_url: finalFileUrl }) });
-      if (res.ok) { setShowModal(false); setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '' }); setSelectedFile(null); fetchTasks(); }
+      const url = editTaskId ? `${API_BASE}/tasks/${editTaskId}` : `${API_BASE}/tasks`;
+      const method = editTaskId ? 'PATCH' : 'POST';
+      const body = { ...newTask };
+      if (!editTaskId) body.reporter_id = currentUser.user_id;
+      if (finalFileUrl) body.file_url = finalFileUrl;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '' });
+        setSelectedFile(null);
+        setEditTaskId(null);
+        fetchTasks(false);
+      } else {
+        const err = await res.json();
+        alert(`Lỗi: ${err.message || 'Không thể lưu công việc'}`);
+      }
     } catch (e) { console.error(e); }
     finally { setUploading(false); }
   };
 
   const updateStatus = async (taskId, newStatus) => {
     try {
-      await fetch(`${API_BASE}/tasks/${taskId}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
-      fetchTasks();
+      await fetch(`${API_BASE}/tasks/${taskId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
+        body: JSON.stringify({ status: newStatus })
+      });
+      fetchTasks(false);
     } catch (e) { console.error(e); }
   };
 
@@ -615,7 +692,7 @@ export default function Tasks() {
 
     if (submissionFile) {
       try {
-        const pr  = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: submissionFile.name, file_type: submissionFile.type }) });
+        const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: submissionFile.name, file_type: submissionFile.type }) });
         const prd = await pr.json();
         if (prd.success) {
           await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': submissionFile.type }, body: submissionFile });
@@ -625,20 +702,24 @@ export default function Tasks() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/tasks/${taskToSubmit.task_id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'IN_REVIEW', submission_file_url: finalFileUrl, submission_note: submissionNote }) });
-      if (res.ok) { setShowSubmitModal(false); setTaskToSubmit(null); setSubmissionFile(null); setSubmissionNote(''); fetchTasks(); }
+      const res = await fetch(`${API_BASE}/tasks/${taskToSubmit.task_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
+        body: JSON.stringify({ status: 'IN_REVIEW', submission_file_url: finalFileUrl, submission_note: submissionNote })
+      });
+      if (res.ok) { setShowSubmitModal(false); setTaskToSubmit(null); setSubmissionFile(null); setSubmissionNote(''); fetchTasks(false); }
     } catch (e) { console.error(e); }
     finally { setSubmitting(false); }
   };
 
   const openSubtaskModal = (parentTaskId) => {
     const parent = tasks.find(t => t.task_id === parentTaskId);
-    setNewTask({ 
-      title: '', 
-      description: '', 
-      assignee_id: '', 
-      priority: 'MEDIUM', 
-      due_date: '', 
+    setNewTask({
+      title: '',
+      description: '',
+      assignee_id: '',
+      priority: 'MEDIUM',
+      due_date: '',
       parent_task_id: parentTaskId,
       task_type: parent?.task_type || 'STANDARD',
       department: parent?.department || ''
@@ -648,38 +729,56 @@ export default function Tasks() {
 
   const getAvailableAssignees = () => {
     if (!currentUser) return [];
-    
+
     let candidates = [];
     if (currentUser.role === 'ADMIN' || currentUser.role === 'DIRECTOR') candidates = users.filter(u => u.role === 'MANAGER');
     else if (currentUser.role === 'MANAGER') candidates = users.filter(u => u.role === 'STAFF' || u.role === 'SECURITY' || u.role === 'MAINTENANCE');
-    
+
     if (newTask.department) {
       candidates = candidates.filter(u => u.department === newTask.department);
     }
-    
+
     return candidates;
   };
 
-  // Filter pipeline
-  const visibleTasks = tasks
-    .filter(t => {
-      if (!currentUser) return false;
-      if (currentUser.role === 'ADMIN') return true;
-      return t.assignee_id === currentUser.user_id || t.reporter_id === currentUser.user_id;
-    })
-    .filter(t => filterStatus   === 'ALL' || t.status   === filterStatus)
-    .filter(t => filterPriority === 'ALL' || t.priority === filterPriority)
-    .filter(t => !searchQ || t.title?.toLowerCase().includes(searchQ.toLowerCase()) || t.description?.toLowerCase().includes(searchQ.toLowerCase()));
+  const handleEditTask = (task) => {
+    setNewTask({
+      title: task.title,
+      description: task.description || '',
+      assignee_id: task.assignee_id || '',
+      priority: task.priority || 'MEDIUM',
+      due_date: task.due_date ? task.due_date.split('T')[0] : '',
+      parent_task_id: task.parent_task_id || null,
+      task_type: task.task_type || 'STANDARD',
+      department: task.department || '',
+      category: task.category || ''
+    });
+    setEditTaskId(task.task_id);
+    setShowModal(true);
+  };
 
-  // Count per status for the tab badges
-  const counts = Object.fromEntries(
-    ['ALL', ...Object.keys(STATUS_CONFIG)].map(s => [
-      s,
-      s === 'ALL'
-        ? tasks.filter(t => currentUser?.role === 'ADMIN' || t.assignee_id === currentUser?.user_id || t.reporter_id === currentUser?.user_id).length
-        : tasks.filter(t => t.status === s && (currentUser?.role === 'ADMIN' || t.assignee_id === currentUser?.user_id || t.reporter_id === currentUser?.user_id)).length,
-    ])
-  );
+  const handleDeleteTask = async (task) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa/hủy công việc "${task.title}" không?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${task.task_id}`, {
+        method: 'DELETE',
+        headers: { 'x-user-id': currentUser.user_id }
+      });
+      if (res.ok) {
+        fetchTasks(false);
+      } else {
+        const err = await res.json();
+        alert(`Lỗi: ${err.message || 'Không thể xóa công việc'}`);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Filter pipeline (moved to backend)
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(tasks.length / ITEMS_PER_PAGE);
+  const visibleTasks = tasks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const inputStyle = { background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.7rem 1rem', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '0.9rem', width: '100%', outline: 'none' };
   const labelStyle = { fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', display: 'block' };
@@ -771,10 +870,6 @@ export default function Tasks() {
             >
               {sc?.icon && <sc.icon size={13} />}
               {label}
-              <span style={{
-                background: active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
-                padding: '0 5px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700,
-              }}>{counts[key] ?? 0}</span>
             </button>
           );
         })}
@@ -793,18 +888,58 @@ export default function Tasks() {
             <p style={{ margin: 0, fontSize: '0.9rem' }}>Không có công việc nào phù hợp</p>
           </div>
         ) : (
-          visibleTasks.map(task => (
-            <TaskRow
-              key={task.task_id}
-              task={task}
-              currentUser={currentUser}
-              users={users}
-              onUpdateStatus={updateStatus}
-              onSubmit={t => { setTaskToSubmit(t); setShowSubmitModal(true); }}
-              onAddSubtask={openSubtaskModal}
-              onViewDetail={setDetailTask}
-            />
-          ))
+          <>
+            {visibleTasks.map(task => (
+              <TaskRow
+                key={task.task_id}
+                task={task}
+                currentUser={currentUser}
+                users={users}
+                onUpdateStatus={updateStatus}
+                onSubmit={t => { setTaskToSubmit(t); setShowSubmitModal(true); }}
+                onAddSubtask={openSubtaskModal}
+                onViewDetail={setDetailTask}
+                onEdit={handleEditTask}
+                onDelete={handleDeleteTask}
+              />
+            ))}
+            {tasks.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '1rem' }}>
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>
+                  &lt;
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    style={{
+                      background: currentPage === page ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                      color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: 'pointer'
+                    }}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  disabled={currentPage === totalPages && !hasMore}
+                  onClick={() => {
+                    if (currentPage < totalPages) {
+                      setCurrentPage(p => p + 1);
+                    } else if (hasMore) {
+                      fetchTasks(true);
+                    }
+                  }}
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: (currentPage === totalPages && !hasMore) ? 'not-allowed' : 'pointer', opacity: (currentPage === totalPages && !hasMore) ? 0.5 : 1 }}>
+                  {loadingMore && currentPage === totalPages ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : '>'}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -837,9 +972,9 @@ export default function Tasks() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={labelStyle}>Loại công việc *</label>
-                <select 
-                  value={newTask.task_type} 
-                  onChange={e => setNewTask({ ...newTask, task_type: e.target.value })} 
+                <select
+                  value={newTask.task_type}
+                  onChange={e => setNewTask({ ...newTask, task_type: e.target.value })}
                   disabled={!!newTask.parent_task_id}
                   style={{ ...inputStyle, appearance: 'none', cursor: newTask.parent_task_id ? 'not-allowed' : 'pointer', opacity: newTask.parent_task_id ? 0.7 : 1 }}
                 >
@@ -850,9 +985,9 @@ export default function Tasks() {
 
               <div>
                 <label style={labelStyle}>Phòng ban xử lý {newTask.task_type === 'INCIDENT' && '*'}</label>
-                <select 
-                  value={newTask.department} 
-                  onChange={e => setNewTask({ ...newTask, department: e.target.value })} 
+                <select
+                  value={newTask.department}
+                  onChange={e => setNewTask({ ...newTask, department: e.target.value })}
                   disabled={!!newTask.parent_task_id}
                   style={{ ...inputStyle, appearance: 'none', cursor: newTask.parent_task_id ? 'not-allowed' : 'pointer', opacity: newTask.parent_task_id ? 0.7 : 1 }}
                 >
@@ -924,7 +1059,7 @@ export default function Tasks() {
               <label style={labelStyle}>Tài liệu đính kèm (tùy chọn)</label>
               <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
                 onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
-                onMouseOut={e  => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files && e.dataTransfer.files[0]) setSelectedFile(e.dataTransfer.files[0]); }}
               >
@@ -965,7 +1100,7 @@ export default function Tasks() {
 
             <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
               onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
-              onMouseOut={e  => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+              onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files && e.dataTransfer.files[0]) setSubmissionFile(e.dataTransfer.files[0]); }}
             >

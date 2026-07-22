@@ -99,3 +99,4 @@ class TaskResponse(BaseModel):
 class TaskListResponse(BaseModel):
     items: list[TaskResponse]
     total: int
+    next_key: Optional[str] = None

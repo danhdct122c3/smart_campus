@@ -62,3 +62,4 @@ class UserResponse(BaseModel):
 class UserListResponse(BaseModel):
     items: list[UserResponse]
     total: int
+    next_key: Optional[str] = None

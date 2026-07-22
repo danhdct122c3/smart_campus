@@ -8,6 +8,10 @@ const Users = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cursor, setCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,19 +27,38 @@ const Users = () => {
     status: 'ACTIVE'
   });
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (loadMore = false) => {
     try {
-      setLoading(true);
-      const res = await fetch(API_BASE_URL);
+      if (loadMore) setLoadingMore(true);
+      else setLoading(true);
+      
+      let url = `${API_BASE_URL}?limit=30`;
+      if (loadMore && cursor) {
+        url += `&cursor=${encodeURIComponent(cursor)}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Không thể lấy danh sách API');
       const json = await res.json();
-      setUsers(json.data.items || []);
+      
+      const newItems = json.data.items || [];
+      if (loadMore) {
+        setUsers(prev => [...prev, ...newItems]);
+        if (newItems.length > 0) setCurrentPage(prev => prev + 1);
+      } else {
+        setUsers(newItems);
+        setCurrentPage(1);
+      }
+      
+      setCursor(json.data.next_key);
+      setHasMore(!!json.data.next_key);
       setError(null);
     } catch (err) {
       console.error(err);
       setError('Lỗi kết nối máy chủ API.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -122,6 +145,10 @@ const Users = () => {
     }
   };
 
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
+  const visibleUsers = users.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -153,6 +180,7 @@ const Users = () => {
             <p>{error}</p>
           </div>
         ) : (
+          <>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
@@ -165,8 +193,8 @@ const Users = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((user, idx) => (
-                <tr key={user.user_id} style={{ borderBottom: idx === users.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
+              {visibleUsers.map((user, idx) => (
+                <tr key={user.user_id} style={{ borderBottom: idx === visibleUsers.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
                   <td style={{ padding: '1rem' }}>
                     <p style={{ margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>{user.name}</p>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user.email}</p>
@@ -192,9 +220,9 @@ const Users = () => {
                     </span>
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    {user.face_registered ? (
+                    {user.face_id ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-success)', fontSize: '0.875rem' }}>
-                        <ShieldCheck size={16} /> Đã ĐK
+                        <ShieldCheck size={16} /> Đã đăng ký
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
@@ -211,7 +239,7 @@ const Users = () => {
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
+              {visibleUsers.length === 0 && (
                 <tr>
                   <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Chưa có người dùng nào.
@@ -220,6 +248,44 @@ const Users = () => {
               )}
             </tbody>
           </table>
+          
+          {users.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <button 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}>
+                &lt;
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  style={{
+                    background: currentPage === page ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                    color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: 'pointer'
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button 
+                disabled={currentPage === totalPages && !hasMore}
+                onClick={() => {
+                  if (currentPage < totalPages) {
+                    setCurrentPage(p => p + 1);
+                  } else if (hasMore) {
+                    fetchUsers(true);
+                  }
+                }}
+                style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: (currentPage === totalPages && !hasMore) ? 'not-allowed' : 'pointer', opacity: (currentPage === totalPages && !hasMore) ? 0.5 : 1 }}>
+                {loadingMore && currentPage === totalPages ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : '&gt;'}
+              </button>
+            </div>
+          )}
+        </>
         )}
       </Card>
 

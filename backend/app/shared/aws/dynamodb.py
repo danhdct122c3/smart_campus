@@ -97,3 +97,88 @@ def scan_items(
 
     response = table.scan(**kwargs)
     return response.get("Items", [])
+
+
+import base64
+import json
+
+def encode_cursor(key: dict | None) -> str | None:
+    if not key:
+        return None
+    return base64.urlsafe_b64encode(json.dumps(key).encode()).decode()
+
+def decode_cursor(cursor: str | None) -> dict | None:
+    if not cursor:
+        return None
+    try:
+        return json.loads(base64.urlsafe_b64decode(cursor.encode()).decode())
+    except Exception:
+        return None
+
+def query_items_paginated(
+    table_name: str,
+    key_condition,
+    index_name: str | None = None,
+    filter_expression=None,
+    limit: int = 20,
+    cursor: str | None = None,
+) -> tuple[list[dict], str | None]:
+    """Query items with automatic pagination to ensure 'limit' items are returned if available."""
+    table = get_table(table_name)
+    kwargs = {"KeyConditionExpression": key_condition, "Limit": limit}
+    if index_name:
+        kwargs["IndexName"] = index_name
+    if filter_expression is not None:
+        kwargs["FilterExpression"] = filter_expression
+        
+    start_key = decode_cursor(cursor)
+    if start_key:
+        kwargs["ExclusiveStartKey"] = start_key
+
+    items = []
+    last_key = start_key
+    
+    while len(items) < limit:
+        response = table.query(**kwargs)
+        items.extend(response.get("Items", []))
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        kwargs["ExclusiveStartKey"] = last_key
+        kwargs["Limit"] = limit - len(items)
+        if kwargs["Limit"] <= 0:
+            break
+
+    return items, encode_cursor(last_key)
+
+def scan_items_paginated(
+    table_name: str,
+    filter_expression=None,
+    limit: int = 20,
+    cursor: str | None = None,
+) -> tuple[list[dict], str | None]:
+    """Scan items with automatic pagination to ensure 'limit' items are returned if available."""
+    table = get_table(table_name)
+    kwargs = {"Limit": limit}
+    if filter_expression is not None:
+        kwargs["FilterExpression"] = filter_expression
+        
+    start_key = decode_cursor(cursor)
+    if start_key:
+        kwargs["ExclusiveStartKey"] = start_key
+
+    items = []
+    last_key = start_key
+    
+    while len(items) < limit:
+        response = table.scan(**kwargs)
+        items.extend(response.get("Items", []))
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        kwargs["ExclusiveStartKey"] = last_key
+        kwargs["Limit"] = limit - len(items)
+        if kwargs["Limit"] <= 0:
+            break
+
+    return items, encode_cursor(last_key)

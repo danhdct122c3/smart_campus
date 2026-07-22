@@ -64,9 +64,15 @@ def get_user(user_id: str) -> UserResponse:
     return _to_response(item)
 
 
-def list_users(role: str | None, status_filter: str | None) -> list[UserResponse]:
-    items = repo.list_users(role=role, status=status_filter)
-    return [_to_response(i) for i in items]
+def list_users(
+    role: str | None, 
+    status_filter: str | None,
+    limit: int = 20,
+    cursor: str | None = None
+) -> tuple[list[UserResponse], str | None]:
+    items, next_key = repo.list_users(role=role, status=status_filter, limit=limit, cursor=cursor)
+    return [_to_response(i) for i in items], next_key
+
 
 
 def update_user(user_id: str, payload: UserUpdate) -> UserResponse:

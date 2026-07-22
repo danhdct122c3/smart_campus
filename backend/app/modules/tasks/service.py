@@ -89,29 +89,45 @@ def get_task(task_id: str) -> TaskResponse:
         raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
     return _item_to_record(item)
 
-def list_tasks(user_id: str | None = None, status: str | None = None, task_type: str | None = None, department: str | None = None) -> list[TaskResponse]:
-    items = repo.list_all_tasks()
+def list_tasks(
+    user_id: str | None = None, 
+    status: str | None = None, 
+    task_type: str | None = None, 
+    department: str | None = None,
+    priority: str | None = None,
+    search: str | None = None,
+    limit: int = 20,
+    cursor: str | None = None
+) -> tuple[list[TaskResponse], str | None]:
     
-    if user_id:
-        items = [i for i in items if i.get("assignee_id") == user_id or i.get("reporter_id") == user_id]
-        
-    if status:
-        items = [i for i in items if i.get("status") == status]
-
-    if task_type:
-        items = [i for i in items if i.get("task_type") == task_type]
-
-    if department:
-        items = [i for i in items if i.get("department") == department]
-            
-    # Sort by created_at descending
+    items, next_key = repo.list_tasks_paginated(
+        user_id=user_id, status=status, task_type=task_type,
+        department=department, priority=priority, search=search,
+        limit=limit, cursor=cursor
+    )
+    
+    # Sort chunk by created_at descending (Best effort chunk sorting since DynamoDB scan is unsorted)
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    return [_item_to_record(i) for i in items]
+    return [_item_to_record(i) for i in items], next_key
 
-def update_task(task_id: str, payload: TaskUpdate) -> TaskResponse:
+def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse:
+    from app.modules.users.repository import get_user
+    current_user = get_user(user_id)
+    if not current_user:
+        raise AppException(ErrorCode.UNAUTHORIZED, message="User not found")
+        
     existing = repo.get_task(task_id)
     if not existing:
         raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
+
+    is_admin = current_user.get("role") == "ADMIN"
+    is_reporter = current_user.get("user_id") == existing.get("reporter_id")
+    
+    if not (is_admin or is_reporter):
+        raise AppException(ErrorCode.FORBIDDEN, message="Chỉ Admin hoặc người tạo mới được sửa")
+        
+    if existing.get("status") in ["DONE", "CANCELLED"] and not is_admin:
+        raise AppException(ErrorCode.BAD_REQUEST, message="Không thể sửa công việc đã hoàn thành hoặc đã hủy")
         
     update_expr = "SET updated_at = :now"
     expr_vals = {":now": datetime.now(timezone.utc).isoformat()}
@@ -161,11 +177,38 @@ def update_task_status(task_id: str, payload: TaskStatusUpdate) -> TaskResponse:
         
     return get_task(task_id)
 
-def delete_task(task_id: str) -> bool:
+def delete_task(task_id: str, user_id: str) -> bool:
+    from app.modules.users.repository import get_user_by_id
+    current_user = get_user_by_id(user_id)
+    if not current_user:
+        raise AppException(ErrorCode.UNAUTHORIZED, message="User not found")
+        
     existing = repo.get_task(task_id)
     if not existing:
         raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
-    return repo.delete_task_in_db(task_id)
+
+    is_admin = current_user.get("role") == "ADMIN"
+    is_reporter = current_user.get("user_id") == existing.get("reporter_id")
+    
+    if is_admin:
+        return repo.delete_task_with_subtasks(task_id)
+    elif is_reporter:
+        if existing.get("status") == "OPEN":
+            # Soft delete/cancel
+            repo.update_task_in_db(
+                task_id=task_id,
+                update_expr="SET #status = :status, updated_at = :now",
+                expr_vals={
+                    ":status": "CANCELLED",
+                    ":now": datetime.now(timezone.utc).isoformat()
+                },
+                expr_names={"#status": "status"}
+            )
+            return True
+        else:
+            raise AppException(ErrorCode.BAD_REQUEST, message="Không thể hủy công việc đã bắt đầu thực hiện")
+    else:
+        raise AppException(ErrorCode.FORBIDDEN, message="Bạn không có quyền xóa công việc này")
 
 def get_presigned_upload_url(file_name: str, file_type: str) -> dict:
     """Generate a presigned URL to upload a task attachment to S3."""
