@@ -142,7 +142,32 @@ Tài liệu này tổng hợp toàn bộ các công việc, kiến trúc và tí
 
 ---
 
-## Trạng thái Hiện tại (2026-07-14)
+## Giai đoạn 10: Đặc tả nghiệp vụ WF8 – Task & Employee Management (2026-07-16)
+
+- **Phân tích hiện trạng module `users`:** Xác định các field còn thiếu để hỗ trợ task assignment (`shift`, `is_on_duty`, `skill_tags`, `manager_id`, `hire_date`). Đề xuất chiến lược mở rộng schema-less, không phá vỡ dữ liệu cũ.
+- **Thiết kế 4 loại Task:** `SECURITY_CHECK`, `MAINTENANCE`, `GENERAL`, `INSPECTION` với quy tắc gán task theo role.
+- **Thiết kế State Machine:** Vòng đời task `TODO → IN_PROGRESS → DONE` với quy tắc chuyển trạng thái chặt chẽ và `OVERDUE` status ảo tính toán động.
+- **Thiết kế DynamoDB Table `smart-campus-tasks`:** 15 attributes + 3 GSI (`assigneeId-status-index`, `status-createdAt-index`, `taskType-status-index`).
+- **Thiết kế 7 API Endpoints** cho module tasks và 4 endpoints mở rộng module users.
+- **Thiết kế 3 luồng nghiệp vụ:** Auto-flow từ WF7, Manual-flow từ Frontend, OVERDUE Detection định kỳ.
+- **Thiết kế 4 Events EventBridge mới:** `TaskAssigned`, `TaskCompleted`, `TaskOverdue`, `TaskReassigned`.
+- **Lập kế hoạch triển khai 4 Phase:** Backend Core → Frontend Core → Event-Driven Integration → Advanced Features.
+- **Tài liệu:** Tạo file `docs/WF8_Task_and_Employee_Management.md` — đặc tả đầy đủ sẵn sàng phát triển.
+
+## Giai đoạn 10b: Tiủnh chỉnh Thiết kế WF8 (2026-07-16)
+
+Sau khi review kỹ đặc tả, thống nhất các quyết định thiết kế sau:
+
+- **Bỏ ca trực & nhóm kỹ năng:** Hệ thống phục vụ nhân viên văn phòng, không cần `shift`, `is_on_duty`, `skill_tags`. Chỉ giữ `role (chức vụ)` làm tiêu chí duy nhất phân công task. Bổ sung tối thiểu 2 fields: `manager_id`, `hire_date`.
+- **Bỏ `location`:** Không cần lưu địa điểm, mô tả việc nếu cần đưa vào `description` của task.
+- **Bỏ `linked_incident_id`:** Xóa field này do WF7 Security tạm thời không triển khai.
+- **Thêm `attachment_s3_keys`:** Lưu danh sách S3 key của file đính kèm (hình ảnh, PDF, báo cáo). Upload qua endpoint riêng `POST /tasks/{task_id}/attachments`. Response trả kèm `attachment_urls` (presigned URL động, không lưu DB).
+- **Tạm hoãn WF7 Security:** Module Security phụ thuộc nhiều vào thiết bị ngoại vi (camera, sensor), chưa thể triển khai. Bỏ toàn bộ SECURITY_CHECK task type, auto-flow từ EventBridge Security, và TaskCompleted event.
+- **Schema WF8 cuối cùng:** 3 task types (`MAINTENANCE`, `GENERAL`, `INSPECTION`), 13 DB attributes, 3 EventBridge events (`TaskAssigned`, `TaskOverdue`, `TaskReassigned`), 4 Business Rules.
+
+---
+
+## Trạng thái Hiện tại (2026-07-21)
 
 | Workflow | Mô tả | Trạng thái |
 |:---|:---|:---:|
@@ -151,7 +176,28 @@ Tài liệu này tổng hợp toàn bộ các công việc, kiến trúc và tí
 | WF3 – Attendance | SearchFacesByImage + Rule Engine | ✅ Hoàn thành |
 | WF4 – Notification | SNS Multi-channel + EventBridge | ✅ Hoàn thành |
 | WF5 – Analytics | DynamoDB + Athena + Dashboard | ✅ Hoàn thành |
-| WF6 – AI Assistant | Bedrock NL2SQL + Athena | 🔄 Đang phát triển |
-| WF7 – Security | Risk Engine + Incident Management | 🔄 Đang phát triển |
-| WF8 – Task Management | Event-Driven Task CRUD | 📋 Thiết kế xong |
+| WF6 – AI Assistant | Bedrock NL2SQL + Athena | ⏸ Tạm hoãn – Chờ Bedrock quota |
+| WF7 – Security | Risk Engine + Incident Management | ⏸ Tạm hoãn – Phụ thuộc thiết bị ngoại vi |
+| WF8 – Task & Employee Mgmt | Task CRUD + File Attachment + EventBridge | ✅ Hoàn thành |
 
+## Giai đoạn 11: Phát triển Thực tế WF8 – Quản lý Công việc & Sự cố (2026-07-21)
+
+- **Mở rộng Schema Database:**
+  - Bổ sung `task_type` (`STANDARD` và `INCIDENT`), `department`, `category` và `location`.
+  - Cấu hình linh hoạt: `assignee_id` trở thành trường tùy chọn đối với Báo cáo sự cố, hỗ trợ quy trình khi người báo cáo không biết ai sẽ phụ trách sửa chữa.
+- **Phát triển Frontend Nâng cao (React UI):**
+  - Xây dựng Modal Giao việc động, tự động hiển thị/ẩn trường nhập liệu tùy theo `task_type`.
+  - **Quản lý Subtask (Công việc con):** Giao diện tự động khóa `department` của Subtask theo cấu hình của Task cha. Tự động lọc danh sách nhân viên khả dụng theo phòng ban.
+  - Tích hợp tính năng Kéo-Thả (Drag & Drop) file đính kèm.
+- **Khắc phục lỗi Tích hợp AWS S3:**
+  - Cấu hình lại S3 Bucket Policy (CORS) để khắc phục lỗi 403 khi Frontend gọi lệnh `PUT` từ localhost.
+  - Sửa lỗi 307 Temporary Redirect từ AWS bằng cách sử dụng Regional Endpoint (`s3.ap-southeast-1.amazonaws.com`) trong cấu hình Boto3.
+  - Bổ sung hệ thống **Dynamic URL Signing** ở Backend. Vì S3 Bucket bị thiết lập chặn truy cập công khai (Block Public Access), Backend sẽ tự động phát sinh các Pre-signed GET URL khi trả về danh sách Task, đảm bảo tính bảo mật nhưng vẫn cho phép user mở file trực tiếp từ trình duyệt.
+- **Dữ liệu Mock (Data Seeding):** 
+  - Khởi tạo 10 tài khoản dummy bao phủ các cấp bậc (`DIRECTOR`, `MANAGER`, `STAFF`, `SECURITY`, `MAINTENANCE`) và các phòng ban (`ADMIN`, `IT`, `HR`, `MAINTENANCE`, `SECURITY`) để kiểm thử hệ thống Phân quyền (RBAC).
+
+### Bước tiếp theo (Next Steps)
+
+1. Tối ưu hóa UI hiển thị danh sách Task theo mô hình Kanban.
+2. Tích hợp AI (Bedrock) vào WF8 để phân tích mức độ ưu tiên của các Báo cáo Sự cố.
+3. Liên kết WF8 với WF4 (Notifications) để tự động bắn thông báo khi có người được giao việc.

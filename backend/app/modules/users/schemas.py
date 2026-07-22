@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
+    DIRECTOR = "DIRECTOR"
     STUDENT = "STUDENT"
     STAFF = "STAFF"
     MANAGER = "MANAGER"
@@ -61,3 +62,4 @@ class UserResponse(BaseModel):
 class UserListResponse(BaseModel):
     items: list[UserResponse]
     total: int
+    next_key: Optional[str] = None

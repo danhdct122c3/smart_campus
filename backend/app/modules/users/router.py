@@ -30,9 +30,11 @@ def create_user(payload: UserCreate):
 def list_users(
     role: Optional[str] = Query(None, description="Lọc theo role: ADMIN, STUDENT, STAFF"),
     status: Optional[str] = Query(None, description="Lọc theo status: ACTIVE, INACTIVE, SUSPENDED"),
+    limit: int = Query(10, description="Số lượng mục tối đa"),
+    cursor: Optional[str] = Query(None, description="Cursor cho phân trang"),
 ):
-    items = service.list_users(role=role, status_filter=status)
-    data = UserListResponse(items=items, total=len(items))
+    items, next_key = service.list_users(role=role, status_filter=status, limit=limit, cursor=cursor)
+    data = UserListResponse(items=items, total=len(items), next_key=next_key)
     return APIResponse.ok(data)
 
 
