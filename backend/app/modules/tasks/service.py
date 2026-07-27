@@ -33,9 +33,12 @@ def _send_task_notif(user_id: str, event_type, context: dict):
     try:
         from app.modules.notifications.service import send_task_notification
         from app.modules.notifications.schemas import NotificationEventType
-        send_task_notification(user_id=user_id, event_type=event_type, context=context)
-    except Exception:
-        pass  # Notification failure should never block task operations
+        result = send_task_notification(user_id=user_id, event_type=event_type, context=context)
+        print(f"[NOTIF OK] Sent {event_type} to {user_id}, id={result.notification_id}")
+    except Exception as e:
+        print(f"[NOTIF ERROR] Failed to send {event_type} to {user_id}: {e}")
+        import traceback
+        traceback.print_exc()
 
 def _sign_url(url: str | None) -> str | None:
     if not url: return None

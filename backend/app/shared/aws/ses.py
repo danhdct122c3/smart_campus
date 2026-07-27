@@ -44,9 +44,15 @@ def send_email(
         return None  # SES chưa được cấu hình, bỏ qua
 
     client = get_ses_client()
+    sender_email = settings.ses_sender_email.strip()
+    source_param = (
+        f"Smart Campus Notification <{sender_email}>"
+        if "<" not in sender_email
+        else sender_email
+    )
     try:
         response = client.send_email(
-            Source=settings.ses_sender_email,
+            Source=source_param,
             Destination={"ToAddresses": [to_email]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
@@ -140,3 +146,17 @@ def send_attendance_email(
     )
 
     return send_email(to_email, subject, body_html, body_text)
+
+
+def verify_email_identity(email: str) -> bool:
+    """
+    Yêu cầu AWS SES gửi link xác thực (Verification link) tới địa chỉ email.
+    Dùng cho chế độ SES Sandbox khi cần thêm một tài khoản nhận mail mới.
+    """
+    client = get_ses_client()
+    try:
+        client.verify_email_identity(EmailAddress=email)
+        return True
+    except ClientError as exc:
+        print(f"[SES ERROR] Could not verify email {email}: {exc}")
+        return False

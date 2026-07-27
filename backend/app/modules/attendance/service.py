@@ -20,7 +20,7 @@ Exception flows:
 
 import base64
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import status
 
@@ -77,11 +77,21 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     capture_time: datetime
     if payload.timestamp:
         try:
-            capture_time = datetime.fromisoformat(payload.timestamp)
+            ts_str = payload.timestamp
+            if ts_str.endswith("Z"):
+                ts_str = ts_str[:-1] + "+00:00"
+            capture_time = datetime.fromisoformat(ts_str)
         except ValueError:
             raise AppException(ErrorCode.ATTENDANCE_INVALID_TIMESTAMP)
     else:
         capture_time = datetime.now(timezone.utc)
+
+    # Convert to local Vietnam timezone (UTC+7) for consistent date and session evaluation
+    vietnam_tz = timezone(timedelta(hours=7))
+    if capture_time.tzinfo is not None:
+        capture_time = capture_time.astimezone(vietnam_tz)
+    else:
+        capture_time = capture_time.replace(tzinfo=timezone.utc).astimezone(vietnam_tz)
 
     date_str = capture_time.strftime("%Y-%m-%d")
 

@@ -167,18 +167,18 @@ Sau khi review kỹ đặc tả, thống nhất các quyết định thiết k�
 
 ---
 
-## Trạng thái Hiện tại (2026-07-21)
+## Trạng thái Hiện tại (2026-07-22)
 
 | Workflow | Mô tả | Trạng thái |
 |:---|:---|:---:|
 | WF1 – Authentication | Cognito JWT | ✅ Hoàn thành |
 | WF2 – Face Registration | Rekognition IndexFaces + S3 | ✅ Hoàn thành |
 | WF3 – Attendance | SearchFacesByImage + Rule Engine | ✅ Hoàn thành |
-| WF4 – Notification | SNS Multi-channel + EventBridge | ✅ Hoàn thành |
+| WF4 – Notification | SNS Multi-channel + EventBridge + Task Integration | ✅ Hoàn thành |
 | WF5 – Analytics | DynamoDB + Athena + Dashboard | ✅ Hoàn thành |
 | WF6 – AI Assistant | Bedrock NL2SQL + Athena | ⏸ Tạm hoãn – Chờ Bedrock quota |
 | WF7 – Security | Risk Engine + Incident Management | ⏸ Tạm hoãn – Phụ thuộc thiết bị ngoại vi |
-| WF8 – Task & Employee Mgmt | Task CRUD + File Attachment + EventBridge | ✅ Hoàn thành |
+| WF8 – Task & Employee Mgmt | Task CRUD + Incident + Maintenance Workflow + Notification | ✅ Hoàn thành |
 
 ## Giai đoạn 11: Phát triển Thực tế WF8 – Quản lý Công việc & Sự cố (2026-07-21)
 
@@ -204,8 +204,72 @@ Sau khi review kỹ đặc tả, thống nhất các quyết định thiết k�
   - Xử lý lỗi UI: Mở rộng giới hạn tải danh sách User từ API để tự động đối chiếu và ánh xạ (map) UUID thành Tên thật trong bảng Tasks.
   - Xử lý lỗi Backend (SYS_001): Khắc phục lỗi import sai tên hàm `get_user_by_id` khi hệ thống kiểm tra quyền hạn xóa công việc.
 
+---
+
+## Giai đoạn 12: Quy trình Bảo trì & Tích hợp Thông báo vào Task (2026-07-22)
+
+### 12.1 – Hoàn thiện Quy trình Nghiệp vụ Bảo trì (Maintenance Workflow – Phương án B)
+
+- **Thiết kế quy trình điều phối sự cố:**
+  - Khi nhân viên bất kỳ bấm **"Báo cáo sự cố"**, hệ thống tự động gán công việc cho **Quản lý phòng Bảo trì** (MANAGER có `department = MAINTENANCE`).
+  - Quản lý bảo trì nhận sự cố → bấm **"Phân công"** để chọn kỹ thuật viên (MAINTENANCE staff) xử lý.
+  - Kỹ thuật viên hoàn thành → bấm **"Báo cáo hoàn thành"** kèm ghi chú (ảnh chụp hiện trường tùy chọn, không bắt buộc).
+- **Cập nhật RBAC Backend (`service.py`):**
+  - Mở quyền cho MANAGER khi đang là Assignee: Quản lý được phép thay đổi toàn bộ thông tin Task (bao gồm `assignee_id` để phân công lại) thay vì bị giới hạn chỉ sửa `status` và `submission_file_url` như nhân viên thường.
+- **Khóa trường nhập liệu khi chỉnh sửa (Frontend):**
+  - Khi mở form **Sửa/Phân công** task, các trường **Loại công việc**, **Phòng ban xử lý**, và **Phân loại sự cố** bị khóa (`disabled`) để ngăn người dùng thay đổi bản chất sự cố gốc đã được báo cáo.
+- **Tự động gắn tài liệu đính kèm từ Task cha:**
+  - Khi tạo Subtask (công việc con), hệ thống tự động sao chép `file_url` từ Task gốc sang, giúp kỹ thuật viên nhận được đầy đủ tài liệu mà không cần upload lại thủ công.
+- **Validation ngày tháng:**
+  - Không cho phép tạo công việc với ngày deadline trong quá khứ.
+  - Sửa lỗi UI: khôi phục giao diện chọn lịch (date picker) thay vì chỉ nhập tay.
+
+### 12.2 – Tích hợp Hệ thống Thông báo (WF4) vào Quản lý Công việc (WF8)
+
+- **Backend – Mở rộng module `notifications`:**
+  - Bổ sung **5 Event Types mới** vào schema: `TaskAssigned`, `TaskStatusChanged`, `TaskSubmitted`, `TaskCompleted`, `IncidentReported`.
+  - Tạo **5 Message Templates** tiếng Việt tương ứng cho từng sự kiện, sử dụng hệ thống format tự động với biến `{task_title}`, `{reporter_name}`, `{assignee_name}`, `{new_status}`.
+  - Thêm hàm `send_task_notification()` trong `notifications/service.py` – hàm tiện ích chung để gửi thông báo task qua kênh PUSH.
+- **Backend – Tích hợp vào `tasks/service.py`:**
+  - Thêm helper `_get_user_name()` để tra cứu tên hiển thị từ `user_id`.
+  - Thêm wrapper `_send_task_notif()` hoạt động theo cơ chế **Fire-and-forget**: gửi thông báo ngầm, nếu lỗi thì chỉ log mà không block luồng task chính.
+  - **7 điểm tích hợp thông báo tự động:**
+
+  | Sự kiện | Người nhận | Nội dung |
+  |---|---|---|
+  | Tạo công việc mới (STANDARD) | Người thực hiện | "Bạn vừa được giao công việc X bởi Y" |
+  | Báo cáo sự cố mới (INCIDENT) | Quản lý bảo trì | "Y vừa báo cáo sự cố X. Vui lòng phân công xử lý" |
+  | Phân công lại (Re-assign) | Người thực hiện mới | "Bạn vừa được giao công việc X" |
+  | Nộp báo cáo (IN_REVIEW) | Người giao việc | "Z đã nộp báo cáo cho công việc X" |
+  | Duyệt hoàn thành (COMPLETED) | Người thực hiện + Người giao | "Công việc X đã hoàn thành" |
+  | Từ chối (IN_REVIEW → IN_PROGRESS) | Người thực hiện | "Công việc X bị từ chối – Cần làm lại" |
+  | Thay đổi trạng thái (qua endpoint riêng) | Người thực hiện | "Công việc X đã cập nhật sang trạng thái Y" |
+
+### 12.3 – Tích hợp Notification Dropdown vào Header (Frontend)
+
+- **Nâng cấp `Header.jsx`:**
+  - Biểu tượng chuông 🔔 giờ gọi API `/api/notifications?limit=5` mỗi 30 giây (polling).
+  - Hiển thị **chấm đỏ** chỉ khi thực sự có thông báo (trước đó bị fix cứng).
+  - Bấm vào chuông → hiển thị **Dropdown Menu** với animation fade-in, chứa 5 thông báo mới nhất (icon theo loại sự kiện, tiêu đề, nội dung, thời gian).
+  - Bấm vào thông báo hoặc nút **"Xem tất cả"** → điều hướng sang trang `/notifications`.
+  - Click outside dropdown → tự động đóng.
+
+### 12.4 – Khắc phục lỗi Nghiêm trọng: Notification không lưu được vào DynamoDB
+
+- **Nguyên nhân gốc:** Toàn bộ module Notifications (`service.py` + `repository.py`) đang dùng **camelCase** (`notificationId`, `userId`, `eventType`, `sentAt`) để đặt tên field khi lưu item vào DynamoDB. Tuy nhiên, bảng `smart-campus-notifications` trên AWS thực tế được tạo với **snake_case** (`notification_id`, `user_id`). Kết quả: mỗi lần gọi `PutItem` đều bị DynamoDB từ chối (`ValidationException: Missing the key notification_id`), và lỗi này bị hàm `try/except pass` nuốt mất hoàn toàn (silent failure).
+- **Giải pháp:**
+  - Sửa `notifications/service.py`: Chuyển tất cả field names trong `_persist_and_notify()` sang snake_case (`notification_id`, `user_id`, `event_type`, `sent_at`, `error_message`).
+  - Sửa `notifications/repository.py`: Cập nhật key names trong `get_notification()` và GSI index name từ `userId-sentAt-index` sang `user_id-sent_at-index`.
+  - Sửa `_to_record()`: Dùng `.get()` với fallback cho cả 2 dạng (camelCase/snake_case) để tương thích ngược với dữ liệu cũ nếu có.
+- **Xác nhận fix:** Chạy script test trực tiếp ghi thành công notification vào DynamoDB.
+
+### 12.5 – Cải thiện UX trang Notifications
+
+- **Hiển thị Tên thay vì UUID:** Trang `Notifications.jsx` giờ tự động fetch danh sách users từ API `/api/users`, tạo bảng ánh xạ (`userMap`) từ `user_id → name`, và hiển thị tên người nhận thay vì chuỗi UUID khó đọc.
+
 ### Bước tiếp theo (Next Steps)
 
 1. Tối ưu hóa UI hiển thị danh sách Task theo mô hình Kanban.
 2. Tích hợp AI (Bedrock) vào WF8 để phân tích mức độ ưu tiên của các Báo cáo Sự cố.
-3. Liên kết WF8 với WF4 (Notifications) để tự động bắn thông báo khi có người được giao việc.
+3. Bổ sung tính năng nhắc nhở tự động khi Task sắp đến hạn deadline (Scheduled Notification).
+

@@ -5,14 +5,22 @@ const API_URL = "http://localhost:8000/api";
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('ALL');
 
+  const userMap = React.useMemo(() => {
+    const map = {};
+    users.forEach(u => { map[u.user_id] = u.name || u.email || u.user_id; });
+    return map;
+  }, [users]);
+
   useEffect(() => {
     fetchNotifications();
+    fetchUsers();
   }, []);
 
   const fetchNotifications = async () => {
@@ -28,6 +36,20 @@ const Notifications = () => {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${API_URL}/users`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setUsers(data.data.items || data.data || []);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch users', err);
     }
   };
 
@@ -73,7 +95,7 @@ const Notifications = () => {
                           item.user_id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterType === 'ALL' || item.event_type === filterType;
     return matchesSearch && matchesFilter;
-  });
+  }).sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0));
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
@@ -173,7 +195,7 @@ const Notifications = () => {
                     </div>
                   </td>
                   <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    {item.user_id}
+                    {userMap[item.user_id] || item.user_id}
                   </td>
                   <td style={{ padding: '1rem' }}>
                     {getStatusBadge(item.status)}

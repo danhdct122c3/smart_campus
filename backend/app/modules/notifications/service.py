@@ -20,7 +20,9 @@ from app.core.exceptions import AppException, ErrorCode
 from app.shared.aws import (
     publish_notification_sent,
     publish_to_topic,
+    ses,
 )
+from app.modules.users import repository as user_repo
 from .schemas import (
     NotificationChannel,
     NotificationEventType,
@@ -103,15 +105,15 @@ def _persist_and_notify(
     notification_id = str(uuid.uuid4())
 
     item = {
-        "notificationId": notification_id,
-        "userId": user_id,
+        "notification_id": notification_id,
+        "user_id": user_id,
         "channel": channel.value,
-        "eventType": event_type.value,
+        "event_type": event_type.value,
         "subject": subject,
         "message": message,
         "status": status_val.value,
-        "sentAt": now,
-        "errorMessage": error_message,
+        "sent_at": now,
+        "error_message": error_message,
     }
     repo.save_notification(item)
 
@@ -130,6 +132,67 @@ def _persist_and_notify(
     return _to_record(item)
 
 
+def _deliver_notification(
+    user_id: str,
+    subject: str,
+    message: str,
+    skip_ses: bool = False,
+) -> tuple[NotificationStatus, str | None]:
+    """
+    Deliver notification directly to the user via Amazon SES (1-to-1 personal email).
+    Only falls back to SNS with filter attributes if SES fails or email not found.
+    """
+    if not skip_ses:
+        try:
+            user = user_repo.get_user_by_id(user_id)
+            if user and user.get("email"):
+                to_email = user["email"]
+                user_name = user.get("name") or "Bạn"
+                body_html = f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px;">
+                  <div style="max-width: 560px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 24px; text-align: center;">
+                      <h1 style="color: white; margin: 0; font-size: 22px;">🎓 Smart Campus</h1>
+                      <p style="color: rgba(255,255,255,0.85); margin: 4px 0 0;">Thông báo từ hệ thống</p>
+                    </div>
+                    <div style="padding: 32px;">
+                      <p style="color: #374151; font-size: 16px;">Xin chào <strong>{user_name}</strong>,</p>
+                      <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 16px; margin: 20px 0; color: #111827; font-size: 15px; line-height: 1.5;">
+                        {message}
+                      </div>
+                      <p style="color: #9ca3af; font-size: 13px; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                        Email này được gửi tự động từ hệ thống Smart Campus qua Amazon SES. Vui lòng không trả lời email này.
+                      </p>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """
+                ses.send_email(to_email=to_email, subject=subject, body_html=body_html, body_text=message)
+                return NotificationStatus.SENT, None
+        except Exception as exc:
+            print(f"[SES NOTIF INFO] Could not send SES email to {user_id}: {exc}. Falling back to SNS.")
+
+    # Fallback to SNS with message attributes for filter policy
+    try:
+        if settings.notification_topic_arn:
+            publish_to_topic(
+                topic_arn=settings.notification_topic_arn,
+                subject=subject,
+                message=message,
+                message_attributes={
+                    "target_user_id": {
+                        "DataType": "String",
+                        "StringValue": str(user_id),
+                    }
+                },
+            )
+        return NotificationStatus.SENT, None
+    except Exception as exc:
+        return NotificationStatus.FAILED, str(exc)
+
+
 def send_attendance_notification(
     user_id: str,
     timestamp: str,
@@ -142,19 +205,8 @@ def send_attendance_notification(
         NotificationEventType.ATTENDANCE_RECORDED,
         {"timestamp": timestamp, "room_id": room_id, "status": attendance_status},
     )
-
-    error_msg = None
-    final_status = NotificationStatus.SENT
-    try:
-        if settings.notification_topic_arn:
-            publish_to_topic(
-                topic_arn=settings.notification_topic_arn,
-                subject=content["subject"],
-                message=content["message"],
-            )
-    except Exception as exc:
-        error_msg = str(exc)
-        final_status = NotificationStatus.FAILED
+    # skip_ses=True because attendance/service.py already sends the rich attendance table email via SES
+    final_status, error_msg = _deliver_notification(user_id, content["subject"], content["message"], skip_ses=True)
 
     return _persist_and_notify(
         user_id=user_id,
@@ -177,19 +229,7 @@ def send_rejection_notification(
         NotificationEventType.ATTENDANCE_REJECTED,
         {"reason": reason},
     )
-
-    error_msg = None
-    final_status = NotificationStatus.SENT
-    try:
-        if settings.notification_topic_arn:
-            publish_to_topic(
-                topic_arn=settings.notification_topic_arn,
-                subject=content["subject"],
-                message=content["message"],
-            )
-    except Exception as exc:
-        error_msg = str(exc)
-        final_status = NotificationStatus.FAILED
+    final_status, error_msg = _deliver_notification(user_id, content["subject"], content["message"], skip_ses=False)
 
     return _persist_and_notify(
         user_id=user_id,
@@ -210,19 +250,7 @@ def send_task_notification(
 ) -> NotificationRecord:
     """Send a task-related notification to a user."""
     content = _build_message(event_type, context)
-
-    error_msg = None
-    final_status = NotificationStatus.SENT
-    try:
-        if settings.notification_topic_arn:
-            publish_to_topic(
-                topic_arn=settings.notification_topic_arn,
-                subject=content["subject"],
-                message=content["message"],
-            )
-    except Exception as exc:
-        error_msg = str(exc)
-        final_status = NotificationStatus.FAILED
+    final_status, error_msg = _deliver_notification(user_id, content["subject"], content["message"], skip_ses=False)
 
     return _persist_and_notify(
         user_id=user_id,
@@ -271,13 +299,13 @@ def list_notifications(user_id: str | None, limit: int) -> list[NotificationReco
 
 def _to_record(item: dict) -> NotificationRecord:
     return NotificationRecord(
-        notification_id=item["notificationId"],
-        user_id=item["userId"],
-        channel=item["channel"],
-        event_type=item["eventType"],
-        subject=item["subject"],
-        message=item["message"],
-        status=item["status"],
-        sent_at=item["sentAt"],
-        error_message=item.get("errorMessage"),
+        notification_id=item.get("notification_id", item.get("notificationId", "")),
+        user_id=item.get("user_id", item.get("userId", "")),
+        channel=item.get("channel", "PUSH"),
+        event_type=item.get("event_type", item.get("eventType", "Custom")),
+        subject=item.get("subject", ""),
+        message=item.get("message", ""),
+        status=item.get("status", "SENT"),
+        sent_at=item.get("sent_at", item.get("sentAt", "")),
+        error_message=item.get("error_message", item.get("errorMessage")),
     )
