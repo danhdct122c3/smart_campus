@@ -78,3 +78,44 @@ class UserStatsResponse(BaseModel):
     absent_count: int
     attendance_rate: float
     records: list[UserDailyRecord]
+
+
+# ── WF5 Enterprise Analytics & Reporting Upgrades ─────────────────────────────
+
+class DepartmentComparisonStat(BaseModel):
+    department: str
+    total_users: int
+    punctuality_rate: float
+    tardiness_index: float
+    total_assigned_tasks: int = 0
+    task_completion_rate: float = 0.0
+    status_evaluation: str       # EXCELLENT | GOOD | NEEDS_IMPROVEMENT
+
+
+class DepartmentComparisonResponse(BaseModel):
+    period_start: str
+    period_end: str
+    departments: list[DepartmentComparisonStat]
+
+
+class TaskWorkloadStat(BaseModel):
+    total_assigned: int
+    completed: int
+    in_progress: int
+    overdue: int
+    completion_rate: float
+
+
+class MyAnalyticsResponse(BaseModel):
+    user_id: str
+    full_name: str
+    department: Optional[str] = None
+    period_start: str
+    period_end: str
+    attendance_rate: float
+    present_count: int
+    late_count: int
+    absent_count: int
+    total_sessions: int
+    task_workload: TaskWorkloadStat
+    recent_records: list[UserDailyRecord]

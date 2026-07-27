@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.modules.attendance import repository as att_repo
 from app.modules.users import repository as user_repo
+from app.modules.tasks import repository as task_repo
 from app.modules.attendance.rule_engine import SESSIONS
 from . import repository as repo
 from .schemas import (
@@ -23,6 +24,10 @@ from .schemas import (
     UserDailyRecord,
     UserStatsResponse,
     ReportSummaryResponse,
+    DepartmentComparisonStat,
+    DepartmentComparisonResponse,
+    TaskWorkloadStat,
+    MyAnalyticsResponse,
 )
 
 
@@ -50,9 +55,21 @@ def get_daily_summary(date: str) -> list[AttendanceSummary]:
     return summaries
 
 
+def _get_dept_user_ids(department: str | None) -> set[str] | None:
+    if not department or department == "ALL":
+        return None
+    users_data, _ = user_repo.list_users(limit=1000)
+    return {
+        u.get("user_id", u.get("userId", ""))
+        for u in users_data
+        if u.get("department") == department
+    }
+
+
 def get_report_summary(
     period_start: str,
     period_end: str,
+    department: str | None = None,
 ) -> ReportSummaryResponse:
     """
     Generate an attendance report for a date range.
@@ -62,12 +79,14 @@ def get_report_summary(
     Args:
         period_start: Start date (YYYY-MM-DD).
         period_end:   End date (YYYY-MM-DD).
+        department:   Optional department filter.
 
     Returns:
         ReportSummaryResponse with daily summaries and top absent users.
     """
     start = datetime.fromisoformat(period_start)
     end = datetime.fromisoformat(period_end)
+    dept_uids = _get_dept_user_ids(department)
 
     daily_summaries: list[AttendanceSummary] = []
 
@@ -79,6 +98,8 @@ def get_report_summary(
         date_str = current.strftime("%Y-%m-%d")
         for session in SESSIONS:
             records = att_repo.list_by_date_session(date_str, session.name)
+            if dept_uids is not None:
+                records = [r for r in records if (r.get("userId") or r.get("user_id", "")) in dept_uids]
 
             # Build daily summary
             present = sum(1 for r in records if r.get("status") == "PRESENT")
@@ -107,12 +128,16 @@ def get_report_summary(
 
     # Build per-user stats
     # users table uses snake_case: user_id
-    users_data = user_repo.list_users()
+    users_data, _ = user_repo.list_users(limit=1000)
     users_map = {u.get("user_id", u.get("userId", "")): u for u in users_data}
+    if dept_uids is not None:
+        users_map = {uid: u for uid, u in users_map.items() if uid in dept_uids}
     total_users = len(users_map)
 
     user_stats: list[UserAttendanceStat] = []
     for uid, records in user_records.items():
+        if dept_uids is not None and uid not in dept_uids:
+            continue
         present = sum(1 for r in records if r.get("status") == "PRESENT")
         late = sum(1 for r in records if r.get("status") == "LATE")
         total = len(records)
@@ -155,6 +180,7 @@ def get_report_summary(
 def get_attendance_trend(
     period_start: str,
     period_end: str,
+    department: str | None = None,
 ) -> AttendanceTrendResponse:
     """
     Return per-day attendance trend data suitable for charting.
@@ -163,6 +189,10 @@ def get_attendance_trend(
     Athena returns aggregated counts; DynamoDB path aggregates in Python.
     """
     raw_records, data_source = repo.get_trend_records(period_start, period_end)
+    dept_uids = _get_dept_user_ids(department)
+
+    if dept_uids is not None and data_source != "athena":
+        raw_records = [r for r in raw_records if (r.get("userId") or r.get("user_id", "") or r.get("user", "")) in dept_uids]
 
     if data_source == "athena":
         points = _aggregate_trend_from_athena(raw_records, period_start, period_end)
@@ -273,9 +303,7 @@ def get_user_stats(
     Automatically uses Athena if configured, else falls back to DynamoDB.
     """
     # Resolve user info — users table uses snake_case user_id
-    users_data = user_repo.list_users()
-    users_map = {u.get("user_id", u.get("userId", "")): u for u in users_data}
-    user_info = users_map.get(user_id, {})
+    user_info = user_repo.get_user_by_id(user_id) or {}
     full_name = user_info.get("full_name", user_info.get("name", "Unknown"))
     department = user_info.get("department")
 
@@ -320,4 +348,149 @@ def get_user_stats(
         absent_count=absent_count,
         attendance_rate=rate,
         records=sorted(records, key=lambda x: x.date),
+    )
+
+
+# ── WF5 Enterprise Analytics & Reporting Upgrades ─────────────────────────────
+
+def get_department_comparison_stats(
+    period_start: str,
+    period_end: str,
+) -> DepartmentComparisonResponse:
+    """
+    Generate department comparison matrix for PO / Director / Admin.
+    Calculates Punctuality Rate, Tardiness Index, Task Completion Rate, and Evaluation.
+    """
+    users_data, _ = user_repo.list_users(limit=1000)
+    dept_users: dict[str, list[dict]] = defaultdict(list)
+    for u in users_data:
+        dept = u.get("department") or "OTHER"
+        dept_users[dept].append(u)
+
+    raw_records, _ = repo.get_trend_records(period_start, period_end)
+    tasks_data, _ = task_repo.list_tasks_paginated(limit=1000)
+
+    dept_stats: list[DepartmentComparisonStat] = []
+    for dept, ulist in dept_users.items():
+        uids = {u.get("user_id", u.get("userId", "")) for u in ulist}
+        total_u = len(ulist)
+
+        dept_records = [r for r in raw_records if (r.get("userId") or r.get("user_id", "")) in uids]
+        present = sum(1 for r in dept_records if r.get("status") == "PRESENT")
+        late = sum(1 for r in dept_records if r.get("status") == "LATE")
+        total_att = len(dept_records)
+        punctuality_rate = round(present / total_att * 100, 1) if total_att else 100.0
+        tardiness_index = round(late / total_att * 100, 1) if total_att else 0.0
+
+        dept_tasks = [
+            t for t in tasks_data
+            if t.get("assignee_id") in uids or t.get("department") == dept
+        ]
+        total_tasks = len(dept_tasks)
+        done_tasks = sum(1 for t in dept_tasks if t.get("status") in ("DONE", "RESOLVED"))
+        task_completion_rate = round(done_tasks / total_tasks * 100, 1) if total_tasks else 100.0
+
+        if punctuality_rate >= 92.0 and tardiness_index <= 10.0:
+            eval_status = "EXCELLENT"
+        elif punctuality_rate >= 80.0 and tardiness_index <= 20.0:
+            eval_status = "GOOD"
+        else:
+            eval_status = "NEEDS_IMPROVEMENT"
+
+        dept_stats.append(
+            DepartmentComparisonStat(
+                department=dept,
+                total_users=total_u,
+                punctuality_rate=punctuality_rate,
+                tardiness_index=tardiness_index,
+                total_assigned_tasks=total_tasks,
+                task_completion_rate=task_completion_rate,
+                status_evaluation=eval_status,
+            )
+        )
+
+    return DepartmentComparisonResponse(
+        period_start=period_start,
+        period_end=period_end,
+        departments=sorted(dept_stats, key=lambda x: x.department),
+    )
+
+
+def get_my_analytics(
+    user_id: str,
+    period_start: str,
+    period_end: str,
+) -> MyAnalyticsResponse:
+    """
+    Generate personal analytics (My Analytics) for STAFF / Employee.
+    Includes personal attendance summary, daily log, and task workload.
+    """
+    user_info = user_repo.get_user_by_id(user_id) or {}
+    full_name = user_info.get("full_name", user_info.get("name", "Unknown"))
+    department = user_info.get("department")
+
+    raw_records, _ = repo.get_user_records(user_id, period_start, period_end)
+    records: list[UserDailyRecord] = []
+    present_count = 0
+    late_count = 0
+    absent_count = 0
+
+    for r in raw_records:
+        status = r.get("status", "")
+        if status == "PRESENT":
+            present_count += 1
+        elif status == "LATE":
+            late_count += 1
+        elif status == "ABSENT":
+            absent_count += 1
+
+        date_val = r.get("date") or (r.get("timestamp", "")[:10] if r.get("timestamp") else "")
+        records.append(
+            UserDailyRecord(
+                date=date_val,
+                session_type=r.get("session_type", "ALL"),
+                status=status,
+                camera_id=r.get("camera_id") or r.get("cameraId"),
+                timestamp=r.get("timestamp"),
+            )
+        )
+
+    total_sessions = len(records)
+    attendance_rate = round((present_count + late_count) / total_sessions * 100, 1) if total_sessions else 100.0
+
+    tasks = task_repo.list_tasks_by_assignee(user_id)
+    total_assigned = len(tasks)
+    completed = sum(1 for t in tasks if t.get("status") in ("DONE", "RESOLVED"))
+    in_progress = sum(1 for t in tasks if t.get("status") == "IN_PROGRESS")
+
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    overdue = sum(
+        1 for t in tasks
+        if t.get("status") not in ("DONE", "RESOLVED", "CANCELLED")
+        and str(t.get("due_date", "")) != ""
+        and str(t.get("due_date", "")) < today_str
+    )
+    completion_rate = round(completed / total_assigned * 100, 1) if total_assigned else 100.0
+
+    records.sort(key=lambda r: str(r.timestamp or r.date), reverse=True)
+
+    return MyAnalyticsResponse(
+        user_id=user_id,
+        full_name=full_name,
+        department=department,
+        period_start=period_start,
+        period_end=period_end,
+        attendance_rate=attendance_rate,
+        present_count=present_count,
+        late_count=late_count,
+        absent_count=absent_count,
+        total_sessions=total_sessions,
+        task_workload=TaskWorkloadStat(
+            total_assigned=total_assigned,
+            completed=completed,
+            in_progress=in_progress,
+            overdue=overdue,
+            completion_rate=completion_rate,
+        ),
+        recent_records=records[:20],
     )
