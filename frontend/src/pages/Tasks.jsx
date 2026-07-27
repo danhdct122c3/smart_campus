@@ -215,7 +215,7 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
 
           {/* 3. Ngày giao / Deadline */}
           <div>
-            <SectionLabel>📅 Thời gian</SectionLabel>
+            <SectionLabel> Thời gian</SectionLabel>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <DateCard label="Ngày giao" value={createdStr} />
               <DateCard label="Deadline" value={dueStr} danger={isOverdue} />
@@ -268,7 +268,7 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
           {/* 5. Ghi chú kết quả */}
           {task.submission_note && (
             <div>
-              <SectionLabel>💬 Ghi chú kết quả</SectionLabel>
+              <SectionLabel> Ghi chú kết quả</SectionLabel>
               <div style={{
                 background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.22)',
                 borderRadius: '10px', padding: '1rem 1.1rem',
@@ -296,18 +296,18 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
           )}
           {isAssignee && task.status === 'IN_PROGRESS' && (
             <Btn variant="warning" size="md" onClick={() => { onSubmit(task); onClose(); }}>
-              <CheckCircle2 size={14} /> Gửi duyệt
+              <CheckCircle2 size={14} /> {task.task_type === 'INCIDENT' ? 'Báo cáo hoàn tất' : 'Gửi duyệt'}
             </Btn>
           )}
           {(isReporter || isAdmin) && task.status === 'IN_REVIEW' && (
             <>
               <Btn variant="danger" size="md" onClick={() => { onUpdateStatus(task.task_id, 'IN_PROGRESS'); onClose(); }}>Từ chối</Btn>
               <Btn variant="success" size="md" onClick={() => { onUpdateStatus(task.task_id, 'COMPLETED'); onClose(); }}>
-                <CheckCircle2 size={14} /> Duyệt
+                <CheckCircle2 size={14} /> {task.task_type === 'INCIDENT' ? 'Nghiệm thu' : 'Duyệt'}
               </Btn>
             </>
           )}
-          {currentUser?.role === 'MANAGER' && isAssignee && task.status === 'IN_PROGRESS' && !task.parent_task_id && (
+          {currentUser?.role === 'MANAGER' && isAssignee && task.status === 'IN_PROGRESS' && !task.parent_task_id && task.task_type !== 'INCIDENT' && (
             <Btn variant="dashed" size="md" onClick={() => { onAddSubtask(task.task_id); onClose(); }}>
               <Plus size={14} /> Thêm việc con
             </Btn>
@@ -500,7 +500,7 @@ const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubt
             )}
             {isAssignee && task.status === 'IN_PROGRESS' && (
               <Btn variant="warning" onClick={() => onSubmit(task)}>
-                <CheckCircle2 size={13} /> Gửi duyệt
+                <CheckCircle2 size={13} /> {task.task_type === 'INCIDENT' ? 'Hoàn thành' : 'Gửi duyệt'}
               </Btn>
             )}
             {(isReporter || isAdmin) && task.status === 'IN_REVIEW' && (
@@ -509,18 +509,18 @@ const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubt
                   Từ chối
                 </Btn>
                 <Btn variant="success" onClick={() => onUpdateStatus(task.task_id, 'COMPLETED')}>
-                  <CheckCircle2 size={13} /> Duyệt
+                  <CheckCircle2 size={13} /> {task.task_type === 'INCIDENT' ? 'Nghiệm thu' : 'Duyệt'}
                 </Btn>
               </>
             )}
-            {currentUser?.role === 'MANAGER' && isAssignee && task.status === 'IN_PROGRESS' && !task.parent_task_id && (
+            {currentUser?.role === 'MANAGER' && isAssignee && task.status === 'IN_PROGRESS' && !task.parent_task_id && task.task_type !== 'INCIDENT' && (
               <Btn variant="dashed" onClick={() => onAddSubtask(task.task_id)}>
                 <Plus size={13} /> Thêm việc con
               </Btn>
             )}
-            {(isReporter || isAdmin) && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
+            {(isReporter || isAdmin || (isAssignee && currentUser?.role === 'MANAGER' && task.task_type === 'INCIDENT')) && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
               <Btn variant="dashed" onClick={() => onEdit(task)}>
-                <Edit2 size={13} /> Sửa
+                <Edit2 size={13} /> {task.task_type === 'INCIDENT' ? 'Phân công' : 'Sửa'}
               </Btn>
             )}
             {(isReporter || isAdmin) && (
@@ -634,6 +634,14 @@ export default function Tasks() {
     if (!newTask.title) return alert('Vui lòng điền tiêu đề');
     if (newTask.task_type === 'STANDARD' && !newTask.assignee_id) return alert('Công việc thường bắt buộc phải chọn người nhận việc');
     if (newTask.task_type === 'INCIDENT' && !newTask.department) return alert('Báo cáo sự cố bắt buộc phải chọn phòng ban xử lý');
+    if (newTask.due_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(newTask.due_date);
+      if (selectedDate < today) {
+        return alert('Hạn chót (Due Date) không được nằm trong quá khứ.');
+      }
+    }
     setUploading(true);
     let finalFileUrl = null;
 
@@ -652,6 +660,10 @@ export default function Tasks() {
       const url = editTaskId ? `${API_BASE}/tasks/${editTaskId}` : `${API_BASE}/tasks`;
       const method = editTaskId ? 'PATCH' : 'POST';
       const body = { ...newTask };
+      if (!body.department) body.department = null;
+      if (!body.category) body.category = null;
+      if (!body.due_date) body.due_date = null;
+      if (!body.assignee_id) body.assignee_id = null;
       if (!editTaskId) body.reporter_id = currentUser.user_id;
       if (finalFileUrl) body.file_url = finalFileUrl;
 
@@ -722,7 +734,8 @@ export default function Tasks() {
       due_date: '',
       parent_task_id: parentTaskId,
       task_type: parent?.task_type || 'STANDARD',
-      department: parent?.department || ''
+      department: parent?.department || '',
+      file_url: parent?.file_url || null
     });
     setShowModal(true);
   };
@@ -812,8 +825,11 @@ export default function Tasks() {
             </select>
           </div>
 
+          <Btn variant="warning" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'HIGH', due_date: '', parent_task_id: null, task_type: 'INCIDENT', department: 'MAINTENANCE' }); setShowModal(true); }}>
+            <AlertTriangle size={16} /> Báo cáo sự cố
+          </Btn>
           {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
-            <Btn variant="primary" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null }); setShowModal(true); }}>
+            <Btn variant="primary" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD' }); setShowModal(true); }}>
               <Plus size={16} /> Giao việc
             </Btn>
           )}
@@ -965,7 +981,7 @@ export default function Tasks() {
               <input placeholder="Nhập tiêu đề..." value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })} style={inputStyle} />
             </div>
 
-            <div><label style={labelStyle}>Mô tả chi tiết</label>
+            <div><label style={labelStyle}>Mô tả</label>
               <textarea placeholder="Yêu cầu cụ thể..." value={newTask.description} onChange={e => setNewTask({ ...newTask, description: e.target.value })} style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' }} />
             </div>
 
@@ -974,9 +990,16 @@ export default function Tasks() {
                 <label style={labelStyle}>Loại công việc *</label>
                 <select
                   value={newTask.task_type}
-                  onChange={e => setNewTask({ ...newTask, task_type: e.target.value })}
-                  disabled={!!newTask.parent_task_id}
-                  style={{ ...inputStyle, appearance: 'none', cursor: newTask.parent_task_id ? 'not-allowed' : 'pointer', opacity: newTask.parent_task_id ? 0.7 : 1 }}
+                  onChange={e => {
+                    const ttype = e.target.value;
+                    if (ttype === 'INCIDENT') {
+                      setNewTask({ ...newTask, task_type: ttype, department: 'MAINTENANCE', assignee_id: '', due_date: '' });
+                    } else {
+                      setNewTask({ ...newTask, task_type: ttype });
+                    }
+                  }}
+                  disabled={!!editTaskId || !!newTask.parent_task_id || (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER')}
+                  style={{ ...inputStyle, appearance: 'none', cursor: (!!editTaskId || !!newTask.parent_task_id || (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER')) ? 'not-allowed' : 'pointer', opacity: (!!editTaskId || !!newTask.parent_task_id || (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER')) ? 0.7 : 1 }}
                 >
                   <option value="STANDARD" style={{ color: '#000' }}>Công việc văn phòng</option>
                   <option value="INCIDENT" style={{ color: '#000' }}>Báo cáo sự cố / Yêu cầu bảo trì</option>
@@ -988,8 +1011,8 @@ export default function Tasks() {
                 <select
                   value={newTask.department}
                   onChange={e => setNewTask({ ...newTask, department: e.target.value })}
-                  disabled={!!newTask.parent_task_id}
-                  style={{ ...inputStyle, appearance: 'none', cursor: newTask.parent_task_id ? 'not-allowed' : 'pointer', opacity: newTask.parent_task_id ? 0.7 : 1 }}
+                  disabled={!!editTaskId || !!newTask.parent_task_id || newTask.task_type === 'INCIDENT'}
+                  style={{ ...inputStyle, appearance: 'none', cursor: (!!editTaskId || !!newTask.parent_task_id || newTask.task_type === 'INCIDENT') ? 'not-allowed' : 'pointer', opacity: (!!editTaskId || !!newTask.parent_task_id || newTask.task_type === 'INCIDENT') ? 0.7 : 1 }}
                 >
                   <option value="" style={{ color: '#000' }}>-- Chọn phòng ban --</option>
                   <option value="IT" style={{ color: '#000' }}>IT (Công nghệ thông tin)</option>
@@ -1005,7 +1028,12 @@ export default function Tasks() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={labelStyle}>Phân loại sự cố</label>
-                  <select value={newTask.category} onChange={e => setNewTask({ ...newTask, category: e.target.value })} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+                  <select 
+                    value={newTask.category} 
+                    onChange={e => setNewTask({ ...newTask, category: e.target.value })} 
+                    disabled={!!editTaskId}
+                    style={{ ...inputStyle, appearance: 'none', cursor: !!editTaskId ? 'not-allowed' : 'pointer', opacity: !!editTaskId ? 0.7 : 1 }}
+                  >
                     <option value="" style={{ color: '#000' }}>-- Chọn loại sự cố --</option>
                     <option value="ELECTRIC" style={{ color: '#000' }}>Điện</option>
                     <option value="WATER" style={{ color: '#000' }}>Nước</option>
@@ -1018,28 +1046,30 @@ export default function Tasks() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label style={labelStyle}>Người thực hiện {newTask.task_type === 'STANDARD' ? '*' : '(Tùy chọn)'}</label>
-                <div style={{ position: 'relative' }}>
-                  <UserCheck size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <select value={newTask.assignee_id} onChange={e => setNewTask({ ...newTask, assignee_id: e.target.value })} style={{ ...inputStyle, paddingLeft: '2.2rem', appearance: 'none', cursor: 'pointer' }}>
-                    <option value="">-- Chọn nhân viên --</option>
-                    {getAvailableAssignees().map(u => (
-                      <option key={u.user_id} value={u.user_id} style={{ color: '#000' }}>{u.name} – {u.role}</option>
-                    ))}
-                  </select>
+            {(newTask.task_type !== 'INCIDENT' || currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN') && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>Người thực hiện *</label>
+                  <div style={{ position: 'relative' }}>
+                    <UserCheck size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <select value={newTask.assignee_id} onChange={e => setNewTask({ ...newTask, assignee_id: e.target.value })} style={{ ...inputStyle, paddingLeft: '2.2rem', appearance: 'none', cursor: 'pointer' }}>
+                      <option value="">-- Chọn nhân viên --</option>
+                      {getAvailableAssignees().map(u => (
+                        <option key={u.user_id} value={u.user_id} style={{ color: '#000' }}>{u.name} – {u.role}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label style={labelStyle}>Hạn chót (Due Date)</label>
-                <div style={{ position: 'relative' }}>
-                  <Calendar size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="date" value={newTask.due_date} onChange={e => setNewTask({ ...newTask, due_date: e.target.value })} style={{ ...inputStyle, paddingLeft: '2.2rem' }} />
+                <div>
+                  <label style={labelStyle}>Hạn chót (Due Date)</label>
+                  <div style={{ position: 'relative' }}>
+                    <Calendar size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input type="date" value={newTask.due_date} onChange={e => setNewTask({ ...newTask, due_date: e.target.value })} style={{ ...inputStyle, paddingLeft: '2.2rem', colorScheme: 'dark', cursor: 'pointer' }} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div>
               <label style={labelStyle}>Mức độ ưu tiên</label>
@@ -1081,8 +1111,8 @@ export default function Tasks() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
               <Btn variant="ghost" size="md" onClick={() => setShowModal(false)}>Hủy</Btn>
-              <Btn variant="primary" size="md" onClick={handleCreateTask} disabled={uploading}>
-                {uploading ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang gửi...</> : 'Xác nhận giao việc'}
+              <Btn variant="primary" size="md" onClick={handleSaveTask} disabled={uploading}>
+                {uploading ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang gửi...</> : 'Xác nhận'}
               </Btn>
             </div>
           </div>
@@ -1120,10 +1150,10 @@ export default function Tasks() {
             {/* Note textarea */}
             <div>
               <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', display: 'block' }}>
-                Ghi chú / Tóm tắt kết quả
+                Ghi chú
               </label>
               <textarea
-                placeholder="Mô tả ngắn những gì đã làm, kết quả đạt được, vấn đề gặp phải..."
+                placeholder="Ghi chú"
                 value={submissionNote}
                 onChange={e => setSubmissionNote(e.target.value)}
                 rows={3}

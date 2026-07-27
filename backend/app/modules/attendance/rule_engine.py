@@ -6,7 +6,11 @@ Applies business rules to determine whether an attendance check-in is:
   - REJECTED → already checked in (duplicate), wrong session, or policy violation
 """
 
-from datetime import datetime, timezone, time
+from datetime import datetime, timezone, time, timedelta
+
+
+# ── Vietnam Timezone (UTC+7) ──────────────────────────────────────────────────
+VIETNAM_TZ = timezone(timedelta(hours=7))
 
 
 # ── Session definitions (configurable) ────────────────────────────────────────
@@ -20,9 +24,12 @@ class Session:
 
 
 SESSIONS: list[Session] = [
-    Session("MORNING",   time(7, 0),  time(7, 15), time(12, 0)),
-    Session("AFTERNOON", time(13, 0), time(13, 15), time(17, 30)),
-    Session("EVENING",   time(17, 30), time(17, 45), time(21, 0)),
+    # Cover 00:00 to 11:59:59 (late after 07:30)
+    Session("MORNING",   time(0, 0),  time(7, 30), time(11, 59, 59, 999999)),
+    # Cover 12:00 to 17:29:59 (late after 13:30)
+    Session("AFTERNOON", time(12, 0), time(13, 30), time(17, 29, 59, 999999)),
+    # Cover 17:30 to 23:59:59 (late after 18:00)
+    Session("EVENING",   time(17, 30), time(18, 0), time(23, 59, 59, 999999)),
 ]
 
 
@@ -50,7 +57,13 @@ def evaluate(
     Returns:
         RuleResult with allowed=True/False, status, and session_name.
     """
-    t = capture_time.time()
+    # Convert to Vietnam timezone (UTC+7) if needed for local time evaluation
+    if capture_time.tzinfo is not None:
+        local_time = capture_time.astimezone(VIETNAM_TZ)
+    else:
+        local_time = capture_time.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TZ)
+
+    t = local_time.time()
 
     # 1. Identify which session this belongs to
     current_session: Session | None = None
