@@ -17,6 +17,8 @@ from .schemas import (
     AttendanceSummary,
     AttendanceTrendResponse,
     UserStatsResponse,
+    DepartmentComparisonResponse,
+    MyAnalyticsResponse,
 )
 from . import service
 
@@ -49,6 +51,10 @@ def get_report_summary(
         default=None,
         description="Ngày kết thúc (YYYY-MM-DD). Mặc định: hôm nay",
     ),
+    department: str = Query(
+        default=None,
+        description="Lọc theo phòng ban (VD: IT, MAINTENANCE, SECURITY)",
+    ),
 ):
     today = datetime.now(timezone.utc)
     if not period_end:
@@ -56,7 +62,7 @@ def get_report_summary(
     if not period_start:
         period_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
 
-    data = service.get_report_summary(period_start, period_end)
+    data = service.get_report_summary(period_start, period_end, department=department)
     return APIResponse.ok(data)
 
 
@@ -97,6 +103,10 @@ def get_attendance_trend(
         default=None,
         description="Ngày kết thúc (YYYY-MM-DD). Mặc định: hôm nay",
     ),
+    department: str = Query(
+        default=None,
+        description="Lọc theo phòng ban",
+    ),
 ):
     today = datetime.now(timezone.utc)
     if not period_end:
@@ -104,7 +114,7 @@ def get_attendance_trend(
     if not period_start:
         period_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    data = service.get_attendance_trend(period_start, period_end)
+    data = service.get_attendance_trend(period_start, period_end, department=department)
     return APIResponse.ok(data)
 
 
@@ -140,4 +150,64 @@ def get_user_stats(
         period_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
 
     data = service.get_user_stats(user_id, period_start, period_end)
+    return APIResponse.ok(data)
+
+
+# ── WF5 Enterprise Analytics & Reporting Upgrades ─────────────────────────────
+
+@router.get(
+    "/departments",
+    response_model=APIResponse[DepartmentComparisonResponse],
+    summary="Bảng so sánh hiệu suất các Phòng ban (Department Comparison Matrix)",
+    description="""
+Dành cho PO / Director / Admin xem báo cáo so sánh giữa tất cả phòng ban.
+Tính toán KPI tuân thủ giờ giấc, chỉ số đi muộn và hiệu suất hoàn thành công việc.
+    """,
+)
+def get_department_comparison(
+    period_start: str = Query(
+        default=None,
+        description="Ngày bắt đầu (YYYY-MM-DD). Mặc định: 30 ngày trước",
+    ),
+    period_end: str = Query(
+        default=None,
+        description="Ngày kết thúc (YYYY-MM-DD). Mặc định: hôm nay",
+    ),
+):
+    today = datetime.now(timezone.utc)
+    if not period_end:
+        period_end = today.strftime("%Y-%m-%d")
+    if not period_start:
+        period_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    data = service.get_department_comparison_stats(period_start, period_end)
+    return APIResponse.ok(data)
+
+
+@router.get(
+    "/my-analytics",
+    response_model=APIResponse[MyAnalyticsResponse],
+    summary="Báo cáo cá nhân (My Analytics) cho Nhân viên / Sinh viên",
+    description="""
+Dành cho STAFF / Employee xem tự đối chiếu chấm công, nhật ký check-in/out và tiến độ task cá nhân.
+    """,
+)
+def get_my_analytics(
+    user_id: str = Query(..., description="ID của người dùng đang đăng nhập"),
+    period_start: str = Query(
+        default=None,
+        description="Ngày bắt đầu (YYYY-MM-DD). Mặc định: 30 ngày trước",
+    ),
+    period_end: str = Query(
+        default=None,
+        description="Ngày kết thúc (YYYY-MM-DD). Mặc định: hôm nay",
+    ),
+):
+    today = datetime.now(timezone.utc)
+    if not period_end:
+        period_end = today.strftime("%Y-%m-%d")
+    if not period_start:
+        period_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    data = service.get_my_analytics(user_id, period_start, period_end)
     return APIResponse.ok(data)
