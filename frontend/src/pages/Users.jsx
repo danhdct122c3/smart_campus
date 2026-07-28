@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Loader, Edit2, Camera, Upload, CameraOff } from 'lucide-react';
+import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Loader, Edit2, Camera, Upload, CameraOff, ClipboardList, CheckCircle2, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
 import Card from '../components/Card';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api/users';
@@ -26,6 +26,28 @@ const Users = () => {
     employee_id: '',
     status: 'ACTIVE'
   });
+
+  // Task History state
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskUser, setTaskUser] = useState(null);
+  const [userTasks, setUserTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
+  const handleOpenTaskHistory = async (user) => {
+    setTaskUser(user);
+    setShowTaskModal(true);
+    setLoadingTasks(true);
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/users/${user.user_id}/tasks`);
+      const json = await res.json();
+      setUserTasks(json.data?.items || []);
+    } catch (err) {
+      console.error(err);
+      setUserTasks([]);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
 
   // Face registration state
   const [showFaceModal, setShowFaceModal] = useState(false);
@@ -285,6 +307,7 @@ const Users = () => {
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã nhân sự</th>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Trạng thái</th>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khuôn mặt</th>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Công việc</th>
                   <th style={{ padding: '1rem', width: '50px' }}></th>
                 </tr>
               </thead>
@@ -337,6 +360,22 @@ const Users = () => {
                         </button>
                       )}
                     </td>
+                    <td style={{ padding: '1rem' }}>
+                      <button
+                        onClick={() => handleOpenTaskHistory(user)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem',
+                          background: 'rgba(59,130,246,0.1)', color: '#60a5fa',
+                          border: '1px solid rgba(59,130,246,0.3)', borderRadius: '6px',
+                          padding: '0.3rem 0.65rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
+                      >
+                        <ClipboardList size={14} /> Lịch sử Task
+                      </button>
+                    </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <button
                         onClick={() => handleOpenEdit(user)}
@@ -348,7 +387,7 @@ const Users = () => {
                 ))}
                 {visibleUsers.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       Chưa có người dùng nào.
                     </td>
                   </tr>
@@ -655,6 +694,107 @@ const Users = () => {
                 '🚀 Đăng ký khuôn mặt'
               )}
             </button>
+          </Card>
+        </div>
+      )}
+
+      {/* Task History Modal */}
+      {showTaskModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <Card style={{ width: '650px', maxWidth: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', position: 'relative', padding: '1.5rem', background: 'var(--bg-panel)', border: '1px solid var(--glass-border)' }}>
+            <button onClick={() => setShowTaskModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <X size={20} />
+            </button>
+
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ClipboardList color="var(--accent-primary)" /> Lịch sử công việc
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              Nhân sự: <strong style={{ color: '#fff' }}>{taskUser?.name}</strong> ({taskUser?.email})
+            </p>
+
+            <div style={{ flex: 1, overflowY: 'auto', pr: '0.5rem' }}>
+              {loadingTasks ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <Loader className="spin" size={24} style={{ marginBottom: '0.75rem', animation: 'spin 1s linear infinite' }} />
+                  <p>Đang tải danh sách công việc...</p>
+                </div>
+              ) : userTasks.length === 0 ? (
+                <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                  Chưa có công việc nào được giao cho nhân sự này.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {userTasks.map((task) => {
+                    const statusColors = {
+                      OPEN: { bg: 'rgba(100,116,139,0.15)', color: 'var(--text-muted)', label: 'TODO' },
+                      TODO: { bg: 'rgba(100,116,139,0.15)', color: 'var(--text-muted)', label: 'TODO' },
+                      IN_PROGRESS: { bg: 'rgba(6,182,212,0.15)', color: 'var(--accent-primary)', label: 'ĐANG LÀM' },
+                      IN_REVIEW: { bg: 'rgba(245,158,11,0.15)', color: 'var(--accent-warning)', label: 'CHỜ DUYỆT' },
+                      COMPLETED: { bg: 'rgba(16,185,129,0.15)', color: 'var(--accent-success)', label: 'HOÀN THÀNH' },
+                      DONE: { bg: 'rgba(16,185,129,0.15)', color: 'var(--accent-success)', label: 'HOÀN THÀNH' },
+                    };
+                    const st = statusColors[task.status] || statusColors.OPEN;
+
+                    return (
+                      <div key={task.task_id} style={{
+                        padding: '1rem', borderRadius: '10px', background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '4px', background: st.bg, color: st.color }}>
+                              {st.label}
+                            </span>
+                            {task.priority && (
+                              <span style={{
+                                fontSize: '0.72rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '4px',
+                                background: task.priority === 'URGENT' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)',
+                                color: task.priority === 'URGENT' ? 'var(--accent-danger)' : 'var(--text-secondary)'
+                              }}>
+                                {task.priority}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              • {task.created_at?.slice(0, 10) || 'N/A'}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                            {task.title}
+                          </p>
+                          {task.description && (
+                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+                        {task.due_date && (
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Hạn chót</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: task.due_date < new Date().toISOString().slice(0,10) && task.status !== 'COMPLETED' ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
+                              📅 {task.due_date}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '1rem' }}>
+              <button
+                onClick={() => setShowTaskModal(false)}
+                style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Đóng
+              </button>
+            </div>
           </Card>
         </div>
       )}

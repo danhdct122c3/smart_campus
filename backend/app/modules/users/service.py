@@ -114,3 +114,39 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
 def mark_face_registered(user_id: str) -> None:
     """Called by Face service after successful IndexFaces."""
     repo.update_user(user_id, {"face_registered": True})
+
+
+def get_user_tasks(user_id: str):
+    """Fetch task history assigned to a user."""
+    get_user(user_id)  # ensure user exists or raise 404
+    from app.modules.tasks import repository as task_repo
+    from app.modules.tasks.service import _item_to_record
+    items = task_repo.list_tasks_by_assignee(user_id)
+    items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return [_item_to_record(item) for item in items]
+
+
+def get_user_task_stats(user_id: str) -> dict:
+    """Calculate task completion stats for a user."""
+    get_user(user_id)
+    from app.modules.tasks import repository as task_repo
+    tasks = task_repo.list_tasks_by_assignee(user_id)
+    total_tasks = len(tasks)
+    done = sum(1 for t in tasks if t.get("status") in ("COMPLETED", "DONE"))
+    in_progress = sum(1 for t in tasks if t.get("status") in ("IN_PROGRESS", "OPEN", "TODO", "IN_REVIEW"))
+    
+    now_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    overdue = sum(
+        1 for t in tasks 
+        if t.get("status") not in ("COMPLETED", "DONE", "CANCELLED", "REJECTED") 
+        and t.get("due_date") 
+        and str(t.get("due_date")) < now_date
+    )
+    completion_rate = round((done / total_tasks * 100.0), 1) if total_tasks > 0 else 100.0
+    return {
+        "total_tasks": total_tasks,
+        "done": done,
+        "in_progress": in_progress,
+        "overdue": overdue,
+        "completion_rate": completion_rate,
+    }

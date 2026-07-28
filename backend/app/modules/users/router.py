@@ -5,7 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, Query
 
 from app.core.responses import APIResponse
-from .schemas import UserCreate, UserUpdate, UserResponse, UserListResponse
+from .schemas import UserCreate, UserUpdate, UserResponse, UserListResponse, UserTaskStatsResponse
+from app.modules.tasks.schemas import TaskListResponse
 from . import service
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -35,6 +36,26 @@ def list_users(
 ):
     items, next_key = service.list_users(role=role, status_filter=status, limit=limit, cursor=cursor)
     data = UserListResponse(items=items, total=len(items), next_key=next_key)
+    return APIResponse.ok(data)
+
+
+@router.get(
+    "/{user_id}/tasks",
+    response_model=APIResponse[TaskListResponse],
+    summary="Lấy danh sách task của người dùng",
+)
+def get_user_tasks(user_id: str):
+    items = service.get_user_tasks(user_id)
+    return APIResponse.ok(TaskListResponse(items=items, total=len(items)))
+
+
+@router.get(
+    "/{user_id}/stats",
+    response_model=APIResponse[UserTaskStatsResponse],
+    summary="Lấy thống kê task KPI của người dùng",
+)
+def get_user_stats(user_id: str):
+    data = service.get_user_task_stats(user_id)
     return APIResponse.ok(data)
 
 

@@ -63,3 +63,11 @@ class UserListResponse(BaseModel):
     items: list[UserResponse]
     total: int
     next_key: Optional[str] = None
+
+
+class UserTaskStatsResponse(BaseModel):
+    total_tasks: int
+    done: int
+    in_progress: int
+    overdue: int
+    completion_rate: float

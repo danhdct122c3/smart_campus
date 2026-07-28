@@ -9,6 +9,7 @@ import Notifications from './pages/Notifications';
 import Attendance from './pages/Attendance';
 import Analytics from './pages/Analytics';
 import Tasks from './pages/Tasks';
+import MyTasks from './pages/MyTasks';
 
 function App() {
   // Tạm thời tắt cơ chế bắt buộc đăng nhập (cho phép truy cập thẳng)
@@ -34,6 +35,7 @@ function App() {
           <Route path="attendance" element={<Attendance />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="my-tasks" element={<MyTasks />} />
           <Route path="security" element={<div style={{padding:'2rem'}}>Security Page (Mock)</div>} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="*" element={<Navigate to="/" replace />} />
