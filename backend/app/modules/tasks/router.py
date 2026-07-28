@@ -68,3 +68,9 @@ class PresignedUrlRequest(BaseModel):
 def get_upload_url(payload: PresignedUrlRequest):
     data = service.get_presigned_upload_url(payload.file_name, payload.file_type)
     return APIResponse.ok(data)
+
+@router.post("/check-overdue", response_model=APIResponse[dict], summary="Quét và gửi cảnh báo công việc quá hạn")
+def trigger_check_overdue():
+    """Trigger quét tất cả task trong hệ thống và gửi thông báo cảnh báo quá hạn cho người được giao."""
+    data = service.check_and_notify_overdue_tasks()
+    return APIResponse.ok(data, message="Đã hoàn thành quét và gửi cảnh báo công việc quá hạn")

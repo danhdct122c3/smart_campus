@@ -72,6 +72,10 @@ _TEMPLATES: dict[NotificationEventType, dict] = {
         "subject": "[Smart Campus] Công việc đã hoàn thành",
         "message": "Công việc \"{task_title}\" đã được duyệt hoàn thành.",
     },
+    NotificationEventType.TASK_OVERDUE: {
+        "subject": "[Smart Campus] ⚠️ Cảnh báo: Công việc đã quá hạn",
+        "message": "Công việc \"{task_title}\" do bạn phụ trách đã quá hạn thực hiện (Hạn chót: {due_date}). Vui lòng khẩn trương hoàn thành hoặc báo cáo cho {reporter_name}.",
+    },
     NotificationEventType.INCIDENT_REPORTED: {
         "subject": "[Smart Campus] Sự cố mới cần xử lý",
         "message": "{reporter_name} vừa báo cáo sự cố \"{task_title}\". Vui lòng kiểm tra và phân công xử lý.",

@@ -566,6 +566,28 @@ export default function Tasks() {
   const [submitting, setSubmitting] = useState(false);
   const [submissionNote, setSubmissionNote] = useState('');
 
+  const [checkingOverdue, setCheckingOverdue] = useState(false);
+
+  const handleCheckOverdue = async () => {
+    setCheckingOverdue(true);
+    try {
+      const res = await fetch(`${API_BASE}/tasks/check-overdue`, { method: 'POST' });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        const d = json.data;
+        alert(`🔔 Quét và cảnh báo trễ hạn hoàn tất!\n• Tổng số việc kiểm tra: ${d.checked_count}\n• Số việc quá hạn: ${d.overdue_count}\n• Đã gửi thông báo cảnh báo: ${d.notified_count} nhân sự.`);
+        fetchTasks(false);
+      } else {
+        alert('Lỗi khi gửi thông báo quá hạn!');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Lỗi kết nối máy chủ!');
+    } finally {
+      setCheckingOverdue(false);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${API_BASE}/users?limit=1000`);
@@ -829,9 +851,14 @@ export default function Tasks() {
             <AlertTriangle size={16} /> Báo cáo sự cố
           </Btn>
           {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
-            <Btn variant="primary" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD' }); setShowModal(true); }}>
-              <Plus size={16} /> Giao việc
-            </Btn>
+            <>
+              <Btn variant="danger" size="md" onClick={handleCheckOverdue} disabled={checkingOverdue}>
+                <Clock size={16} /> {checkingOverdue ? '⏳ Đang quét...' : '⚠️ Quét & Nhắc việc trễ hạn'}
+              </Btn>
+              <Btn variant="primary" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD' }); setShowModal(true); }}>
+                <Plus size={16} /> Giao việc
+              </Btn>
+            </>
           )}
         </div>
       </div>

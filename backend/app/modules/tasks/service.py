@@ -356,3 +356,53 @@ def get_presigned_upload_url(file_name: str, file_type: str) -> dict:
         }
     except Exception as e:
         raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, message=f"Failed to generate presigned URL: {str(e)}")
+
+
+def check_and_notify_overdue_tasks() -> dict:
+    """
+    Quét tất cả công việc trong hệ thống, tìm các việc đã quá hạn (due_date < hôm nay)
+    và chưa hoàn thành, sau đó tự động gửi thông báo (TASK_OVERDUE) tới người chịu trách nhiệm.
+    """
+    from app.modules.notifications.schemas import NotificationEventType
+    
+    tasks_data, _ = repo.list_tasks_paginated(limit=1000)
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    overdue_tasks = []
+    for task in tasks_data:
+        due_date = task.get("due_date")
+        status_val = task.get("status", "OPEN")
+        if due_date and due_date < today_str and status_val not in ["COMPLETED", "DONE", "CANCELLED"]:
+            overdue_tasks.append(task)
+            
+    notified_ids = []
+    for task in overdue_tasks:
+        assignee_id = task.get("assignee_id")
+        if assignee_id:
+            reporter_name = _get_user_name(task.get("reporter_id"))
+            _send_task_notif(
+                user_id=assignee_id,
+                event_type=NotificationEventType.TASK_OVERDUE,
+                context={
+                    "task_title": task.get("title", "N/A"),
+                    "due_date": task.get("due_date"),
+                    "reporter_name": reporter_name
+                }
+            )
+            notified_ids.append(task.get("task_id"))
+            
+    return {
+        "success": True,
+        "checked_count": len(tasks_data),
+        "overdue_count": len(overdue_tasks),
+        "notified_count": len(notified_ids),
+        "overdue_details": [
+            {
+                "task_id": t.get("task_id"),
+                "title": t.get("title"),
+                "due_date": t.get("due_date"),
+                "assignee_id": t.get("assignee_id"),
+                "status": t.get("status")
+            } for t in overdue_tasks
+        ]
+    }

@@ -1,13 +1,14 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2, CheckSquare, ClipboardList } from 'lucide-react';
 
 const Sidebar = () => {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { name: 'Attendance', icon: Camera, path: '/attendance' },
     { name: 'Analytics', icon: BarChart2, path: '/analytics' },
-    { name: 'Tasks', icon: CheckSquare, path: '/tasks' },
+    { name: 'Tasks (Quản lý)', icon: CheckSquare, path: '/tasks' },
+    { name: 'My Tasks (Cá nhân)', icon: ClipboardList, path: '/my-tasks' },
     { name: 'AI Assistant', icon: Bot, path: '/ai' },
     { name: 'Security', icon: ShieldAlert, path: '/security' },
     { name: 'Users & Faces', icon: Users, path: '/users' },
