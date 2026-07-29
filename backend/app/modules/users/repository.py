@@ -79,10 +79,11 @@ def get_user_by_email(email: str) -> dict | None:
 def list_users(
     role: str | None = None, 
     status: str | None = None,
+    department: str | None = None,
     limit: int = 20,
     cursor: str | None = None
 ) -> tuple[list[dict], str | None]:
-    """Scan all users, optionally filtered by role/status."""
+    """Scan all users, optionally filtered by role/status/department."""
     filter_expr = None
     if role:
         filter_expr = Attr("role").eq(role)
@@ -91,4 +92,9 @@ def list_users(
             filter_expr &= Attr("status").eq(status)
         else:
             filter_expr = Attr("status").eq(status)
+    if department:
+        if filter_expr:
+            filter_expr &= Attr("department").eq(department)
+        else:
+            filter_expr = Attr("department").eq(department)
     return scan_items_paginated(TABLE, filter_expression=filter_expr, limit=limit, cursor=cursor)

@@ -2,6 +2,7 @@
 
 from typing import Optional
 from pydantic import BaseModel
+from app.modules.users.schemas import Department
 
 
 # ── Phase 1: DynamoDB-backed (existing) ───────────────────────────────────────
@@ -18,7 +19,7 @@ class AttendanceSummary(BaseModel):
 class UserAttendanceStat(BaseModel):
     user_id: str
     name: str
-    department: Optional[str] = None
+    department: Optional[Department] = None
     total_sessions: int
     present_count: int
     late_count: int
@@ -68,7 +69,7 @@ class UserStatsResponse(BaseModel):
     """Detailed attendance statistics for a single user."""
     user_id: str
     full_name: str
-    department: Optional[str] = None
+    department: Optional[Department] = None
     period_start: str
     period_end: str
     data_source: str             # "dynamodb" | "athena"

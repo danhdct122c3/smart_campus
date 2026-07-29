@@ -1,5 +1,7 @@
 import time
 import uuid
+import time
+import uuid
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import status
@@ -7,7 +9,9 @@ from fastapi import status
 from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
 from app.modules.users import repository as user_repo
-from .schemas import LoginRequest, TokenResponse, UserProfile, NewPasswordChallengeRequest
+from .schemas import LoginRequest, TokenResponse, UserProfile, NewPasswordChallengeRequest, VerifyFaceRequest, ResetPasswordFaceRequest
+from app.shared.aws import rekognition as reko
+from app.modules.faces.service import _decode_image
 
 settings = get_settings()
 
@@ -178,4 +182,68 @@ def respond_to_new_password_challenge(payload: NewPasswordChallengeRequest) -> T
     except cognito_client.exceptions.InvalidPasswordException as e:
         raise AppException(ErrorCode.VALIDATION_ERROR, message="Mật khẩu không đủ mạnh. Vui lòng thử lại.")
     except Exception as e:
-        raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Đổi mật khẩu thất bại: {str(e)}")
+        raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Lỗi xử lý xác thực: {str(e)}")
+
+
+def _verify_face_logic(email: str, image_base64: str) -> dict:
+    user_item = user_repo.get_user_by_email(email.lower())
+    if not user_item:
+        raise AppException(ErrorCode.USER_NOT_FOUND, message="Tài khoản không tồn tại.")
+    if not user_item.get("face_registered"):
+        raise AppException(ErrorCode.VALIDATION_ERROR, message="Tài khoản chưa đăng ký khuôn mặt. Vui lòng liên hệ Admin.")
+    
+    image_bytes = _decode_image(image_base64)
+    try:
+        reko_result = reko.search_faces_by_image(image_bytes)
+        if reko_result.get("userId") != user_item["user_id"]:
+            raise AppException(ErrorCode.UNAUTHORIZED, message="Khuôn mặt không khớp với chủ tài khoản.")
+    except reko.NoFaceDetectedError:
+        raise AppException(ErrorCode.VALIDATION_ERROR, message="Không tìm thấy khuôn mặt trong ảnh.")
+    except reko.FaceNotFoundError:
+        raise AppException(ErrorCode.UNAUTHORIZED, message="Khuôn mặt không khớp với chủ tài khoản.")
+    except AppException:
+        raise
+    except Exception as e:
+        raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Lỗi xác thực khuôn mặt: {str(e)}")
+        
+    return user_item
+
+def verify_face_for_reset(payload: VerifyFaceRequest) -> dict:
+    _verify_face_logic(payload.email, payload.image_base64)
+    return {"message": "Xác thực khuôn mặt thành công."}
+
+def reset_password_by_face(payload: ResetPasswordFaceRequest) -> dict:
+    user_item = _verify_face_logic(payload.email, payload.image_base64)
+    
+    cognito_client = get_cognito_client()
+    if not cognito_client:
+        return {"message": "Demo Mode: Thành công (Offline)."}
+        
+    try:
+        cognito_client.admin_set_user_password(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=payload.email.lower(),
+            Password=payload.new_password,
+            Permanent=True
+        )
+    except cognito_client.exceptions.UserNotFoundException:
+        try:
+            # Sync user to Cognito if they only exist in local DB
+            cognito_client.admin_create_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=payload.email.lower(),
+                TemporaryPassword=payload.new_password,
+                MessageAction='SUPPRESS'
+            )
+            cognito_client.admin_set_user_password(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=payload.email.lower(),
+                Password=payload.new_password,
+                Permanent=True
+            )
+        except Exception as sync_err:
+            raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Lỗi đồng bộ tài khoản lên Cognito: {str(sync_err)}")
+    except Exception as e:
+        raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Lỗi Cognito: {str(e)}")
+        
+    return {"message": "Cập nhật mật khẩu thành công."}

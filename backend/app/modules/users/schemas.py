@@ -15,7 +15,6 @@ class UserRole(str, Enum):
     PM = "PM"
     STAFF = "STAFF"
     SECURITY = "SECURITY"
-    MAINTENANCE = "MAINTENANCE"
 
 
 class UserStatus(str, Enum):
@@ -24,22 +23,31 @@ class UserStatus(str, Enum):
     SUSPENDED = "SUSPENDED"
 
 
+class Department(str, Enum):
+    IT = "IT"
+    MAINTENANCE = "MAINTENANCE"
+    SECURITY = "SECURITY"
+    HR = "HR"
+    ADMIN = "ADMIN"
+
+
+
 # ── Request models ─────────────────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
     email: EmailStr
     name: str = Field(..., min_length=2, max_length=100)
     role: UserRole = UserRole.STAFF
-    department: Optional[str] = None
+    department: Optional[Department] = None
     phone: Optional[str] = None
-    employee_id: Optional[str] = Field(None, description="Mã nhân viên / Sinh viên")
+    employee_id: Optional[str] = Field(None, description="Mã nhân viên")
 
 
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[str] = None
     role: Optional[UserRole] = None
-    department: Optional[str] = None
+    department: Optional[Department] = None
     phone: Optional[str] = None
     status: Optional[UserStatus] = None
 
@@ -51,7 +59,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: UserRole
-    department: Optional[str] = None
+    department: Optional[Department] = None
     phone: Optional[str] = None
     employee_id: Optional[str] = None
     status: UserStatus

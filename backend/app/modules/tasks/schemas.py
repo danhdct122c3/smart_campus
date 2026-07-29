@@ -8,12 +8,7 @@ class TaskType(str, Enum):
     STANDARD = "STANDARD"
     INCIDENT = "INCIDENT"
 
-class Department(str, Enum):
-    IT = "IT"
-    MAINTENANCE = "MAINTENANCE"
-    SECURITY = "SECURITY"
-    HR = "HR"
-    ADMIN = "ADMIN"
+from app.modules.users.schemas import Department
 
 class TaskCategory(str, Enum):
     ELECTRIC = "ELECTRIC"

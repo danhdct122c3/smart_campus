@@ -850,9 +850,11 @@ export default function Tasks() {
             </span>
           </div>
 
-          <Btn variant="warning" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'HIGH', due_date: '', parent_task_id: null, task_type: 'INCIDENT', department: 'MAINTENANCE' }); setShowModal(true); }}>
-            <AlertTriangle size={16} /> Báo cáo sự cố
-          </Btn>
+          {currentUser?.department !== 'MAINTENANCE' && (
+            <Btn variant="warning" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'HIGH', due_date: '', parent_task_id: null, task_type: 'INCIDENT', department: 'MAINTENANCE' }); setShowModal(true); }}>
+              <AlertTriangle size={16} /> Báo cáo sự cố
+            </Btn>
+          )}
           {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
             <>
               <Btn variant="danger" size="md" onClick={handleCheckOverdue} disabled={checkingOverdue}>
@@ -1005,7 +1007,11 @@ export default function Tasks() {
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
           <div style={{ background: 'var(--bg-panel)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{newTask.parent_task_id ? '↳ Tạo công việc con (Subtask)' : 'Giao việc mới'}</h3>
+            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
+              {newTask.parent_task_id ? '↳ Tạo công việc con (Subtask)' : 
+               (newTask.task_type === 'INCIDENT' && !editTaskId) ? 'Báo cáo sự cố / Yêu cầu bảo trì' : 
+               editTaskId ? 'Cập nhật công việc' : 'Giao việc mới'}
+            </h3>
 
             <div><label style={labelStyle}>Tiêu đề công việc *</label>
               <input placeholder="Nhập tiêu đề..." value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })} style={inputStyle} />
@@ -1028,8 +1034,8 @@ export default function Tasks() {
                       setNewTask({ ...newTask, task_type: ttype });
                     }
                   }}
-                  disabled={!!editTaskId || !!newTask.parent_task_id || (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER')}
-                  style={{ ...inputStyle, appearance: 'none', cursor: (!!editTaskId || !!newTask.parent_task_id || (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER')) ? 'not-allowed' : 'pointer', opacity: (!!editTaskId || !!newTask.parent_task_id || (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MANAGER')) ? 0.7 : 1 }}
+                  disabled={true}
+                  style={{ ...inputStyle, appearance: 'none', cursor: 'not-allowed', opacity: 0.7 }}
                 >
                   <option value="STANDARD" style={{ color: '#000' }}>Công việc văn phòng</option>
                   <option value="INCIDENT" style={{ color: '#000' }}>Báo cáo sự cố / Yêu cầu bảo trì</option>
@@ -1076,7 +1082,7 @@ export default function Tasks() {
               </div>
             )}
 
-            {(newTask.task_type !== 'INCIDENT' || currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN') && (
+            {(newTask.task_type !== 'INCIDENT' || (!!editTaskId && (currentUser?.role === 'MANAGER' || currentUser?.role === 'ADMIN'))) && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={labelStyle}>Người thực hiện *</label>

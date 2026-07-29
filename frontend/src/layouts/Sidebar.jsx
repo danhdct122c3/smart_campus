@@ -14,7 +14,7 @@ const Sidebar = () => {
     { name: 'Analytics', icon: BarChart2, path: '/analytics', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
     { name: 'Tasks (Công việc)', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'AI Assistant', icon: Bot, path: '/ai', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
-    { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR'] },
+    { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },
     { name: 'Security', icon: ShieldAlert, path: '/security', roles: ['ADMIN', 'DIRECTOR'] },
     // Menu chung ai cũng thấy
     { name: 'My Profile', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },

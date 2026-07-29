@@ -29,11 +29,11 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="ai" element={<AIAssistant />} />
+                <Route path="users" element={<Users />} />
               </Route>
 
               {/* ADMIN ONLY */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR']} />}>
-                <Route path="users" element={<Users />} />
                 <Route path="security" element={<div style={{padding:'2rem'}}>Security Page (Mock)</div>} />
               </Route>
 
