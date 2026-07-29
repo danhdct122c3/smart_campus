@@ -14,8 +14,15 @@ class UserProfile(BaseModel):
     face_registered: bool = False
 
 class TokenResponse(BaseModel):
-    access_token: str
-    id_token: str
+    access_token: Optional[str] = None
+    id_token: Optional[str] = None
     refresh_token: Optional[str] = None
-    expires_in: int
-    user: UserProfile
+    expires_in: Optional[int] = None
+    user: Optional[UserProfile] = None
+    challenge_name: Optional[str] = None
+    session: Optional[str] = None
+
+class NewPasswordChallengeRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+    session: str

@@ -64,6 +64,21 @@ def register_face(payload: FaceRegisterRequest) -> FaceResponse:
     # 2. Decode + validate image
     image_bytes = _decode_image(payload.image_base64)
 
+    # 2.5 Kiểm tra trùng lặp khuôn mặt
+    try:
+        match_result = reko.search_faces_by_image(image_bytes, threshold=95.0)
+        matched_user_id = match_result.get("userId")
+        if matched_user_id == payload.user_id:
+            raise AppException(ErrorCode.VALIDATION_ERROR, message="Bạn đã đăng ký khuôn mặt này rồi.")
+        else:
+            raise AppException(ErrorCode.VALIDATION_ERROR, message="Khuôn mặt này đã được đăng ký cho một tài khoản khác.")
+    except reko.FaceNotFoundError:
+        pass  # Khuôn mặt hợp lệ, chưa ai đăng ký
+    except reko.NoFaceDetectedError:
+        raise AppException(ErrorCode.FACE_NO_FACE_DETECTED)
+    except reko.RekognitionError as exc:
+        raise AppException(ErrorCode.AWS_REKOGNITION_ERROR, message=f"Lỗi dịch vụ nhận diện: {exc}")
+
     # 3. Upload to S3 raw bucket
     now = datetime.now(timezone.utc)
     s3_key = f"faces/raw/{payload.user_id}/{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.jpg"

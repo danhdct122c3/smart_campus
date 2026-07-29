@@ -10,9 +10,10 @@ from pydantic import BaseModel, EmailStr, Field
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     DIRECTOR = "DIRECTOR"
-    STUDENT = "STUDENT"
-    STAFF = "STAFF"
     MANAGER = "MANAGER"
+    PO = "PO"
+    PM = "PM"
+    STAFF = "STAFF"
     SECURITY = "SECURITY"
     MAINTENANCE = "MAINTENANCE"
 
@@ -28,7 +29,7 @@ class UserStatus(str, Enum):
 class UserCreate(BaseModel):
     email: EmailStr
     name: str = Field(..., min_length=2, max_length=100)
-    role: UserRole = UserRole.STUDENT
+    role: UserRole = UserRole.STAFF
     department: Optional[str] = None
     phone: Optional[str] = None
     employee_id: Optional[str] = Field(None, description="Mã nhân viên / Sinh viên")

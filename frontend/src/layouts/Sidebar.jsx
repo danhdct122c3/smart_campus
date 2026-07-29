@@ -1,19 +1,29 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2, CheckSquare, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2, CheckSquare, ClipboardList, UserCircle } from 'lucide-react';
+
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
-  const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { name: 'Attendance', icon: Camera, path: '/attendance' },
-    { name: 'Analytics', icon: BarChart2, path: '/analytics' },
-    { name: 'Tasks (Quản lý)', icon: CheckSquare, path: '/tasks' },
-    { name: 'My Tasks (Cá nhân)', icon: ClipboardList, path: '/my-tasks' },
-    { name: 'AI Assistant', icon: Bot, path: '/ai' },
-    { name: 'Security', icon: ShieldAlert, path: '/security' },
-    { name: 'Users & Faces', icon: Users, path: '/users' },
-    { name: 'Notifications', icon: Bell, path: '/notifications' },
+  const { currentUser } = useAuth();
+  const role = currentUser?.role || 'STAFF';
+
+  // Định nghĩa các menu có gán roles được phép truy cập
+  const allNavItems = [
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
+    { name: 'Analytics', icon: BarChart2, path: '/analytics', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
+    { name: 'Tasks (Công việc)', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'AI Assistant', icon: Bot, path: '/ai', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
+    { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR'] },
+    { name: 'Security', icon: ShieldAlert, path: '/security', roles: ['ADMIN', 'DIRECTOR'] },
+    // Menu chung ai cũng thấy
+    { name: 'My Profile', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Attendance', icon: Camera, path: '/attendance', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Notifications', icon: Bell, path: '/notifications', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
   ];
+
+  // Lọc menu theo role của user hiện tại
+  const navItems = allNavItems.filter(item => item.roles.includes(role));
 
   return (
     <aside style={{

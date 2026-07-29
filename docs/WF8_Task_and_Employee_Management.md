@@ -1,4 +1,4 @@
-# WF8 – Quản lý Công việc & Nhân viên (Task & Employee Management)
+﻿# WF8 – Quản lý Công việc & Nhân viên (Task & Employee Management)
 
 **Phiên bản:** 1.0
 **Ngày tạo:** 2026-07-16
@@ -64,7 +64,7 @@ user_id | email | name | role | department | phone | employee_id | status | face
 | `STAFF` | Nhân viên văn phòng | `GENERAL` tasks |
 | `SECURITY` | Nhân viên bảo vệ | `SECURITY_CHECK` tasks |
 | `MAINTENANCE` | Nhân viên kỹ thuật | `MAINTENANCE` tasks |
-| `STUDENT` | Sinh viên | Không nhận task |
+
 
 ### 2.3. API Endpoints bổ sung (Employee)
 

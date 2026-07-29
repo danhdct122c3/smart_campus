@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.core.responses import APIResponse
-from .schemas import LoginRequest, TokenResponse
+from .schemas import LoginRequest, TokenResponse, NewPasswordChallengeRequest
 from . import service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -14,4 +14,14 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 )
 def login(payload: LoginRequest):
     data = service.authenticate_user(payload)
-    return APIResponse.ok(data, message="Đăng nhập thành công.")
+    return APIResponse.ok(data, message="Xử lý thành công.")
+
+@router.post(
+    "/respond-challenge",
+    response_model=APIResponse[TokenResponse],
+    summary="Đổi mật khẩu lần đầu (Force Change Password)",
+    description="Xử lý luồng NEW_PASSWORD_REQUIRED của AWS Cognito."
+)
+def respond_challenge(payload: NewPasswordChallengeRequest):
+    data = service.respond_to_new_password_challenge(payload)
+    return APIResponse.ok(data, message="Đổi mật khẩu thành công.")

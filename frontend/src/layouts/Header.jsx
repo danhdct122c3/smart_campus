@@ -1,14 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User, X, CheckCircle2, XCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Search, Bell, User, X, CheckCircle2, XCircle, AlertTriangle, ShieldAlert, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 const Header = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
   const navigate = useNavigate();
+  const { currentUser, logout } = useAuth();
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifs(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
@@ -28,13 +47,27 @@ const Header = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(`${API_URL}/notifications?limit=5`);
+      let url = `${API_URL}/notifications?limit=5`;
+      if (currentUser && currentUser.role !== 'ADMIN') {
+        url += `&user_id=${currentUser.user_id}`;
+      }
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
           const items = data.data.items || [];
           const sorted = items.sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0));
-          setNotifications(sorted);
+          // If we receive notifications and we didn't have any before, or the first one is new
+          if (sorted.length > 0) {
+            setNotifications((prev) => {
+              if (prev.length === 0 || prev[0].notification_id !== sorted[0].notification_id) {
+                setHasUnread(true);
+              }
+              return sorted;
+            });
+          } else {
+            setNotifications(sorted);
+          }
         }
       }
     } catch (err) {
@@ -91,7 +124,7 @@ const Header = () => {
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative', display: 'flex' }}
           >
             <Bell size={20} color="var(--text-secondary)" />
-            {notifications.length > 0 && (
+            {hasUnread && (
               <span style={{
                 position: 'absolute', top: '-4px', right: '-4px',
                 background: 'var(--accent-danger)', width: '8px', height: '8px', borderRadius: '50%'
@@ -101,7 +134,9 @@ const Header = () => {
           
           {/* Notifications Dropdown */}
           {showNotifs && (
-            <div style={{
+            <div 
+              onMouseEnter={() => setHasUnread(false)}
+              style={{
               position: 'absolute',
               top: '100%',
               right: 0,
@@ -183,17 +218,61 @@ const Header = () => {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '0.875rem', fontWeight: 600, margin: 0 }}>Admin User</p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Administrator</p>
+        {/* User Profile */}
+        <div ref={profileRef} style={{ position: 'relative' }}>
+          <div 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.5rem', borderRadius: '8px', transition: 'background 0.2s' }}
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{ textAlign: 'right', display: 'none', '@media (minWidth: 640px)': { display: 'block' } }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>{currentUser?.name || 'User'}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', margin: 0, fontWeight: 500 }}>{currentUser?.role || 'Guest'}</p>
+            </div>
+            <div style={{
+              width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--glass-border)', boxShadow: '0 4px 12px rgba(6, 182, 212, 0.2)'
+            }}>
+              <User size={20} color="white" />
+            </div>
           </div>
-          <div style={{
-            width: '36px', height: '36px', borderRadius: '50%', background: 'var(--bg-base)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)'
-          }}>
-            <User size={18} color="var(--accent-primary)" />
-          </div>
+
+          {/* Profile Dropdown */}
+          {showProfileMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 0.5rem)', right: 0,
+              width: '220px', background: 'var(--bg-panel)',
+              border: '1px solid var(--glass-border)', borderRadius: '12px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.3)', overflow: 'hidden',
+              animation: 'fadeIn 0.2s ease-out'
+            }}>
+              <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)' }}>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>{currentUser?.name}</p>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{currentUser?.email}</p>
+              </div>
+              
+              <div style={{ padding: '0.5rem' }}>
+                <button 
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    logout();
+                    navigate('/login');
+                  }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    padding: '0.75rem 1rem', background: 'transparent', border: 'none',
+                    color: 'var(--status-error)', fontSize: '0.875rem', fontWeight: 500,
+                    cursor: 'pointer', borderRadius: '8px', transition: 'all 0.2s', textAlign: 'left'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <LogOut size={16} /> Đăng xuất
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <style>{`

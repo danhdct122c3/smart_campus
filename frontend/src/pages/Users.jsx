@@ -20,9 +20,9 @@ const Users = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
-    role: 'STUDENT',
-    department: 'NONE',
+    email: 'staff@example.com',
+    role: 'STAFF',
+    department: 'Software Engineering',
     employee_id: '',
     status: 'ACTIVE'
   });
@@ -119,7 +119,7 @@ const Users = () => {
     setFormData({
       name: '',
       email: '',
-      role: 'STUDENT',
+      role: 'STAFF',
       employee_id: `STU-${Math.floor(1000 + Math.random() * 9000)}`,
       status: 'ACTIVE'
     });
@@ -476,7 +476,6 @@ const Users = () => {
                   name="role" value={formData.role} onChange={handleChange}
                   style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
                 >
-                  <option value="STUDENT" style={{ color: 'black' }}>Sinh viên (Student)</option>
                   <option value="STAFF" style={{ color: 'black' }}>Nhân viên (Staff)</option>
                   <option value="ADMIN" style={{ color: 'black' }}>Quản trị viên (Admin)</option>
                   <option value="DIRECTOR" style={{ color: 'black' }}>Giám đốc (Director)</option>
@@ -566,6 +565,7 @@ const Users = () => {
             {/* Mode Tabs */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
               <button
+                type="button"
                 onClick={() => { stopFaceCamera(); setFaceMode('upload'); setCapturedImage(null); }}
                 style={{
                   flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)',

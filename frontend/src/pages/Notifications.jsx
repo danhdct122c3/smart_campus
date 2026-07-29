@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Search, Mail, MessageSquare, AlertTriangle, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const Notifications = () => {
+  const { currentUser } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,14 +21,20 @@ const Notifications = () => {
   }, [users]);
 
   useEffect(() => {
-    fetchNotifications();
-    fetchUsers();
-  }, []);
+    if (currentUser) {
+      fetchNotifications();
+      fetchUsers();
+    }
+  }, [currentUser]);
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/notifications?limit=50`);
+      let url = `${API_URL}/notifications?limit=50`;
+      if (currentUser && currentUser.role !== 'ADMIN') {
+        url += `&user_id=${currentUser.user_id}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Không thể tải dữ liệu thông báo');
       const data = await response.json();
       if (data.success && data.data) {
@@ -157,7 +165,7 @@ const Notifications = () => {
         ) : error ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--status-error)' }}>Lỗi: {error}</div>
         ) : filteredItems.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Không tìm thấy thông báo nào.</div>
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có thông báo nào.</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
@@ -167,7 +175,6 @@ const Notifications = () => {
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>KÊNH</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>TIÊU ĐỀ</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>NGƯỜI NHẬN</th>
-                <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>TRẠNG THÁI</th>
               </tr>
             </thead>
             <tbody>
@@ -196,14 +203,6 @@ const Notifications = () => {
                   </td>
                   <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                     {userMap[item.user_id] || item.user_id}
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    {getStatusBadge(item.status)}
-                    {item.error_message && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--status-error)', marginTop: '4px', maxWidth: '150px' }}>
-                        {item.error_message}
-                      </div>
-                    )}
                   </td>
                 </tr>
               ))}

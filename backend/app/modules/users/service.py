@@ -3,11 +3,20 @@
 import uuid
 from datetime import datetime, timezone
 
+import boto3
 from fastapi import status
 
+from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
 from .schemas import UserCreate, UserUpdate, UserResponse, UserStatus
 from . import repository as repo
+
+settings = get_settings()
+
+def get_cognito_client():
+    if not settings.cognito_user_pool_id or not settings.cognito_client_id:
+        return None
+    return boto3.client('cognito-idp', region_name=settings.aws_region)
 
 
 def _to_response(item: dict) -> UserResponse:
@@ -28,17 +37,18 @@ def _to_response(item: dict) -> UserResponse:
 
 def create_user(payload: UserCreate) -> UserResponse:
     """Create a new user. Raises 409 if email already exists."""
-    existing = repo.get_user_by_email(payload.email)
+    email = payload.email.lower()
+    existing = repo.get_user_by_email(email)
     if existing:
         raise AppException(
             ErrorCode.USER_ALREADY_EXISTS,
-            message=f"Email '{payload.email}' đã được đăng ký trong hệ thống.",
+            message=f"Email '{email}' đã được đăng ký trong hệ thống.",
         )
 
     now = datetime.now(timezone.utc).isoformat()
     item = {
         "user_id": str(uuid.uuid4()),
-        "email": payload.email,
+        "email": email,
         "name": payload.name,
         "role": payload.role.value,
         "department": payload.department,
@@ -49,6 +59,26 @@ def create_user(payload: UserCreate) -> UserResponse:
         "created_at": now,
         "updated_at": None,
     }
+    
+    # Tạo user trên AWS Cognito
+    cognito_client = get_cognito_client()
+    if cognito_client:
+        try:
+            cognito_client.admin_create_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+                UserAttributes=[
+                    {'Name': 'email', 'Value': email},
+                    {'Name': 'email_verified', 'Value': 'true'},
+                ],
+                # Không truyền MessageAction='SUPPRESS' để Cognito tự gửi thư.
+            )
+        except cognito_client.exceptions.UsernameExistsException:
+            pass # Nếu đã tồn tại trên Cognito thì bỏ qua
+        except Exception as e:
+            print(f"Failed to create user in Cognito: {e}")
+            # Vẫn tiếp tục tạo trên DynamoDB
+    
     repo.create_user(item)
     return _to_response(item)
 

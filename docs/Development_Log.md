@@ -273,3 +273,41 @@ Sau khi review kỹ đặc tả, thống nhất các quyết định thiết k�
 2. Tích hợp AI (Bedrock) vào WF8 để phân tích mức độ ưu tiên của các Báo cáo Sự cố.
 3. Bổ sung tính năng nhắc nhở tự động khi Task sắp đến hạn deadline (Scheduled Notification).
 
+---
+
+## Giai đoạn 13: Hợp nhất Giao diện, Hoàn thiện AWS Cognito & Fix Bug Hệ thống (2026-07-29)
+
+### 13.1 – Giao diện & Trải nghiệm Người dùng (UX/UI)
+- **Hợp nhất Tasks:** Gộp trang "Công việc của tôi" (My Tasks) vào chung trang "Quản lý công việc" (Tasks), loại bỏ sự dư thừa, giúp người dùng theo dõi toàn bộ công việc trên một màn hình duy nhất một cách tập trung.
+- **Tối ưu hiển thị Thông báo (Notifications):**
+  - Xóa cột "Trạng thái" không cần thiết trong bảng thông báo.
+  - Sửa lại câu thông báo khi danh sách trống từ "Không tìm thấy thông báo nào." thành "Chưa có thông báo nào." mượt mà hơn.
+  - Fix lỗi hiện chấm đỏ (Unread): Chấm đỏ thông báo mới ở Header nay sẽ tự động tắt (đánh dấu đã đọc) ngay khi người dùng rê chuột vào chuông thông báo.
+  - Fix lỗi Public Notifications: Chỉnh sửa lại logic gọi API để đảm bảo mỗi nhân viên chỉ nhìn thấy các thông báo được gửi đích danh cho `user_id` của họ, bảo vệ quyền riêng tư tuyệt đối.
+
+### 13.2 – Tích hợp Hoàn chỉnh AWS Cognito (Xác thực 2 lớp Mật khẩu)
+- **Tích hợp tính năng Gửi thư mặc định:**
+  - Tích hợp hàm `admin_create_user` (AWS Cognito Boto3) vào Endpoint tạo tài khoản của Admin. Giờ đây, khi Admin tạo tài khoản cho nhân sự mới, AWS sẽ tự động sinh Mật khẩu tạm thời (Temporary Password) và gửi trực tiếp qua Email của nhân sự đó nhờ dịch vụ "Send email with Cognito" tích hợp sẵn (không cần setup Amazon SES).
+- **Luồng Đổi mật khẩu bắt buộc (Force Change Password):**
+  - **Backend:** Mở rộng module Auth, bổ sung API `POST /api/auth/respond-challenge` để bắt tín hiệu `NEW_PASSWORD_REQUIRED` từ Cognito.
+  - **Frontend:** Cải tiến `Login.jsx` và `AuthContext.jsx`. Nếu nhân sự đăng nhập bằng mật khẩu tạm, hệ thống sẽ chặn luồng đăng nhập, chuyển sang giao diện "Mật khẩu mới", yêu cầu nhân sự tự đặt mật khẩu riêng an toàn trước khi vào hệ thống.
+  - Bổ sung văn bản hướng dẫn độ phức tạp của mật khẩu ngay trên UI giao diện Đăng nhập (Ít nhất 8 ký tự, chữ HOA, chữ thường, số, ký tự đặc biệt).
+
+### 13.3 – Xử lý Lỗi Hệ thống (Bug Fixes)
+- **Fix lỗi 500 API Notifications:**
+  - **Nguyên nhân:** GSI `user_id-sent_at-index` không tồn tại hoặc chưa tạo kịp trên DynamoDB, dẫn đến việc dùng hàm `Query` bị văng lỗi.
+  - **Giải pháp:** Cập nhật lại Backend `repository.py` để sử dụng hàm `Scan` kết hợp với `FilterExpression` làm giải pháp dự phòng (fallback) truy xuất thông báo cho người dùng một cách an toàn.
+- **Fix lỗi 500 khi đổi mật khẩu (Auth):**
+  - **Nguyên nhân:** AWS Cognito trả về lỗi mật khẩu yếu (`InvalidPasswordException`), nhưng Backend lại dùng nhầm hằng số `ErrorCode.BAD_REQUEST` (chưa được định nghĩa trong core) để văng lỗi, khiến hệ thống sập và báo lỗi 500 Internal Server Error thay vì 400 Bad Request.
+  - **Giải pháp:** Cập nhật lại chuẩn Exception handling, map đúng về `ErrorCode.VALIDATION_ERROR` (422) và `ErrorCode.UNAUTHORIZED` (401). Đảm bảo lỗi mật khẩu yếu được bắt gọn và gửi về Frontend hiển thị đỏ đẹp mắt.
+  - Fix triệt để cả lỗi cú pháp (SyntaxError) trong quá trình vá file `auth/service.py`.
+
+### 13.4 – Nâng cấp Bảo mật & Trải nghiệm Sinh trắc học (My Profile)
+- **Tự động hóa Đăng ký Khuôn mặt (Self-service):**
+  - Tạo mới trang **Hồ sơ cá nhân (My Profile)** dành cho tất cả nhân viên.
+  - Tích hợp tính năng bật Webcam trực tiếp trên trình duyệt hoặc tải ảnh thẻ lên để nhân viên tự cập nhật khuôn mặt mà không cần thông qua Admin.
+  - Cập nhật Sidebar để hiển thị menu My Profile cho mọi người dùng có tài khoản.
+- **Vá lỗ hổng Trùng lặp Dữ liệu (Duplicate Face Registration):**
+  - **Vấn đề:** Ban đầu hệ thống không kiểm tra tính duy nhất, dẫn đến rủi ro 1 nhân viên lập 2 tài khoản và dùng 1 khuôn mặt.
+  - **Giải pháp:** Bổ sung API `SearchFacesByImage` của Amazon Rekognition vào đầu chu trình `register_face`. Nếu khuôn mặt quét được đã tồn tại trong AWS Collection $\rightarrow$ Chặn đứng, báo lỗi "Khuôn mặt đã được đăng ký" và không gọi `IndexFaces`.
+- **Fix Bug Camera UI:** Xử lý lỗi rò rỉ bộ nhớ & không tắt đèn Webcam khi người dùng chuyển từ tab "Chụp Camera" sang tab "Tải ảnh lên" (áp dụng cho cả trang Profile và trang Users). Cập nhật hàm `stopFaceCamera()` để giải phóng luồng video triệt để.

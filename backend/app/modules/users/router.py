@@ -29,7 +29,7 @@ def create_user(payload: UserCreate):
     summary="Danh sách người dùng",
 )
 def list_users(
-    role: Optional[str] = Query(None, description="Lọc theo role: ADMIN, STUDENT, STAFF"),
+    role: Optional[str] = Query(None, description="Lọc theo role: ADMIN, STAFF, MANAGER, v.v."),
     status: Optional[str] = Query(None, description="Lọc theo status: ACTIVE, INACTIVE, SUSPENDED"),
     limit: int = Query(10, description="Số lượng mục tối đa"),
     cursor: Optional[str] = Query(None, description="Cursor cho phân trang"),

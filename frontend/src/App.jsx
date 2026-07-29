@@ -9,39 +9,46 @@ import Notifications from './pages/Notifications';
 import Attendance from './pages/Attendance';
 import Analytics from './pages/Analytics';
 import Tasks from './pages/Tasks';
-import MyTasks from './pages/MyTasks';
+import Profile from './pages/Profile';
+
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
-  // Tạm thời tắt cơ chế bắt buộc đăng nhập (cho phép truy cập thẳng)
-  const [isAuthenticated, setIsAuthenticated] = useState(true); 
-
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Vẫn giữ trang Login nếu người dùng chủ động truy cập /login */}
-        <Route 
-          path="/login" 
-          element={<Login onLogin={() => setIsAuthenticated(true)} />} 
-        />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        {/* Các trang bên trong (Truy cập thẳng không bị đá về /login) */}
-        <Route 
-          path="/" 
-          element={<MainLayout />}
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="ai" element={<AIAssistant />} />
-          <Route path="users" element={<Users />} />
-          <Route path="attendance" element={<Attendance />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="my-tasks" element={<MyTasks />} />
-          <Route path="security" element={<div style={{padding:'2rem'}}>Security Page (Mock)</div>} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          {/* Route bảo vệ cơ bản: Bất cứ ai đã đăng nhập đều vào được Layout */}
+          <Route path="/" element={<ProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              {/* ADMIN, MANAGER, PO, PM, DIRECTOR */}
+              <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM']} />}>
+                <Route index element={<Dashboard />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="ai" element={<AIAssistant />} />
+              </Route>
+
+              {/* ADMIN ONLY */}
+              <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR']} />}>
+                <Route path="users" element={<Users />} />
+                <Route path="security" element={<div style={{padding:'2rem'}}>Security Page (Mock)</div>} />
+              </Route>
+
+              {/* EVERYONE LOGGED IN */}
+              <Route path="profile" element={<Profile />} />
+              <Route path="tasks" element={<Tasks />} />
+              <Route path="attendance" element={<Attendance />} />
+              <Route path="notifications" element={<Notifications />} />
+              
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

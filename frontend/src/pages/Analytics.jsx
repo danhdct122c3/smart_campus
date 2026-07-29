@@ -7,6 +7,7 @@ import {
   BarChart2, TrendingUp, Users, CheckCircle2, Clock, XCircle,
   RefreshCw, Database, Zap, ChevronDown, Search, Calendar
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // ── API ───────────────────────────────────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -166,9 +167,10 @@ const Spinner = () => (
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const Analytics = () => {
-  const user = React.useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
-  const role = user.role || 'PO'; // PO | PM | STAFF | STUDENT | DIRECTOR | ADMIN
-  const isStaff = role === 'STAFF' || role === 'STUDENT';
+  const { currentUser } = useAuth();
+  const user = currentUser || {};
+  const role = user.role || 'PO'; // PO | PM | STAFF | DIRECTOR | ADMIN
+  const isStaff = role === 'STAFF';
   const isPM = role === 'PM' || role === 'MANAGER';
   const userDept = user.department || 'IT';
 
@@ -300,10 +302,10 @@ const Analytics = () => {
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', cursor: isPM ? 'not-allowed' : 'pointer' }}
               >
                 {isPM ? (
-                  <option value={userDept} style={{ background: '#1e293b' }}>Phòng ban: {userDept} (Khóa quyền PM)</option>
+                  <option value={userDept} style={{ background: '#1e293b' }}>Phòng ban: {userDept}</option>
                 ) : (
                   <>
-                    <option value="ALL" style={{ background: '#1e293b' }}>Toàn trường / Tất cả bộ phận</option>
+                    <option value="ALL" style={{ background: '#1e293b' }}> Tất cả bộ phận</option>
                     <option value="IT" style={{ background: '#1e293b' }}>IT Department</option>
                     <option value="MAINTENANCE" style={{ background: '#1e293b' }}>Bảo trì (Maintenance)</option>
                     <option value="SECURITY" style={{ background: '#1e293b' }}>An ninh (Security)</option>
@@ -347,7 +349,7 @@ const Analytics = () => {
       </div>
 
       {isStaff ? (
-        /* ── My Analytics View for STAFF / STUDENT ── */
+        /* ── My Analytics View for STAFF ── */
         loading.my && !myAnalytics ? (
           <Spinner />
         ) : errors.my ? (
@@ -393,7 +395,7 @@ const Analytics = () => {
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                       <th style={{ padding: '0.85rem 1rem' }}>Ngày</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Ca làm việc / Ca học</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Ca làm việc</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Trạng thái</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Thiết bị / Camera</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Thời gian ghi nhận</th>

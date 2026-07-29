@@ -6,6 +6,7 @@ import {
   Eye, X, Hash, Link2, MessageSquare, Edit2, Trash2
 } from 'lucide-react';
 import Card from '../components/Card';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -541,7 +542,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { currentUser } = useAuth();
   const [searchQ, setSearchQ] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterPriority, setFilterPriority] = useState('ALL');
@@ -595,9 +596,6 @@ export default function Tasks() {
       const data = await res.json();
       const list = data.data?.items || [];
       setUsers(list);
-      if (!currentUser && list.length > 0) {
-        setCurrentUser(list.find(u => u.role === 'ADMIN') || list[0]);
-      }
     } catch (e) { console.error(e); }
   };
 
@@ -615,9 +613,16 @@ export default function Tasks() {
       if (filterPriority !== 'ALL') url += `&priority=${filterPriority}`;
       if (searchQ) url += `&search=${encodeURIComponent(searchQ)}`;
 
-      // If not admin, filter by user_id
-      if (currentUser && currentUser.role !== 'ADMIN') {
-        url += `&user_id=${currentUser.user_id}`;
+      // Role-based visibility
+      if (currentUser) {
+        if (currentUser.role === 'ADMIN' || currentUser.role === 'DIRECTOR') {
+          // See all tasks (no additional filters)
+        } else if (currentUser.role === 'MANAGER' || currentUser.role === 'PM') {
+          url += `&department=${encodeURIComponent(currentUser.department || '')}`;
+        } else {
+          // STAFF, SECURITY, MAINTENANCE
+          url += `&user_id=${currentUser.user_id}`;
+        }
       }
 
       const res = await fetch(url);
@@ -682,7 +687,13 @@ export default function Tasks() {
       const url = editTaskId ? `${API_BASE}/tasks/${editTaskId}` : `${API_BASE}/tasks`;
       const method = editTaskId ? 'PATCH' : 'POST';
       const body = { ...newTask };
-      if (!body.department) body.department = null;
+      if (!body.department) {
+        if (currentUser?.role === 'MANAGER' || currentUser?.role === 'PM') {
+          body.department = currentUser.department;
+        } else {
+          body.department = null;
+        }
+      }
       if (!body.category) body.category = null;
       if (!body.due_date) body.due_date = null;
       if (!body.assignee_id) body.assignee_id = null;
@@ -831,20 +842,12 @@ export default function Tasks() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Mock role switcher */}
+          {/* User Profile Info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Đóng vai:</span>
-            <select
-              value={currentUser?.user_id || ''}
-              onChange={e => setCurrentUser(users.find(u => u.user_id === e.target.value))}
-              style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', fontWeight: 700, outline: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
-            >
-              {users.map(u => (
-                <option key={u.user_id} value={u.user_id} style={{ color: '#000' }}>
-                  {u.name} ({u.role})
-                </option>
-              ))}
-            </select>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Tài khoản:</span>
+            <span style={{ color: 'var(--accent-primary)', fontWeight: 700, fontSize: '0.85rem' }}>
+              {currentUser ? `${currentUser.name} (${currentUser.role})` : 'Đang tải...'}
+            </span>
           </div>
 
           <Btn variant="warning" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'HIGH', due_date: '', parent_task_id: null, task_type: 'INCIDENT', department: 'MAINTENANCE' }); setShowModal(true); }}>
@@ -1055,9 +1058,9 @@ export default function Tasks() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={labelStyle}>Phân loại sự cố</label>
-                  <select 
-                    value={newTask.category} 
-                    onChange={e => setNewTask({ ...newTask, category: e.target.value })} 
+                  <select
+                    value={newTask.category}
+                    onChange={e => setNewTask({ ...newTask, category: e.target.value })}
                     disabled={!!editTaskId}
                     style={{ ...inputStyle, appearance: 'none', cursor: !!editTaskId ? 'not-allowed' : 'pointer', opacity: !!editTaskId ? 0.7 : 1 }}
                   >
