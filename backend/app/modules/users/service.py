@@ -51,7 +51,7 @@ def create_user(payload: UserCreate) -> UserResponse:
         "email": email,
         "name": payload.name,
         "role": payload.role.value,
-        "department": payload.department,
+        "department": payload.department.value if payload.department else None,
         "phone": payload.phone,
         "employee_id": payload.employee_id,
         "status": UserStatus.ACTIVE.value,
@@ -97,10 +97,11 @@ def get_user(user_id: str) -> UserResponse:
 def list_users(
     role: str | None, 
     status_filter: str | None,
+    department: str | None = None,
     limit: int = 20,
     cursor: str | None = None
 ) -> tuple[list[UserResponse], str | None]:
-    items, next_key = repo.list_users(role=role, status=status_filter, limit=limit, cursor=cursor)
+    items, next_key = repo.list_users(role=role, status=status_filter, department=department, limit=limit, cursor=cursor)
     return [_to_response(i) for i in items], next_key
 
 
@@ -128,7 +129,7 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
     if payload.role is not None:
         fields["role"] = payload.role.value
     if payload.department is not None:
-        fields["department"] = payload.department
+        fields["department"] = payload.department.value
     if payload.phone is not None:
         fields["phone"] = payload.phone
     if payload.status is not None:

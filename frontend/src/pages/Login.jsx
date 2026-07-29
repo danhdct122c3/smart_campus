@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Lock, User, ChevronRight } from 'lucide-react';
 import Card from '../components/Card';
+import FaceResetModal from '../components/FaceResetModal';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +11,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  const [showFaceReset, setShowFaceReset] = useState(false);
   
   // Challenge State
   const [isChallengeMode, setIsChallengeMode] = useState(false);
@@ -85,6 +88,10 @@ const Login = () => {
       backgroundColor: 'var(--bg-base)'
     }}>
       
+      {showFaceReset && (
+        <FaceResetModal onClose={() => setShowFaceReset(false)} />
+      )}
+
       <div className="animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '0 1.5rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2.5rem' }}>
           <div style={{ 
@@ -136,7 +143,7 @@ const Login = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Mật khẩu</label>
-                  <a href="#" style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', textDecoration: 'none' }}>Quên mật khẩu?</a>
+                  <button type="button" onClick={() => setShowFaceReset(true)} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Quên mật khẩu?</button>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />

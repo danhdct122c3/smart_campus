@@ -26,3 +26,12 @@ class NewPasswordChallengeRequest(BaseModel):
     email: EmailStr
     new_password: str
     session: str
+
+class VerifyFaceRequest(BaseModel):
+    email: EmailStr
+    image_base64: str
+
+class ResetPasswordFaceRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+    image_base64: str

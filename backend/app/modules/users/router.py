@@ -31,10 +31,11 @@ def create_user(payload: UserCreate):
 def list_users(
     role: Optional[str] = Query(None, description="Lọc theo role: ADMIN, STAFF, MANAGER, v.v."),
     status: Optional[str] = Query(None, description="Lọc theo status: ACTIVE, INACTIVE, SUSPENDED"),
+    department: Optional[str] = Query(None, description="Lọc theo phòng ban"),
     limit: int = Query(10, description="Số lượng mục tối đa"),
     cursor: Optional[str] = Query(None, description="Cursor cho phân trang"),
 ):
-    items, next_key = service.list_users(role=role, status_filter=status, limit=limit, cursor=cursor)
+    items, next_key = service.list_users(role=role, status_filter=status, department=department, limit=limit, cursor=cursor)
     data = UserListResponse(items=items, total=len(items), next_key=next_key)
     return APIResponse.ok(data)
 

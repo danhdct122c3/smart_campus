@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.core.responses import APIResponse
-from .schemas import LoginRequest, TokenResponse, NewPasswordChallengeRequest
+from .schemas import LoginRequest, TokenResponse, NewPasswordChallengeRequest, VerifyFaceRequest, ResetPasswordFaceRequest
 from . import service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -25,3 +25,23 @@ def login(payload: LoginRequest):
 def respond_challenge(payload: NewPasswordChallengeRequest):
     data = service.respond_to_new_password_challenge(payload)
     return APIResponse.ok(data, message="Đổi mật khẩu thành công.")
+
+@router.post(
+    "/verify-face-reset",
+    response_model=APIResponse[dict],
+    summary="Xác thực khuôn mặt để reset mật khẩu",
+    description="Nhận email và ảnh, kiểm tra qua AWS Rekognition xem có đúng khuôn mặt của chủ tài khoản không."
+)
+def verify_face_reset(payload: VerifyFaceRequest):
+    data = service.verify_face_for_reset(payload)
+    return APIResponse.ok(data)
+
+@router.post(
+    "/reset-password-face",
+    response_model=APIResponse[dict],
+    summary="Đổi mật khẩu bằng khuôn mặt",
+    description="Xác thực lại khuôn mặt một lần nữa và tiến hành đặt lại mật khẩu mới vĩnh viễn trên Cognito."
+)
+def reset_password_face(payload: ResetPasswordFaceRequest):
+    data = service.reset_password_by_face(payload)
+    return APIResponse.ok(data)

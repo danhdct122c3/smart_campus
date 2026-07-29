@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Loader, Edit2, Camera, Upload, CameraOff, ClipboardList, CheckCircle2, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
 import Card from '../components/Card';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api/users';
 
@@ -17,6 +18,8 @@ const Users = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editUserId, setEditUserId] = useState(null);
+
+  const { currentUser } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -70,6 +73,11 @@ const Users = () => {
         url += `&cursor=${encodeURIComponent(cursor)}`;
       }
 
+      // Nếu là Quản lý, chỉ cho phép xem nhân sự trong phòng ban
+      if (currentUser?.role === 'MANAGER' && currentUser?.department) {
+        url += `&department=${encodeURIComponent(currentUser.department)}`;
+      }
+
       const res = await fetch(url);
       if (!res.ok) throw new Error('Không thể lấy danh sách API');
       const json = await res.json();
@@ -102,14 +110,7 @@ const Users = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
-      const newData = { ...prev, [name]: value };
-      // Tự động tạo mã nhân viên khi đổi vai trò (chỉ khi tạo mới)
-      if (name === 'role' && !editMode) {
-        const prefix = value.substring(0, 3).toUpperCase();
-        const randomNum = Math.floor(1000 + Math.random() * 9000);
-        newData.employee_id = `${prefix}-${randomNum}`;
-      }
-      return newData;
+      return { ...prev, [name]: value };
     });
   };
 
@@ -119,8 +120,9 @@ const Users = () => {
     setFormData({
       name: '',
       email: '',
-      role: 'STAFF',
-      employee_id: `STU-${Math.floor(1000 + Math.random() * 9000)}`,
+      role: currentUser?.role === 'MANAGER' ? 'STAFF' : 'STAFF',
+      department: currentUser?.role === 'MANAGER' ? currentUser.department : 'NONE',
+      employee_id: `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
       status: 'ACTIVE'
     });
     setShowModal(true);
@@ -276,15 +278,17 @@ const Users = () => {
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>Quản lý người dùng và dữ liệu nhận diện khuôn mặt.</p>
         </div>
-        <button
-          onClick={handleOpenAdd}
-          style={{
-            background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
-            padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
-            fontWeight: 500
-          }}>
-          <Plus size={18} /> Add User
-        </button>
+        {['ADMIN', 'DIRECTOR', 'MANAGER'].includes(currentUser?.role) && (
+          <button
+            onClick={handleOpenAdd}
+            style={{
+              background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px',
+              padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
+              fontWeight: 500
+            }}>
+            <Plus size={18} /> Add User
+          </button>
+        )}
       </div>
 
       <Card style={{ padding: 0, overflow: 'hidden' }}>
@@ -304,6 +308,7 @@ const Users = () => {
                 <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Họ Tên & Email</th>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Vai trò</th>
+                  <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Phòng ban</th>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã nhân sự</th>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Trạng thái</th>
                   <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khuôn mặt</th>
@@ -326,6 +331,14 @@ const Users = () => {
                         {user.role}
                       </span>
                     </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        background: 'rgba(59,130,246,0.1)', padding: '0.25rem 0.5rem',
+                        borderRadius: '4px', fontSize: '0.75rem', color: '#60a5fa', fontWeight: 500
+                      }}>
+                        {user.department === 'NONE' || !user.department ? 'Chưa phân bổ' : user.department}
+                      </span>
+                    </td>
                     <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
                       {user.employee_id || '-'}
                     </td>
@@ -344,20 +357,24 @@ const Users = () => {
                           <ShieldCheck size={16} /> Đã đăng ký
                         </div>
                       ) : (
-                        <button
-                          onClick={() => openFaceModal(user)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            background: 'rgba(6,182,212,0.1)', color: 'var(--accent-primary)',
-                            border: '1px solid rgba(6,182,212,0.3)', borderRadius: '6px',
-                            padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(6,182,212,0.2)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(6,182,212,0.1)'}
-                        >
-                          <Camera size={14} /> Đăng ký
-                        </button>
+                        ['ADMIN', 'DIRECTOR'].includes(currentUser?.role) ? (
+                          <button
+                            onClick={() => openFaceModal(user)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.5rem',
+                              background: 'rgba(6,182,212,0.1)', color: 'var(--accent-primary)',
+                              border: '1px solid rgba(6,182,212,0.3)', borderRadius: '6px',
+                              padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(6,182,212,0.2)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(6,182,212,0.1)'}
+                          >
+                            <Camera size={14} /> Đăng ký
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Chưa đăng ký</span>
+                        )
                       )}
                     </td>
                     <td style={{ padding: '1rem' }}>
@@ -377,17 +394,19 @@ const Users = () => {
                       </button>
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleOpenEdit(user)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Edit2 size={18} />
-                      </button>
+                      {['ADMIN', 'DIRECTOR'].includes(currentUser?.role) && (
+                        <button
+                          onClick={() => handleOpenEdit(user)}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Edit2 size={18} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
                 {visibleUsers.length === 0 && (
                   <tr>
-                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       Chưa có người dùng nào.
                     </td>
                   </tr>
@@ -442,7 +461,7 @@ const Users = () => {
           background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <Card style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', position: 'relative' }}>
+          <Card style={{ width: '100%', maxWidth: '500px', padding: '1.5rem', position: 'relative' }}>
             <button
               onClick={() => setShowModal(false)}
               style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
@@ -474,14 +493,18 @@ const Users = () => {
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Vai trò</label>
                 <select
                   name="role" value={formData.role} onChange={handleChange}
-                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                  disabled={currentUser?.role === 'MANAGER'}
+                  style={{ width: '100%', padding: '0.75rem', background: currentUser?.role === 'MANAGER' ? 'rgba(255,255,255,0.05)' : 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: currentUser?.role === 'MANAGER' ? 'var(--text-muted)' : 'white' }}
                 >
                   <option value="STAFF" style={{ color: 'black' }}>Nhân viên (Staff)</option>
-                  <option value="ADMIN" style={{ color: 'black' }}>Quản trị viên (Admin)</option>
-                  <option value="DIRECTOR" style={{ color: 'black' }}>Giám đốc (Director)</option>
-                  <option value="MANAGER" style={{ color: 'black' }}>Quản lý (Manager)</option>
-                  <option value="SECURITY" style={{ color: 'black' }}>Bảo vệ (Security)</option>
-                  <option value="MAINTENANCE" style={{ color: 'black' }}>Bảo trì (Maintenance)</option>
+                  {currentUser?.role !== 'MANAGER' && (
+                    <>
+                      <option value="ADMIN" style={{ color: 'black' }}>Quản trị viên (Admin)</option>
+                      <option value="DIRECTOR" style={{ color: 'black' }}>Giám đốc (Director)</option>
+                      <option value="MANAGER" style={{ color: 'black' }}>Quản lý (Manager)</option>
+                      <option value="SECURITY" style={{ color: 'black' }}>Bảo vệ (Security)</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -489,20 +512,27 @@ const Users = () => {
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Phòng ban</label>
                 <select
                   name="department" value={formData.department} onChange={handleChange}
-                  style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'white' }}
+                  disabled={currentUser?.role === 'MANAGER'}
+                  style={{ width: '100%', padding: '0.75rem', background: currentUser?.role === 'MANAGER' ? 'rgba(255,255,255,0.05)' : 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: currentUser?.role === 'MANAGER' ? 'var(--text-muted)' : 'white' }}
                 >
-                  <option value="NONE" style={{ color: 'black' }}>Không thuộc phòng ban nào</option>
-                  <option value="IT" style={{ color: 'black' }}>Công nghệ thông tin (IT)</option>
-                  <option value="MAINTENANCE" style={{ color: 'black' }}>Bảo trì cơ sở vật chất (Maintenance)</option>
-                  <option value="SECURITY" style={{ color: 'black' }}>An ninh bảo vệ (Security)</option>
-                  <option value="HR" style={{ color: 'black' }}>Nhân sự (HR)</option>
-                  <option value="ADMIN" style={{ color: 'black' }}>Hành chính (Admin)</option>
+                  {currentUser?.role === 'MANAGER' ? (
+                    <option value={currentUser.department} style={{ color: 'black' }}>{currentUser.department}</option>
+                  ) : (
+                    <>
+                      <option value="NONE" style={{ color: 'black' }}>Không thuộc phòng ban nào</option>
+                      <option value="IT" style={{ color: 'black' }}>Công nghệ thông tin (IT)</option>
+                      <option value="MAINTENANCE" style={{ color: 'black' }}>Bảo trì cơ sở vật chất (Maintenance)</option>
+                      <option value="SECURITY" style={{ color: 'black' }}>An ninh bảo vệ (Security)</option>
+                      <option value="HR" style={{ color: 'black' }}>Nhân sự (HR)</option>
+                      <option value="ADMIN" style={{ color: 'black' }}>Hành chính (Admin)</option>
+                    </>
+                  )}
                 </select>
               </div>
 
               {!editMode && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Mã nhân sự / SV (Tự động tạo)</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Mã nhân sự</label>
                   <input
                     readOnly
                     name="employee_id" value={formData.employee_id} onChange={handleChange}
@@ -775,7 +805,7 @@ const Users = () => {
                         {task.due_date && (
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Hạn chót</span>
-                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: task.due_date < new Date().toISOString().slice(0,10) && task.status !== 'COMPLETED' ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: task.due_date < new Date().toISOString().slice(0, 10) && task.status !== 'COMPLETED' ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
                               📅 {task.due_date}
                             </span>
                           </div>
