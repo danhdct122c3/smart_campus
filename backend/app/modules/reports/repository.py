@@ -50,23 +50,17 @@ def _date_range(start: str, end: str) -> list[str]:
 
 # ── Phase 1: DynamoDB ─────────────────────────────────────────────────────────
 
+import concurrent.futures
+
 def query_trend_from_dynamo(start: str, end: str) -> list[dict]:
     """
-    Query attendance records from DynamoDB for a date range.
-
-    Returns list of raw DynamoDB items, each containing at least:
-        date, session_type, status, user_id, camera_id, timestamp
+    Query attendance records from DynamoDB for a date range using a single Scan.
+    (Optimized for speed without ThreadPoolExecutor to avoid Boto3 thread-safety issues).
     """
-    dates = _date_range(start, end)
-    all_records: list[dict] = []
-    for date in dates:
-        items = query_items(
-            _ATTENDANCE_TABLE,
-            key_condition=Key("date").eq(date),
-            index_name="date-index",
-        )
-        all_records.extend(items)
-    return all_records
+    return scan_items(
+        _ATTENDANCE_TABLE,
+        filter_expression=Attr("date").between(start, end)
+    )
 
 
 def query_user_stats_from_dynamo(user_id: str, start: str, end: str) -> list[dict]:

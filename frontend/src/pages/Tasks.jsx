@@ -797,7 +797,8 @@ export default function Tasks() {
       parent_task_id: task.parent_task_id || null,
       task_type: task.task_type || 'STANDARD',
       department: task.department || '',
-      category: task.category || ''
+      category: task.category || '',
+      file_url: task.file_url || null
     });
     setEditTaskId(task.task_id);
     setShowModal(true);
@@ -1123,26 +1124,44 @@ export default function Tasks() {
 
             <div>
               <label style={labelStyle}>Tài liệu đính kèm (tùy chọn)</label>
-              <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
-                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files && e.dataTransfer.files[0]) setSelectedFile(e.dataTransfer.files[0]); }}
-              >
-                <input type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
-                {selectedFile ? (
-                  <div style={{ color: 'var(--accent-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
-                    <FileText size={22} />
-                    <span style={{ fontWeight: 600 }}>{selectedFile.name}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</span>
+              {(newTask.file_url || selectedFile) ? (
+                <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '1rem', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <FileText size={22} color="var(--accent-primary)" />
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--accent-primary)' }}>
+                      {selectedFile ? selectedFile.name : (newTask.file_url ? "Tài liệu đính kèm gốc" : "")}
+                    </div>
+                    {selectedFile && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>}
+                    {!selectedFile && newTask.file_url && (
+                      <a href={newTask.file_url} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
+                        Nhấn để xem
+                      </a>
+                    )}
                   </div>
-                ) : (
+                  <button onClick={() => { 
+                    if (selectedFile) {
+                      setSelectedFile(null);
+                    } else {
+                      setNewTask({...newTask, file_url: null}); 
+                    }
+                  }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Gỡ bỏ tài liệu này">
+                    <X size={18} />
+                  </button>
+                </div>
+              ) : (
+                <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                  onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files && e.dataTransfer.files[0]) setSelectedFile(e.dataTransfer.files[0]); }}
+                >
+                  <input type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
                   <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                     <FileText size={22} />
                     <span style={{ fontSize: '0.85rem' }}>Click để chọn file hoặc kéo thả</span>
                   </div>
-                )}
-              </label>
+                </label>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>

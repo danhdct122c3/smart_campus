@@ -126,6 +126,32 @@ def update_user(user_id: str, payload: UserUpdate) -> UserResponse:
                 message=f"Email '{payload.email}' đã được sử dụng.",
             )
         fields["email"] = payload.email
+        
+        # Cập nhật email trên AWS Cognito
+        old_email = existing.get("email")
+        cognito_client = get_cognito_client()
+        if cognito_client and old_email:
+            try:
+                # 1. Tìm Username gốc (UUID) dựa trên email cũ
+                res = cognito_client.list_users(
+                    UserPoolId=settings.cognito_user_pool_id,
+                    Filter=f"email = \"{old_email}\"",
+                    Limit=1
+                )
+                if res.get("Users"):
+                    cognito_username = res["Users"][0]["Username"]
+                    # 2. Cập nhật attributes bằng Username gốc
+                    cognito_client.admin_update_user_attributes(
+                        UserPoolId=settings.cognito_user_pool_id,
+                        Username=cognito_username,
+                        UserAttributes=[
+                            {'Name': 'email', 'Value': payload.email},
+                            {'Name': 'email_verified', 'Value': 'true'},
+                        ]
+                    )
+            except Exception as e:
+                print(f"Failed to update user email in Cognito: {e}")
+
     if payload.role is not None:
         fields["role"] = payload.role.value
     if payload.department is not None:

@@ -10,6 +10,7 @@ from app.modules.security.router import router as security_router
 from app.modules.ai_assistant.router import router as ai_router
 from app.modules.tasks.router import router as tasks_router
 from app.modules.auth.router import router as auth_router
+from app.modules.leaves.router import router as leaves_router
 
 api_router = APIRouter()
 
@@ -23,3 +24,4 @@ api_router.include_router(security_router)
 api_router.include_router(ai_router)
 api_router.include_router(tasks_router)
 api_router.include_router(auth_router)
+api_router.include_router(leaves_router)

@@ -224,6 +224,58 @@ def list_attendance(user_id: str | None, date: str | None) -> list[AttendanceRec
     return [_item_to_record(i) for i in items]
 
 
+def wfh_checkin(user_id: str) -> dict:
+    """WFH self check-in — chỉ cho phép nếu ngày hôm nay có WFH được duyệt."""
+    from datetime import datetime, timezone, timedelta
+    vietnam_tz = timezone(timedelta(hours=7))
+    today = datetime.now(vietnam_tz).strftime("%Y-%m-%d")
+
+    # Kiểm tra có WFH approved hôm nay không
+    from app.modules.leaves.service import get_day_status
+    day_status = get_day_status(user_id, today)
+    if not day_status.wfh_approved:
+        raise AppException(
+            ErrorCode.VALIDATION_ERROR,
+            message="Bạn chưa có đăng ký WFH được duyệt cho hôm nay.",
+        )
+
+    # Kiểm tra đã điểm danh WFH hôm nay chưa (idempotency)
+    from app.shared.aws.dynamodb import scan_items
+    from boto3.dynamodb.conditions import Attr
+    from app.core.config import settings
+    existing = scan_items(
+        settings.attendance_table,
+        filter_expression=(
+            Attr("user_id").eq(user_id) &
+            Attr("date").eq(today) &
+            Attr("session_type").eq("WFH")
+        )
+    )
+    if existing:
+        return {"message": "Điểm danh WFH hôm nay đã được ghi nhận trước đó.", "already_checked": True}
+
+    # Ghi record WFH
+    import uuid
+    now_iso = datetime.now(vietnam_tz).isoformat()
+    attendance_id = str(uuid.uuid4())
+    item = {
+        "record_id":     attendance_id,
+        "attendance_id": attendance_id,
+        "user_id":       user_id,
+        "face_id":       "WFH",
+        "camera_id":     "WFH_SELF_CHECKIN",
+        "room_id":       "WFH",
+        "session_type":  "WFH",
+        "status":        "PRESENT",
+        "confidence":    "100",
+        "timestamp":     now_iso,
+        "date":          today,
+    }
+    repo.save_record(item)
+    return {"message": "Điểm danh WFH thành công!", "already_checked": False, "date": today}
+
+
+
 def _item_to_record(item: dict, is_duplicate: bool = False) -> AttendanceRecord:
     return AttendanceRecord(
         attendance_id=item.get("attendance_id") or item.get("attendanceId", ""),

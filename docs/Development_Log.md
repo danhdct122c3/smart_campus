@@ -154,7 +154,7 @@ Tài liệu này tổng hợp toàn bộ các công việc, kiến trúc và tí
 - **Lập kế hoạch triển khai 4 Phase:** Backend Core → Frontend Core → Event-Driven Integration → Advanced Features.
 - **Tài liệu:** Tạo file `docs/WF8_Task_and_Employee_Management.md` — đặc tả đầy đủ sẵn sàng phát triển.
 
-## Giai đoạn 10b: Tiủnh chỉnh Thiết kế WF8 (2026-07-16)
+## Giai đoạn 10b: Tinh chỉnh Thiết kế WF8 (2026-07-16)
 
 Sau khi review kỹ đặc tả, thống nhất các quyết định thiết kế sau:
 
@@ -311,3 +311,68 @@ Sau khi review kỹ đặc tả, thống nhất các quyết định thiết k�
   - **Vấn đề:** Ban đầu hệ thống không kiểm tra tính duy nhất, dẫn đến rủi ro 1 nhân viên lập 2 tài khoản và dùng 1 khuôn mặt.
   - **Giải pháp:** Bổ sung API `SearchFacesByImage` của Amazon Rekognition vào đầu chu trình `register_face`. Nếu khuôn mặt quét được đã tồn tại trong AWS Collection $\rightarrow$ Chặn đứng, báo lỗi "Khuôn mặt đã được đăng ký" và không gọi `IndexFaces`.
 - **Fix Bug Camera UI:** Xử lý lỗi rò rỉ bộ nhớ & không tắt đèn Webcam khi người dùng chuyển từ tab "Chụp Camera" sang tab "Tải ảnh lên" (áp dụng cho cả trang Profile và trang Users). Cập nhật hàm `stopFaceCamera()` để giải phóng luồng video triệt để.
+
+---
+
+## Giai đoạn 14: Tái thiết kế Giao diện Báo cáo (Analytics) & Hợp nhất Dashboard (2026-07-30)
+
+### 14.1 – Hợp nhất Trang chủ (Dashboard & Analytics)
+- **Vấn đề:** Trang Dashboard cũ chỉ đóng vai trò hiển thị sơ sài một vài thông số tĩnh, gây lãng phí không gian hiển thị và trải nghiệm người dùng không tốt.
+- **Giải pháp:** 
+  - Xóa bỏ hoàn toàn file `Dashboard.jsx`.
+  - Thay thế trang chủ (Root path `/`) bằng trang **Analytics** (`Analytics.jsx`).
+  - Mở quyền truy cập trang chủ mới (Analytics) cho tất cả các Role trong hệ thống (từ Admin, Manager cho đến Staff, Security, Maintenance).
+
+### 14.2 – Tái thiết kế UX/UI trang Analytics (Focus on Tasks & Attendance)
+- **Từ bỏ KPI doanh nghiệp:** Chuyển trọng tâm trang Analytics sang giám sát chuyên sâu 2 mảng chính: **Chấm công (Attendance)** và **Công việc (Tasks)**.
+- **Thiết kế UI Cao cấp (Premium Glassmorphism):**
+  - **KPI Cards:** Được thay thế bằng 4 thẻ thông số rút gọn nhưng trực quan hơn. Đặc biệt tích hợp **Circular Progress Ring (SVG)** để hiển thị phần trăm tỉ lệ chuyên cần dạng vòng tròn, kèm hiệu ứng hover phát sáng (`box-shadow` & `border-color`).
+  - **Attendance Trend:** Tối ưu hóa biểu đồ vùng (Area Chart) với Recharts. Thêm dải màu gradient mượt mà (Cyan cho "Có mặt", Amber cho "Đi muộn"), giúp biểu đồ bớt đơn điệu và dễ phân tích xu hướng hơn.
+  - **Task Overview (MỚI):** Tự thiết kế một biểu đồ vòng (Donut Chart) bằng **SVG thuần** (không dùng thư viện ngoài) để trực quan hóa trạng thái các công việc (Hoàn thành, Đang xử lý, Chờ xử lý, Quá hạn).
+  - **Top nhân viên vắng mặt:** Thay thế biểu đồ cột (Bar chart) đỏ rực cũ bằng một danh sách ngang tinh tế (List view) tích hợp thanh tiến trình ngang (Horizontal Progress Bar) với màu sắc cảnh báo động (Xanh > 90%, Vàng > 70%, Đỏ < 70%).
+
+### 14.3 – Tích hợp Phân quyền 3 Tầng (Role-Based Access Control - RBAC)
+Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm vi dữ liệu tùy theo người xem:
+- **Tầng 1 (ADMIN / PO / DIRECTOR):** Xem được dữ liệu toàn hệ thống. Có thêm **Bảng so sánh chéo hiệu suất giữa các Phòng ban** (Department Comparison Matrix) với hệ thống huy hiệu đánh giá tự động (Xuất sắc, Tốt, Cần cải thiện).
+- **Tầng 2 (MANAGER / PM):** Bộ lọc Phòng ban bị khóa cứng (`disabled`). Quản lý chỉ được xem dữ liệu, biểu đồ công việc và top nhân viên đi muộn trong phạm vi phòng ban của mình.
+- **Tầng 3 (STAFF / STUDENT):** Giao diện chuyển thành **"Báo cáo cá nhân" (My Analytics)**. Chỉ hiển thị tỉ lệ chuyên cần, tiến độ công việc cá nhân, khối lượng task và lịch sử các lần check-in của chính họ.
+- **Lợi ích kiến trúc:** Đạt được trải nghiệm cá nhân hóa toàn diện cho mọi người dùng mà **KHÔNG CẦN CHỈNH SỬA BACKEND**. Toàn bộ logic filter (theo department, user_id) đã được thiết kế sẵn từ trước qua các API của `reports` module.
+
+---
+
+## Giai đoạn 15: Khởi tạo Nghiệp vụ Quản lý Nghỉ phép (Leave Management)
+
+### 15.1 – Thiết kế Cơ sở Dữ liệu & Kiến trúc Backend
+- **DynamoDB:** Khởi tạo bảng `smart-campus-leaves` lưu trữ toàn bộ các đơn xin nghỉ. Thiết lập các Global Secondary Index (GSI) để truy vấn nhanh theo `user_id` và `status`.
+- **Backend Module (`leaves`):**
+  - Xây dựng hệ thống API cho phép đăng ký 4 loại nghỉ phép: `WFH` (Làm việc từ xa), `ANNUAL_LEAVE` (Phép năm), `SICK_LEAVE` (Nghỉ ốm) và `BUSINESS_TRIP` (Công tác).
+  - Tích hợp nghiệp vụ duyệt đơn đa cấp: Nhân viên nộp đơn $\rightarrow$ Quản lý duyệt/từ chối.
+  - Quản lý Ngày lễ (Holidays): Cung cấp API cho Admin thiết lập danh sách các ngày lễ trong năm.
+
+### 15.2 – Giao diện Người dùng (Frontend - Leaves.jsx)
+- **Interactive Calendar (Lịch Tương Tác):** Xây dựng bộ lịch hiển thị dạng lưới trực quan. Đổ màu hiển thị trạng thái từng ngày (Ngày lễ, Nghỉ phép, Công tác, Cuối tuần). 
+- **Form Đăng ký Thông minh:** Tự động điền ngày được chọn trên lịch vào Form đăng ký.
+- **Tích hợp Điểm danh WFH:** Bổ sung tính năng "Điểm danh WFH" ngay trên giao diện đối với các nhân sự được duyệt làm việc từ xa, tự động đồng bộ kết quả `PRESENT` sang module `attendance` và đánh dấu đã điểm danh.
+
+---
+
+## Giai đoạn 16: Hoàn thiện Nghiệp vụ Xin Nghỉ phép & Tối ưu Trải nghiệm (2026-08-02)
+
+### 16.1 – Xử lý Logic & Ngăn chặn Trùng lặp (Backend)
+- **Kiểm tra trùng lặp thời gian:** Cập nhật hàm `submit_leave_request` để tự động đối chiếu khoảng thời gian `date_from` - `date_to` với các đơn cũ (đang Chờ duyệt hoặc Đã duyệt). Ngăn chặn và báo lỗi nếu người dùng cố tình xin nghỉ trùng lịch.
+- **Ràng buộc Ngày lễ:** Backend tự động quét tập ngày (date range) mà người dùng xin nghỉ, nếu phát hiện có bất kỳ ngày nào trùng với Ngày lễ đã được Admin thiết lập, hệ thống sẽ chặn đăng ký.
+
+### 16.2 – Phát triển Tính năng Hủy Đơn (Cancel Leave)
+- **Mở rộng Schema & Status:** Thêm trạng thái `CANCELLED` vào `LeaveStatus` Enum.
+- **Backend API (`PATCH /leaves/{request_id}/cancel`):** 
+  - Chỉ cho phép nhân viên tự hủy đơn của chính mình.
+  - Ràng buộc trạng thái: Chỉ được phép hủy khi đơn ở trạng thái `PENDING` hoặc `APPROVED`.
+  - Ràng buộc thời gian: Không thể hủy đơn trong quá khứ hoặc đơn đã đến ngày bắt đầu (chỉ cho phép hủy nếu `date_from > today` - quy đổi theo chuẩn UTC).
+- **Frontend UI:**
+  - Bổ sung nút **"Hủy"** màu đỏ (kèm icon) ở các đơn nghỉ phép thỏa điều kiện trong tab "Lịch sử của tôi".
+  - Hiển thị Badge `Đã hủy` màu xám mờ để phân biệt với các đơn bị `Từ chối`.
+
+### 16.3 – Nâng cấp Trải nghiệm Người dùng (UX UI - Toast Notifications)
+- **Tối ưu hóa Phân trang (Notifications):** Bổ sung cơ chế phân trang cục bộ dạng Chunk (10 mục/trang) cho trang Thông báo, tái sử dụng mô hình thành công từ trang Quản lý Nhân sự (Users) và Công việc (Tasks), giúp UI gọn gàng. Khắc phục triệt để lỗi trùng lặp biến `filteredItems` gây treo trình biên dịch Vite trong quá trình refactor.
+- **Loại bỏ Browser Alert:** Xóa sổ hoàn toàn hộp thoại thông báo `alert(...)` mặc định xấu xí của trình duyệt trên toàn bộ module Xin Nghỉ phép (`Leaves.jsx`).
+- **Xây dựng Toast Component In-house:** Thay thế bằng hệ thống Thông báo nổi bọt (Toast Notifications) mang phong cách UI Cao cấp (Glassmorphism), tự động xuất hiện với hiệu ứng rơi xuống (fadeInDown) và mờ đi sau 4 giây. Tích hợp linh hoạt hiển thị cảnh báo lỗi (màu đỏ) và thành công (màu xanh).

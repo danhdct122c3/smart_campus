@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, Search, Mail, MessageSquare, AlertTriangle, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,9 +11,13 @@ const Notifications = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedNotification, setSelectedNotification] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const userMap = React.useMemo(() => {
     const map = {};
@@ -30,7 +35,7 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      let url = `${API_URL}/notifications?limit=50`;
+      let url = `${API_URL}/notifications?limit=200`;
       if (currentUser && currentUser.role !== 'ADMIN') {
         url += `&user_id=${currentUser.user_id}`;
       }
@@ -60,6 +65,20 @@ const Notifications = () => {
       console.error('Failed to fetch users', err);
     }
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType]);
+
+  const filteredItems = notifications.filter(item => {
+    const matchesSearch = item.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          item.user_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterType === 'ALL' || item.event_type === filterType;
+    return matchesSearch && matchesFilter;
+  }).sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0));
+
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const visibleItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getIconForEventType = (type) => {
     switch (type) {
@@ -98,12 +117,6 @@ const Notifications = () => {
     );
   };
 
-  const filteredItems = notifications.filter(item => {
-    const matchesSearch = item.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.user_id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterType === 'ALL' || item.event_type === filterType;
-    return matchesSearch && matchesFilter;
-  }).sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0));
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
@@ -175,10 +188,11 @@ const Notifications = () => {
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>KÊNH</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>TIÊU ĐỀ</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem' }}>NGƯỜI NHẬN</th>
+                <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>THAO TÁC</th>
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map(item => (
+              {visibleItems.map(item => (
                 <tr key={item.notification_id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s', ':hover': { background: 'rgba(255,255,255,0.02)' } }}>
                   <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                     {new Date(item.sent_at).toLocaleString('vi-VN')}
@@ -204,12 +218,138 @@ const Notifications = () => {
                   <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                     {userMap[item.user_id] || item.user_id}
                   </td>
+                  <td style={{ padding: '1rem', textAlign: 'right' }}>
+                    <button 
+                      onClick={() => setSelectedNotification(item)}
+                      style={{
+                        background: 'transparent', color: 'var(--accent-primary)',
+                        border: '1px solid var(--accent-primary)', borderRadius: '6px',
+                        padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem',
+                        fontWeight: 500, transition: 'all 0.2s'
+                      }}
+                      onMouseOver={e => { e.currentTarget.style.background = 'var(--accent-primary)'; e.currentTarget.style.color = 'white'; }}
+                      onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--accent-primary)'; }}
+                    >
+                      Chi tiết
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && !error && filteredItems.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            style={{
+              background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)',
+              borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              opacity: currentPage === 1 ? 0.5 : 1
+            }}
+          >
+            &lt;
+          </button>
+          
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              style={{
+                background: currentPage === page ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                color: 'white', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.4rem 0.8rem',
+                cursor: 'pointer', fontWeight: currentPage === page ? 700 : 400
+              }}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            style={{
+              background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)',
+              borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              opacity: currentPage === totalPages ? 0.5 : 1
+            }}
+          >
+            &gt;
+          </button>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedNotification && createPortal(
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'var(--bg-panel)', padding: '2rem', borderRadius: '16px',
+            width: '550px', maxWidth: '90%', border: '1px solid var(--glass-border)',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.5)', position: 'relative'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-primary)', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+              Chi tiết thông báo
+            </h3>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Người nhận</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                {userMap[selectedNotification.user_id] || selectedNotification.user_id}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Thời gian</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                {new Date(selectedNotification.sent_at).toLocaleString('vi-VN')}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Tiêu đề</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '1.05rem' }}>
+                {selectedNotification.subject}
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Nội dung chi tiết</div>
+              <div style={{ 
+                color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: '1.6', 
+                background: 'rgba(255,255,255,0.03)', padding: '1rem', 
+                borderRadius: '8px', border: '1px solid var(--glass-border)'
+              }}>
+                {selectedNotification.message}
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
+              <button 
+                onClick={() => setSelectedNotification(null)} 
+                style={{ 
+                  background: 'var(--accent-primary)', color: 'white', 
+                  border: 'none', padding: '0.6rem 2rem', borderRadius: '8px', 
+                  cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2, CheckSquare, ClipboardList, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Users, Camera, Bell, ShieldAlert, Bot, BarChart2, CheckSquare, ClipboardList, UserCircle, CalendarDays } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -10,9 +10,9 @@ const Sidebar = () => {
 
   // Định nghĩa các menu có gán roles được phép truy cập
   const allNavItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
-    { name: 'Analytics', icon: BarChart2, path: '/analytics', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
+    { name: 'Dashboard', icon: BarChart2, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'Tasks (Công việc)', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Nghỉ phép & WFH', icon: CalendarDays, path: '/leaves', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'AI Assistant', icon: Bot, path: '/ai', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
     { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },
     { name: 'Security', icon: ShieldAlert, path: '/security', roles: ['ADMIN', 'DIRECTOR'] },
