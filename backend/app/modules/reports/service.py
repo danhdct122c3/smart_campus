@@ -88,20 +88,34 @@ def get_report_summary(
     end = datetime.fromisoformat(period_end)
     dept_uids = _get_dept_user_ids(department)
 
-    daily_summaries: list[AttendanceSummary] = []
+    # Fetch all records in parallel instead of looping
+    all_records = repo.query_trend_from_dynamo(period_start, period_end)
+    
+    # Filter by department early
+    if dept_uids is not None:
+        all_records = [r for r in all_records if (r.get("userId") or r.get("user_id", "")) in dept_uids]
 
-    # Aggregate per-user stats in a single pass (one query per date×session)
+    daily_summaries: list[AttendanceSummary] = []
     user_records: dict[str, list[dict]] = defaultdict(list)
 
+    # Group raw records by date and session
+    grouped_by_date_session = defaultdict(list)
+    for r in all_records:
+        date = r.get("date", "")
+        session = r.get("session_type", "")
+        uid = r.get("userId") or r.get("user_id", "")
+        if date and session:
+            grouped_by_date_session[(date, session)].append(r)
+        if uid:
+            user_records[uid].append(r)
+
+    # Build daily summaries exactly as before
     current = start
     while current <= end:
         date_str = current.strftime("%Y-%m-%d")
         for session in SESSIONS:
-            records = att_repo.list_by_date_session(date_str, session.name)
-            if dept_uids is not None:
-                records = [r for r in records if (r.get("userId") or r.get("user_id", "")) in dept_uids]
-
-            # Build daily summary
+            records = grouped_by_date_session.get((date_str, session.name), [])
+            
             present = sum(1 for r in records if r.get("status") == "PRESENT")
             late = sum(1 for r in records if r.get("status") == "LATE")
             total = len(records)
@@ -116,14 +130,6 @@ def get_report_summary(
                     attendance_rate=rate,
                 )
             )
-
-            # Accumulate per-user (single pass, no re-query)
-            # attendance table uses camelCase: userId
-            for r in records:
-                uid = r.get("userId") or r.get("user_id", "")
-                if uid:
-                    user_records[uid].append(r)
-
         current += timedelta(days=1)
 
     # Build per-user stats

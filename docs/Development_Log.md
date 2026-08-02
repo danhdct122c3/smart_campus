@@ -311,3 +311,29 @@ Sau khi review kỹ đặc tả, thống nhất các quyết định thiết k�
   - **Vấn đề:** Ban đầu hệ thống không kiểm tra tính duy nhất, dẫn đến rủi ro 1 nhân viên lập 2 tài khoản và dùng 1 khuôn mặt.
   - **Giải pháp:** Bổ sung API `SearchFacesByImage` của Amazon Rekognition vào đầu chu trình `register_face`. Nếu khuôn mặt quét được đã tồn tại trong AWS Collection $\rightarrow$ Chặn đứng, báo lỗi "Khuôn mặt đã được đăng ký" và không gọi `IndexFaces`.
 - **Fix Bug Camera UI:** Xử lý lỗi rò rỉ bộ nhớ & không tắt đèn Webcam khi người dùng chuyển từ tab "Chụp Camera" sang tab "Tải ảnh lên" (áp dụng cho cả trang Profile và trang Users). Cập nhật hàm `stopFaceCamera()` để giải phóng luồng video triệt để.
+
+---
+
+## Giai đoạn 14: Tái thiết kế Giao diện Báo cáo (Analytics) & Hợp nhất Dashboard (2026-07-30)
+
+### 14.1 – Hợp nhất Trang chủ (Dashboard & Analytics)
+- **Vấn đề:** Trang Dashboard cũ chỉ đóng vai trò hiển thị sơ sài một vài thông số tĩnh, gây lãng phí không gian hiển thị và trải nghiệm người dùng không tốt.
+- **Giải pháp:** 
+  - Xóa bỏ hoàn toàn file `Dashboard.jsx`.
+  - Thay thế trang chủ (Root path `/`) bằng trang **Analytics** (`Analytics.jsx`).
+  - Mở quyền truy cập trang chủ mới (Analytics) cho tất cả các Role trong hệ thống (từ Admin, Manager cho đến Staff, Security, Maintenance).
+
+### 14.2 – Tái thiết kế UX/UI trang Analytics (Focus on Tasks & Attendance)
+- **Từ bỏ KPI doanh nghiệp:** Chuyển trọng tâm trang Analytics sang giám sát chuyên sâu 2 mảng chính: **Chấm công (Attendance)** và **Công việc (Tasks)**.
+- **Thiết kế UI Cao cấp (Premium Glassmorphism):**
+  - **KPI Cards:** Được thay thế bằng 4 thẻ thông số rút gọn nhưng trực quan hơn. Đặc biệt tích hợp **Circular Progress Ring (SVG)** để hiển thị phần trăm tỉ lệ chuyên cần dạng vòng tròn, kèm hiệu ứng hover phát sáng (`box-shadow` & `border-color`).
+  - **Attendance Trend:** Tối ưu hóa biểu đồ vùng (Area Chart) với Recharts. Thêm dải màu gradient mượt mà (Cyan cho "Có mặt", Amber cho "Đi muộn"), giúp biểu đồ bớt đơn điệu và dễ phân tích xu hướng hơn.
+  - **Task Overview (MỚI):** Tự thiết kế một biểu đồ vòng (Donut Chart) bằng **SVG thuần** (không dùng thư viện ngoài) để trực quan hóa trạng thái các công việc (Hoàn thành, Đang xử lý, Chờ xử lý, Quá hạn).
+  - **Top nhân viên vắng mặt:** Thay thế biểu đồ cột (Bar chart) đỏ rực cũ bằng một danh sách ngang tinh tế (List view) tích hợp thanh tiến trình ngang (Horizontal Progress Bar) với màu sắc cảnh báo động (Xanh > 90%, Vàng > 70%, Đỏ < 70%).
+
+### 14.3 – Tích hợp Phân quyền 3 Tầng (Role-Based Access Control - RBAC)
+Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm vi dữ liệu tùy theo người xem:
+- **Tầng 1 (ADMIN / PO / DIRECTOR):** Xem được dữ liệu toàn hệ thống. Có thêm **Bảng so sánh chéo hiệu suất giữa các Phòng ban** (Department Comparison Matrix) với hệ thống huy hiệu đánh giá tự động (Xuất sắc, Tốt, Cần cải thiện).
+- **Tầng 2 (MANAGER / PM):** Bộ lọc Phòng ban bị khóa cứng (`disabled`). Quản lý chỉ được xem dữ liệu, biểu đồ công việc và top nhân viên đi muộn trong phạm vi phòng ban của mình.
+- **Tầng 3 (STAFF / STUDENT):** Giao diện chuyển thành **"Báo cáo cá nhân" (My Analytics)**. Chỉ hiển thị tỉ lệ chuyên cần, tiến độ công việc cá nhân, khối lượng task và lịch sử các lần check-in của chính họ.
+- **Lợi ích kiến trúc:** Đạt được trải nghiệm cá nhân hóa toàn diện cho mọi người dùng mà **KHÔNG CẦN CHỈNH SỬA BACKEND**. Toàn bộ logic filter (theo department, user_id) đã được thiết kế sẵn từ trước qua các API của `reports` module.

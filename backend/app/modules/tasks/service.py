@@ -186,6 +186,7 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
         raise AppException(ErrorCode.BAD_REQUEST, message="Không thể sửa công việc đã hoàn thành hoặc đã hủy")
         
     update_expr = "SET updated_at = :now"
+    remove_expr = ""
     expr_vals = {":now": datetime.now(timezone.utc).isoformat()}
     expr_names = {}
     
@@ -199,10 +200,15 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
             else:
                 update_expr += f", {k} = :{k}"
                 expr_vals[f":{k}"] = v.value if hasattr(v, 'value') else v
+        else:
+            if not remove_expr:
+                remove_expr = f" REMOVE {k}"
+            else:
+                remove_expr += f", {k}"
                 
     kwargs = {
         "task_id": task_id,
-        "update_expr": update_expr,
+        "update_expr": update_expr + remove_expr,
         "expr_vals": expr_vals
     }
     if expr_names:

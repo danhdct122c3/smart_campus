@@ -10,8 +10,7 @@ const Sidebar = () => {
 
   // Định nghĩa các menu có gán roles được phép truy cập
   const allNavItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
-    { name: 'Analytics', icon: BarChart2, path: '/analytics', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
+    { name: 'Dashboard', icon: BarChart2, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'Tasks (Công việc)', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'AI Assistant', icon: Bot, path: '/ai', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
     { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },

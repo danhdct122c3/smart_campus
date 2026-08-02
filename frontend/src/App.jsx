@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
-import Dashboard from './pages/Dashboard';
 import AIAssistant from './pages/AIAssistant';
 import Login from './pages/Login';
 import Users from './pages/Users';
@@ -26,8 +25,6 @@ function App() {
             <Route element={<MainLayout />}>
               {/* ADMIN, MANAGER, PO, PM, DIRECTOR */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM']} />}>
-                <Route index element={<Dashboard />} />
-                <Route path="analytics" element={<Analytics />} />
                 <Route path="ai" element={<AIAssistant />} />
                 <Route path="users" element={<Users />} />
               </Route>
@@ -38,6 +35,7 @@ function App() {
               </Route>
 
               {/* EVERYONE LOGGED IN */}
+              <Route index element={<Analytics />} />
               <Route path="profile" element={<Profile />} />
               <Route path="tasks" element={<Tasks />} />
               <Route path="attendance" element={<Attendance />} />
