@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     security_table: str = "smart-campus-security"
     notifications_table: str = "smart-campus-notifications"
     tasks_table: str = "smart-campus-tasks"
+    leaves_table: str = "smart-campus-leaves"
+    holidays_table: str = "smart-campus-holidays"
 
 
     # Rekognition

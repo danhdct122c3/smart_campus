@@ -9,6 +9,7 @@ import Attendance from './pages/Attendance';
 import Analytics from './pages/Analytics';
 import Tasks from './pages/Tasks';
 import Profile from './pages/Profile';
+import Leaves from './pages/Leaves';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -40,6 +41,7 @@ function App() {
               <Route path="tasks" element={<Tasks />} />
               <Route path="attendance" element={<Attendance />} />
               <Route path="notifications" element={<Notifications />} />
+              <Route path="leaves" element={<Leaves />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

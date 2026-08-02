@@ -54,3 +54,15 @@ def list_attendance(
     items = service.list_attendance(user_id=user_id, date=date)
     data = AttendanceListResponse(items=items, total=len(items))
     return APIResponse.ok(data)
+
+
+@router.post(
+    "/wfh-checkin",
+    response_model=APIResponse[dict],
+    summary="Điểm danh WFH (chỉ cho phép nếu đã có request WFH được duyệt hôm nay)",
+)
+def wfh_checkin(
+    user_id: str = Query(..., description="User ID của nhân viên"),
+):
+    data = service.wfh_checkin(user_id)
+    return APIResponse.ok(data)

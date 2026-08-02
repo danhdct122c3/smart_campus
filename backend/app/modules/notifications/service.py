@@ -36,6 +36,10 @@ from . import repository as repo
 # ── Message templates ──────────────────────────────────────────────────────────
 
 _TEMPLATES: dict[NotificationEventType, dict] = {
+    NotificationEventType.WFH_REQUEST_APPROVED: {
+        "subject": "[Smart Campus] Yêu cầu nghỉ/WFH của bạn đã được duyệt",
+        "message": "Đơn xin {leave_type} từ ngày {date_from} đến {date_to} của bạn đã được phê duyệt thành công.",
+    },
     NotificationEventType.ATTENDANCE_RECORDED: {
         "subject": "[Smart Campus] Điểm danh thành công",
         "message": "Bạn đã được ghi nhận điểm danh lúc {timestamp} tại phòng {room_id}. Trạng thái: {status}.",
@@ -83,15 +87,16 @@ _TEMPLATES: dict[NotificationEventType, dict] = {
 }
 
 
+class SafeDict(dict):
+    def __missing__(self, key):
+        return f"[Chưa có {key}]"
+
 def _build_message(event_type: NotificationEventType, context: dict) -> dict:
-    """Fill template with context data."""
+    """Fill template with context data securely, handling missing keys."""
     template = _TEMPLATES.get(event_type, _TEMPLATES[NotificationEventType.CUSTOM])
-    try:
-        subject = template["subject"].format(**context)
-        message = template["message"].format(**context)
-    except KeyError:
-        subject = template["subject"]
-        message = template["message"]
+    safe_context = SafeDict(context)
+    subject = template["subject"].format_map(safe_context)
+    message = template["message"].format_map(safe_context)
     return {"subject": subject, "message": message}
 
 

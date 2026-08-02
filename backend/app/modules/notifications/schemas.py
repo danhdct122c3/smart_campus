@@ -31,6 +31,9 @@ class NotificationEventType(str, Enum):
     TASK_COMPLETED      = "TaskCompleted"
     TASK_OVERDUE        = "TaskOverdue"
     INCIDENT_REPORTED   = "IncidentReported"
+    WFH_REQUEST_SUBMITTED = "WFH_REQUEST_SUBMITTED"
+    WFH_REQUEST_APPROVED  = "WFH_REQUEST_APPROVED"
+    WFH_REQUEST_REJECTED  = "WFH_REQUEST_REJECTED"
     CUSTOM              = "Custom"
 
 

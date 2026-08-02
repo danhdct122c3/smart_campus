@@ -172,6 +172,15 @@ def respond_to_new_password_challenge(payload: NewPasswordChallengeRequest) -> T
         if not auth_result:
             raise AppException(ErrorCode.UNAUTHORIZED, message="Không thể hoàn tất đổi mật khẩu.")
             
+        # Tự động gửi email verify trên AWS SES cho user
+        try:
+            from app.shared.aws.ses import get_ses_client
+            ses = get_ses_client()
+            ses.verify_email_identity(EmailAddress=email)
+            print(f"[SES] Đã kích hoạt gửi link xác thực email tới: {email}")
+        except Exception as ses_err:
+            print(f"[SES WARNING] Lỗi khi tự động gửi verify email tới {email}: {ses_err}")
+            
         return TokenResponse(
             access_token=auth_result.get('AccessToken', ''),
             id_token=auth_result.get('IdToken', ''),
