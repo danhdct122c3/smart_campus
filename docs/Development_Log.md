@@ -376,3 +376,28 @@ Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm
 - **Tối ưu hóa Phân trang (Notifications):** Bổ sung cơ chế phân trang cục bộ dạng Chunk (10 mục/trang) cho trang Thông báo, tái sử dụng mô hình thành công từ trang Quản lý Nhân sự (Users) và Công việc (Tasks), giúp UI gọn gàng. Khắc phục triệt để lỗi trùng lặp biến `filteredItems` gây treo trình biên dịch Vite trong quá trình refactor.
 - **Loại bỏ Browser Alert:** Xóa sổ hoàn toàn hộp thoại thông báo `alert(...)` mặc định xấu xí của trình duyệt trên toàn bộ module Xin Nghỉ phép (`Leaves.jsx`).
 - **Xây dựng Toast Component In-house:** Thay thế bằng hệ thống Thông báo nổi bọt (Toast Notifications) mang phong cách UI Cao cấp (Glassmorphism), tự động xuất hiện với hiệu ứng rơi xuống (fadeInDown) và mờ đi sau 4 giây. Tích hợp linh hoạt hiển thị cảnh báo lỗi (màu đỏ) và thành công (màu xanh).
+
+## Giai đoạn 17: Nâng cấp Đăng nhập Sinh trắc học & Tinh chỉnh UX/UI Hệ thống (2026-08-03)
+
+### 17.1 – Hoàn thiện Luồng Nhận diện khuôn mặt (Face Recognition)
+- **Cải thiện Loading UX:** Bổ sung Loading Overlay cho các thao tác liên quan đến AI sinh trắc học (Đăng ký khuôn mặt, Đăng nhập bằng khuôn mặt, Check-in, Khôi phục mật khẩu). Ngăn chặn người dùng bấm liên tục gây spam request lên AWS Rekognition.
+- **Tính năng Đăng nhập & Khôi phục Mật khẩu bằng Khuôn mặt:**
+  - Hoàn thiện hoàn toàn luồng đăng nhập không cần mật khẩu thông qua FaceID.
+  - Tích hợp tính năng Reset Password an toàn: Người dùng quên mật khẩu có thể dùng chính khuôn mặt của mình để xác thực danh tính và đặt lại mật khẩu mới ngay trên trình duyệt mà không cần OTP qua email hay số điện thoại.
+
+### 17.2 – Cập nhật Nghiệp vụ Điểm danh (WFH) & Fix lỗi Dữ liệu
+- **Hỗ trợ WFH không cần FaceID:** Khắc phục lỗi yêu cầu người dùng phải có dữ liệu khuôn mặt mới được bấm nút "Điểm danh WFH". Giờ đây, những nhân viên làm việc từ xa (đã được duyệt WFH) có thể check-in bằng nút bấm cơ bản trên Dashboard.
+- **Đồng bộ Property Keys (camelCase vs snake_case):**
+  - **Vấn đề:** Bảng Lịch sử Điểm danh (Attendance) bị trắng các cột "Mã nhân sự", "Ca học" do giao diện cố đọc các biến `userId`, `sessionType` nhưng backend lại trả về `user_id`, `session_type`.
+  - **Giải pháp:** Cập nhật lại toàn bộ file `Attendance.jsx` để ánh xạ chính xác các thuộc tính snake_case từ Backend.
+- **Tinh giản Thông tin Điểm danh:** Gỡ bỏ hiển thị "Ca học" (Session) và "Phòng ban" (Room) khỏi các bảng Lịch sử Điểm danh (tại trang Analytics và My Profile) theo yêu cầu thực tế, giúp giao diện gọn gàng và bớt rối mắt.
+- **Fix lỗi thời gian Check-in WFH:** Chỉnh sửa logic backend để bản ghi WFH ghi nhận chính xác thời gian thực tế người dùng bấm nút thay vì mặc định hardcode `07:00:00` như trước.
+
+### 17.3 – Tinh chỉnh Giao diện Quản lý Công việc & Nghỉ phép
+- **Format hiển thị Thời gian & Cảnh báo Quá hạn (Tasks):** 
+  - Đưa thông tin Giờ-Phút (hh:mm) vào hiển thị Deadline trong Lịch sử công việc của nhân viên, thay vì chỉ hiện Ngày.
+  - Cập nhật thuật toán tính quá hạn (Overdue): Hệ thống nay so sánh chính xác đến từng phút hiện tại thay vì chỉ so sánh theo ngày, giúp cảnh báo chữ đỏ (⚠) hoạt động chuẩn xác.
+- **Việt hóa Mức độ ưu tiên (Priority):** Tự động dịch các thẻ hiển thị ưu tiên tiếng Anh (`URGENT`, `HIGH`, `MEDIUM`, `LOW`) sang tiếng Việt (`KHẨN CẤP`, `CAO`, `TRUNG BÌNH`, `THẤP`) trong Modal chi tiết công việc của nhân viên.
+- **Fix Crash React (`createPortal`):** Khắc phục lỗi màn hình trắng/đen toàn tập khi truy cập trang Tasks, nguyên nhân do hàm `createPortal` của `TaskDetailDrawer` bị thiếu tham số `document.body` (lỗi cú pháp React).
+- **UX trang Nghỉ phép (Leaves):** Đảo lại thứ tự các tab điều hướng trên trang Nghỉ phép thành: `Lịch tháng` (Mặc định) $\rightarrow$ `Chờ duyệt` (Dành cho Quản lý) $\rightarrow$ `Lịch sử của tôi` $\rightarrow$ `Ngày lễ` (Dành cho Admin), ưu tiên lịch tương tác lên đầu để tiện sử dụng.
+- **Quyền Cập nhật Task:** Khóa cứng hai trường `Loại công việc` và `Phòng ban xử lý` khi cập nhật công việc đã tạo, tránh tình trạng User hoặc Manager tự ý đổi sai luồng nghiệp vụ.
