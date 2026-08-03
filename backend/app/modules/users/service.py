@@ -95,13 +95,14 @@ def get_user(user_id: str) -> UserResponse:
 
 
 def list_users(
-    role: str | None, 
-    status_filter: str | None,
+    search: str | None = None,
+    role: str | None = None, 
+    status_filter: str | None = None,
     department: str | None = None,
     limit: int = 20,
     cursor: str | None = None
 ) -> tuple[list[UserResponse], str | None]:
-    items, next_key = repo.list_users(role=role, status=status_filter, department=department, limit=limit, cursor=cursor)
+    items, next_key = repo.list_users(search=search, role=role, status=status_filter, department=department, limit=limit, cursor=cursor)
     return [_to_response(i) for i in items], next_key
 
 

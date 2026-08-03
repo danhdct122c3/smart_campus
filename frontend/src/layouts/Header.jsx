@@ -120,7 +120,11 @@ const Header = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button 
-            onClick={() => setShowNotifs(!showNotifs)}
+            onClick={() => {
+              const next = !showNotifs;
+              setShowNotifs(next);
+              if (next) fetchNotifications();
+            }}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative', display: 'flex' }}
           >
             <Bell size={20} color="var(--text-secondary)" />

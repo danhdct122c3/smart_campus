@@ -12,10 +12,10 @@ const Sidebar = () => {
   const allNavItems = [
     { name: 'Dashboard', icon: BarChart2, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'Tasks (Công việc)', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Nghỉ phép & WFH', icon: CalendarDays, path: '/leaves', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Nghỉ phép', icon: CalendarDays, path: '/leaves', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'AI Assistant', icon: Bot, path: '/ai', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM'] },
     { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },
-    { name: 'Security', icon: ShieldAlert, path: '/security', roles: ['ADMIN', 'DIRECTOR'] },
+
     // Menu chung ai cũng thấy
     { name: 'My Profile', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'Attendance', icon: Camera, path: '/attendance', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },

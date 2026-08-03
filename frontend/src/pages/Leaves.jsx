@@ -546,7 +546,7 @@ export default function Leaves() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.6rem' }}>
-            <CalendarDays size={26} color="var(--accent-primary)" /> Nghỉ phép & WFH
+            <CalendarDays size={26} color="var(--accent-primary)" /> Nghỉ phép
           </h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem', fontSize: '0.9rem' }}>
             Đăng ký làm việc từ xa, nghỉ phép và quản lý lịch nghỉ
@@ -557,7 +557,7 @@ export default function Leaves() {
           {dayStatus?.wfh_approved && (
             <Btn variant="success" onClick={handleWfhCheckin} disabled={wfhLoading}>
               {wfhLoading ? <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Home size={15} />}
-              Điểm danh WFH hôm nay
+              Điểm danh WFH
             </Btn>
           )}
           {/* Staff: submit request */}
@@ -597,13 +597,13 @@ export default function Leaves() {
         </div>
       )}
 
-      {/* ── Tabs (Manager sees "Pending" by default) ── */}
+      {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '0' }}>
-        <button style={TAB_STYLE(activeTab === 'my')} onClick={() => setActiveTab('my')}>Lịch sử của tôi</button>
+        <button style={TAB_STYLE(activeTab === 'calendar')} onClick={() => setActiveTab('calendar')}>Lịch tháng</button>
         {isManager && <button style={TAB_STYLE(activeTab === 'pending')} onClick={() => setActiveTab('pending')}>
           Chờ duyệt {pending.length > 0 && <span style={{ background: 'var(--accent-danger)', color: '#fff', borderRadius: '10px', padding: '0 6px', fontSize: '0.72rem', marginLeft: 4 }}>{pending.length}</span>}
         </button>}
-        <button style={TAB_STYLE(activeTab === 'calendar')} onClick={() => setActiveTab('calendar')}>Lịch tháng</button>
+        <button style={TAB_STYLE(activeTab === 'my')} onClick={() => setActiveTab('my')}>Lịch sử của tôi</button>
         {isAdmin && <button style={TAB_STYLE(activeTab === 'holidays')} onClick={() => setActiveTab('holidays')}>Ngày lễ ({holidays.length})</button>}
       </div>
 
@@ -671,7 +671,7 @@ export default function Leaves() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                   <User size={14} color="var(--text-muted)" />
-                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{r.user_id}</span>
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{users.find(u => u.user_id === r.user_id)?.name || r.user_id}</span>
                   <Badge status={r.leave_type} type="leave" />
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>

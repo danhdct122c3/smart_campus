@@ -77,13 +77,14 @@ def get_user_by_email(email: str) -> dict | None:
 
 
 def list_users(
+    search: str | None = None,
     role: str | None = None, 
     status: str | None = None,
     department: str | None = None,
     limit: int = 20,
     cursor: str | None = None
 ) -> tuple[list[dict], str | None]:
-    """Scan all users, optionally filtered by role/status/department."""
+    """Scan all users, optionally filtered by search/role/status/department."""
     filter_expr = None
     if role:
         filter_expr = Attr("role").eq(role)
@@ -97,4 +98,26 @@ def list_users(
             filter_expr &= Attr("department").eq(department)
         else:
             filter_expr = Attr("department").eq(department)
+
+    if search:
+        # If searching, we fetch all items matching other filters and filter in memory for case-insensitivity
+        items = scan_items(TABLE, filter_expression=filter_expr)
+        search_lower = search.lower()
+        filtered = []
+        for item in items:
+            name = item.get("name", "").lower()
+            uid = item.get("user_id", "").lower()
+            if search_lower in name or search_lower in uid:
+                filtered.append(item)
+        # Handle manual pagination for search
+        start_idx = 0
+        if cursor:
+            try:
+                start_idx = int(cursor)
+            except ValueError:
+                pass
+        page_items = filtered[start_idx : start_idx + limit]
+        next_key = str(start_idx + limit) if start_idx + limit < len(filtered) else None
+        return page_items, next_key
+
     return scan_items_paginated(TABLE, filter_expression=filter_expr, limit=limit, cursor=cursor)

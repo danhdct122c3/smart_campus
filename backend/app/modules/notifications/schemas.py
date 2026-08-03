@@ -29,6 +29,7 @@ class NotificationEventType(str, Enum):
     TASK_STATUS_CHANGED = "TaskStatusChanged"
     TASK_SUBMITTED      = "TaskSubmitted"
     TASK_COMPLETED      = "TaskCompleted"
+    TASK_UPCOMING_DEADLINE = "TaskUpcomingDeadline"
     TASK_OVERDUE        = "TaskOverdue"
     INCIDENT_REPORTED   = "IncidentReported"
     WFH_REQUEST_SUBMITTED = "WFH_REQUEST_SUBMITTED"

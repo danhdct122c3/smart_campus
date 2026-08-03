@@ -41,7 +41,9 @@ class TaskCreate(BaseModel):
     priority: TaskPriority = TaskPriority.MEDIUM
     due_date: Optional[str] = None
     file_url: Optional[str] = None
+    file_urls: Optional[list[str]] = []
     submission_file_url: Optional[str] = None
+    submission_file_urls: Optional[list[str]] = []
     
     # New fields for Incident & RBAC routing
     task_type: TaskType = TaskType.STANDARD
@@ -58,7 +60,9 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatus] = None
     due_date: Optional[str] = None
     file_url: Optional[str] = None
+    file_urls: Optional[list[str]] = None
     submission_file_url: Optional[str] = None
+    submission_file_urls: Optional[list[str]] = None
     
     # New fields
     department: Optional[Department] = None
@@ -80,7 +84,9 @@ class TaskResponse(BaseModel):
     priority: TaskPriority
     due_date: Optional[str] = None
     file_url: Optional[str] = None
+    file_urls: Optional[list[str]] = []
     submission_file_url: Optional[str] = None
+    submission_file_urls: Optional[list[str]] = []
     
     task_type: TaskType
     department: Optional[Department] = None

@@ -9,7 +9,7 @@ from fastapi import status
 from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
 from app.modules.users import repository as user_repo
-from .schemas import LoginRequest, TokenResponse, UserProfile, NewPasswordChallengeRequest, VerifyFaceRequest, ResetPasswordFaceRequest
+from .schemas import LoginRequest, TokenResponse, UserProfile, NewPasswordChallengeRequest, VerifyFaceRequest, ResetPasswordFaceRequest, ChangePasswordRequest
 from app.shared.aws import rekognition as reko
 from app.modules.faces.service import _decode_image
 
@@ -47,7 +47,9 @@ def authenticate_user(payload: LoginRequest) -> TokenResponse:
         name=user_item["name"],
         role=user_item["role"],
         department=user_item.get("department"),
-        face_registered=user_item.get("face_registered", False)
+        face_registered=user_item.get("face_registered", False),
+        phone=user_item.get("phone"),
+        created_at=user_item.get("created_at")
     )
 
     cognito_client = get_cognito_client()
@@ -150,7 +152,9 @@ def respond_to_new_password_challenge(payload: NewPasswordChallengeRequest) -> T
         name=user_item["name"],
         role=user_item["role"],
         department=user_item.get("department"),
-        face_registered=user_item.get("face_registered", False)
+        face_registered=user_item.get("face_registered", False),
+        phone=user_item.get("phone"),
+        created_at=user_item.get("created_at")
     )
 
     cognito_client = get_cognito_client()
@@ -256,3 +260,36 @@ def reset_password_by_face(payload: ResetPasswordFaceRequest) -> dict:
         raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Lỗi Cognito: {str(e)}")
         
     return {"message": "Cập nhật mật khẩu thành công."}
+
+def change_password(payload: ChangePasswordRequest) -> dict:
+    email = payload.email.lower()
+    
+    user_item = user_repo.get_user_by_email(email)
+    if not user_item:
+        raise AppException(ErrorCode.USER_NOT_FOUND, message="Tài khoản không tồn tại.")
+        
+    cognito_client = get_cognito_client()
+    if cognito_client:
+        try:
+            # 1. Xác thực mật khẩu cũ
+            cognito_client.initiate_auth(
+                ClientId=settings.cognito_client_id,
+                AuthFlow='USER_PASSWORD_AUTH',
+                AuthParameters={
+                    'USERNAME': email,
+                    'PASSWORD': payload.current_password
+                }
+            )
+            # 2. Đổi sang mật khẩu mới
+            cognito_client.admin_set_user_password(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+                Password=payload.new_password,
+                Permanent=True
+            )
+        except cognito_client.exceptions.NotAuthorizedException:
+            raise AppException(ErrorCode.UNAUTHORIZED, message="Mật khẩu hiện tại không chính xác.")
+        except Exception as e:
+            raise AppException(ErrorCode.INTERNAL_ERROR, message=f"Lỗi Cognito: {str(e)}")
+            
+    return {"message": "Đổi mật khẩu thành công."}

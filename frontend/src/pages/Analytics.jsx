@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
@@ -6,7 +7,7 @@ import {
 import {
   BarChart2, TrendingUp, Users, CheckCircle2, Clock, XCircle,
   RefreshCw, Database, Search, Calendar, ChevronDown, Briefcase,
-  AlertTriangle, ListChecks, PieChart
+  AlertTriangle, ListChecks, PieChart, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -59,6 +60,20 @@ async function fetchTasksList(department = '') {
   const res = await fetch(`${API_BASE}/tasks?${params}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()).data;
+}
+
+async function searchUsersAPI(query, department = '') {
+  const params = new URLSearchParams({ search: query });
+  if (department && department !== 'ALL') params.append('department', department);
+  const res = await fetch(`${API_BASE}/users?${params}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).data.items || [];
+}
+
+async function fetchUserTasksAPI(userId) {
+  const res = await fetch(`${API_BASE}/users/${userId}/tasks`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).data.items || [];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -306,6 +321,11 @@ const Analytics = () => {
   const [myAnalytics, setMyAnalytics] = useState(null);
   const [userStats, setUserStats] = useState(null);
   const [userIdInput, setUserIdInput] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUserTasks, setSelectedUserTasks] = useState(null);
+  const [visibleRecords, setVisibleRecords] = useState(10);
+  const [visibleTasks, setVisibleTasks] = useState(10);
 
   const [loading, setLoading] = useState({ main: false, user: false });
   const [errors, setErrors] = useState({ main: null, user: null });
@@ -344,16 +364,44 @@ const Analytics = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   /* ── User lookup ────────────────────────────────────────────────────────── */
-  const loadUserStats = async () => {
+  const handleSearchUsers = async () => {
     if (!userIdInput.trim()) return;
     setLoading(l => ({ ...l, user: true }));
     setErrors(e => ({ ...e, user: null }));
+    setSearchResults([]);
     setUserStats(null);
+    setSelectedUser(null);
     try {
-      const data = await fetchUserStats(userIdInput.trim(), dateRange.start, dateRange.end);
-      setUserStats(data);
+      const searchDept = isPM ? userDept : ''; 
+      const results = await searchUsersAPI(userIdInput.trim(), searchDept);
+      setSearchResults(results);
+      if (results.length === 0) {
+        setErrors(e => ({ ...e, user: 'Không tìm thấy nhân viên nào phù hợp.' }));
+      }
     } catch (err) {
-      setErrors(e => ({ ...e, user: `Không tìm thấy hoặc lỗi: ${err.message}` }));
+      setErrors(e => ({ ...e, user: `Lỗi tìm kiếm: ${err.message}` }));
+    } finally {
+      setLoading(l => ({ ...l, user: false }));
+    }
+  };
+
+  const handleSelectUser = async (u) => {
+    setSelectedUser(u);
+    setLoading(l => ({ ...l, user: true }));
+    setErrors(e => ({ ...e, user: null }));
+    setUserStats(null);
+    setSelectedUserTasks(null);
+    setVisibleRecords(10);
+    setVisibleTasks(10);
+    try {
+      const [data, tasks] = await Promise.all([
+        fetchUserStats(u.user_id, dateRange.start, dateRange.end),
+        fetchUserTasksAPI(u.user_id)
+      ]);
+      setUserStats(data);
+      setSelectedUserTasks(tasks);
+    } catch (err) {
+      setErrors(e => ({ ...e, user: `Lỗi tải thống kê: ${err.message}` }));
     } finally {
       setLoading(l => ({ ...l, user: false }));
     }
@@ -800,10 +848,10 @@ const Analytics = () => {
             <SectionCard title="Tra cứu nhân viên" icon={Search} delay={0.6}>
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                 <input
-                  placeholder="Nhập User ID..."
+                  placeholder="Nhập tên hoặc Mã NV..."
                   value={userIdInput}
                   onChange={e => setUserIdInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && loadUserStats()}
+                  onKeyDown={e => e.key === 'Enter' && handleSearchUsers()}
                   style={{
                     flex: 1, background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(255,255,255,0.08)',
                     borderRadius: '8px', padding: '0.5rem 0.85rem', color: 'var(--text-primary)',
@@ -812,7 +860,7 @@ const Analytics = () => {
                   onFocus={e => e.target.style.borderColor = 'rgba(6,182,212,0.4)'}
                   onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
                 />
-                <button onClick={loadUserStats} disabled={loading.user || !userIdInput.trim()}
+                <button onClick={handleSearchUsers} disabled={loading.user || !userIdInput.trim()}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '0.35rem',
                     padding: '0.5rem 0.85rem', borderRadius: '8px',
@@ -824,89 +872,214 @@ const Analytics = () => {
                 </button>
               </div>
 
-              {loading.user && <Spinner text="Đang tìm..." />}
+              {loading.user && <Spinner text="Đang tải..." />}
               {errors.user && (
                 <p style={{ color: 'var(--accent-danger)', fontSize: '0.8rem', padding: '0.4rem 0' }}>⚠️ {errors.user}</p>
               )}
 
-              {userStats && !loading.user && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {/* User Info Card */}
-                  <div style={{
-                    padding: '0.85rem 1rem', borderRadius: '10px',
-                    background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.12)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+              {/* Search Results List */}
+              {!selectedUser && searchResults.length > 0 && !loading.user && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Kết quả tìm kiếm:</p>
+                  {searchResults.map((u) => (
+                    <div 
+                      key={u.user_id} 
+                      onClick={() => handleSelectUser(u)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                        padding: '0.75rem', borderRadius: '8px', cursor: 'pointer',
+                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    >
                       <div style={{
                         width: 36, height: 36, borderRadius: '50%',
-                        background: 'linear-gradient(135deg, rgba(6,182,212,0.3), rgba(139,92,246,0.2))',
+                        background: 'linear-gradient(135deg, rgba(6,182,212,0.2), transparent)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', fontWeight: 700,
+                        fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-primary)'
                       }}>
-                        {getInitials(userStats.full_name)}
+                        {getInitials(u.name)}
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{userStats.full_name}</div>
-                        {userStats.department && (
-                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '4px' }}>
-                            {userStats.department}
-                          </span>
-                        )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Mã NV: {u.user_id.split('-')[0]} • {u.department || 'N/A'}</div>
                       </div>
                     </div>
-                    {/* Mini stat chips */}
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: 'rgba(16,185,129,0.12)', color: 'var(--accent-success)' }}>
-                        ✓ {userStats.present_count} Đúng giờ
-                      </span>
-                      <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: 'rgba(245,158,11,0.12)', color: 'var(--accent-warning)' }}>
-                        ⏰ {userStats.late_count} Muộn
-                      </span>
-                      <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, background: 'rgba(6,182,212,0.12)', color: 'var(--accent-primary)' }}>
-                        {userStats.attendance_rate}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Mini Chart */}
-                  {userChartData.length > 0 && (
-                    <ResponsiveContainer width="100%" height={90}>
-                      <BarChart data={userChartData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-                        <XAxis dataKey="date" tick={{ fontSize: 9 }} stroke="var(--text-muted)" />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="present" name="Có mặt" fill="#10b981" stackId="a" />
-                        <Bar dataKey="late" name="Muộn" fill="#f59e0b" stackId="a" radius={[3, 3, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-
-                  {/* Records */}
-                  <div style={{ maxHeight: '110px', overflowY: 'auto' }}>
-                    <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                          {['Ngày', 'Ca', 'Trạng thái'].map(h => (
-                            <th key={h} style={{ padding: '0.3rem 0.5rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userStats.records.slice(0, 15).map((r, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                            <td style={{ padding: '0.3rem 0.5rem' }}>{r.date}</td>
-                            <td style={{ padding: '0.3rem 0.5rem', color: 'var(--text-muted)' }}>{r.session_type}</td>
-                            <td style={{ padding: '0.3rem 0.5rem' }}><StatusBadge status={r.status} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  ))}
                 </div>
               )}
 
-              {!userStats && !loading.user && !errors.user && (
+              {selectedUser && userStats && !loading.user && createPortal(
+                <div style={{
+                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                  background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 9999, padding: '1rem'
+                }}>
+                  <div style={{
+                    width: '100%', maxWidth: '650px', background: 'var(--bg-card)', 
+                    padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                    display: 'flex', flexDirection: 'column', gap: '1rem',
+                    maxHeight: '90vh', overflowY: 'auto'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                        Chi tiết nhân viên
+                      </p>
+                      <button 
+                        onClick={() => { setSelectedUser(null); setUserStats(null); }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.2rem' }}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    {/* User Info Card */}
+                    <div style={{
+                      padding: '0.85rem 1rem', borderRadius: '10px',
+                      background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.12)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          background: 'linear-gradient(135deg, rgba(6,182,212,0.3), rgba(139,92,246,0.2))',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.75rem', fontWeight: 700,
+                        }}>
+                          {getInitials(userStats.full_name)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{userStats.full_name}</div>
+                          {userStats.department && (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '4px' }}>
+                              {userStats.department}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem', marginBottom: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Email</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedUser.email}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Số điện thoại</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>{selectedUser.phone || 'Chưa cập nhật'}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Vai trò</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>{selectedUser.role}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Ngày gia nhập</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                            {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('vi-VN') : 'N/A'}
+                          </div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Dữ liệu khuôn mặt</div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: selectedUser.face_registered ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: selectedUser.face_registered ? 'var(--status-success)' : 'var(--status-error)', fontSize: '0.7rem', fontWeight: 600, marginTop: '0.2rem' }}>
+                            {selectedUser.face_registered ? 'Đã đăng ký' : 'Chưa đăng ký'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mini stat chips */}
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: 'rgba(16,185,129,0.12)', color: 'var(--accent-success)' }}>
+                          ✓ {userStats.present_count} Đúng giờ
+                        </span>
+                        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: 'rgba(245,158,11,0.12)', color: 'var(--accent-warning)' }}>
+                          ⏰ {userStats.late_count} Muộn
+                        </span>
+                        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, background: 'rgba(6,182,212,0.12)', color: 'var(--accent-primary)' }}>
+                          {userStats.attendance_rate}% Chuyên cần
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      {/* Records */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0, fontWeight: 600 }}>Lịch sử điểm danh:</p>
+                        <div style={{ maxHeight: '250px', overflowY: 'auto', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                            <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                              <tr>
+                                {['Ngày', 'Trạng thái'].map(h => (
+                                  <th key={h} style={{ padding: '0.5rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {userStats.records.length === 0 ? (
+                                <tr><td colSpan="2" style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có dữ liệu.</td></tr>
+                              ) : userStats.records.slice(0, visibleRecords).map((r, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <td style={{ padding: '0.5rem' }}>{r.date}</td>
+                                  <td style={{ padding: '0.5rem' }}><StatusBadge status={r.status} /></td>
+                                </tr>
+                              ))}
+                              {userStats.records.length > visibleRecords && (
+                                <tr>
+                                  <td colSpan="2" style={{ textAlign: 'center', padding: '0.75rem' }}>
+                                    <button 
+                                      onClick={() => setVisibleRecords(prev => prev + 10)}
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                                    >
+                                      Tải thêm ({userStats.records.length - visibleRecords} còn lại)
+                                    </button>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Tasks List */}
+                      {selectedUserTasks && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0, fontWeight: 600 }}>Công việc đang thực hiện:</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '250px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+                            {selectedUserTasks.length === 0 ? (
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>Không có công việc nào.</p>
+                            ) : selectedUserTasks.slice(0, visibleTasks).map(t => (
+                              <div key={t.task_id} style={{
+                                padding: '0.6rem 0.75rem', borderRadius: '8px',
+                                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
+                              }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>{t.title}</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>Hạn: {t.due_date ? new Date(t.due_date).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span>
+                                  <span style={{ fontWeight: 600, color: ['DONE', 'COMPLETED'].includes(t.status) ? 'var(--accent-success)' : 'var(--accent-warning)' }}>{t.status}</span>
+                                </div>
+                              </div>
+                            ))}
+                            {selectedUserTasks.length > visibleTasks && (
+                              <button 
+                                onClick={() => setVisibleTasks(prev => prev + 10)}
+                                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--accent-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.5rem', borderRadius: '8px', marginTop: '0.2rem' }}
+                              >
+                                Tải thêm ({selectedUserTasks.length - visibleTasks} còn lại)
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
+
+              {!selectedUser && searchResults.length === 0 && !loading.user && !errors.user && (
                 <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                  Nhập User ID để tra cứu chấm công
+                  Nhập Tên hoặc Mã NV để tra cứu
                 </div>
               )}
             </SectionCard>

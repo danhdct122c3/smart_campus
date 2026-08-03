@@ -97,6 +97,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (newUser) => {
+    localStorage.setItem('smart_campus_user', JSON.stringify(newUser));
+    setCurrentUser(newUser);
+  };
+
   const logout = () => {
     localStorage.removeItem('smart_campus_access_token');
     localStorage.removeItem('smart_campus_user');
@@ -110,7 +115,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAuthenticated, isLoading, login, respondChallenge, logout }}>
+    <AuthContext.Provider value={{ currentUser, isAuthenticated, isLoading, login, respondChallenge, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

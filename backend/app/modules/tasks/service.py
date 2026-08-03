@@ -60,7 +60,9 @@ def _item_to_record(item: dict) -> TaskResponse:
         priority=item.get("priority", "MEDIUM"),
         due_date=item.get("due_date"),
         file_url=_sign_url(item.get("file_url")),
+        file_urls=[_sign_url(u) for u in item.get("file_urls", []) if u] + ([_sign_url(item.get("file_url"))] if item.get("file_url") and item.get("file_url") not in item.get("file_urls", []) else []),
         submission_file_url=_sign_url(item.get("submission_file_url")),
+        submission_file_urls=[_sign_url(u) for u in item.get("submission_file_urls", []) if u] + ([_sign_url(item.get("submission_file_url"))] if item.get("submission_file_url") and item.get("submission_file_url") not in item.get("submission_file_urls", []) else []),
         task_type=TaskType(item.get("task_type", TaskType.STANDARD)),
         department=item.get("department"),
         category=item.get("category"),
@@ -95,7 +97,9 @@ def create_task(payload: TaskCreate) -> TaskResponse:
         "priority": payload.priority.value,
         "due_date": payload.due_date,
         "file_url": payload.file_url,
+        "file_urls": payload.file_urls,
         "submission_file_url": payload.submission_file_url,
+        "submission_file_urls": payload.submission_file_urls,
         "task_type": payload.task_type.value,
         "department": payload.department.value if payload.department else None,
         "category": payload.category.value if payload.category else None,
@@ -178,12 +182,24 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
         
     if is_assignee and not (is_admin or is_reporter):
         if current_user.get("role") != "MANAGER":
-            allowed_assignee_fields = {"status", "submission_file_url", "submission_note"}
+            allowed_assignee_fields = {"status", "submission_file_url", "submission_file_urls", "submission_note"}
             if any(k not in allowed_assignee_fields for k in update_data.keys()):
                 raise AppException(ErrorCode.FORBIDDEN, message="Người thực hiện không có quyền thay đổi thông tin này")
             
     if existing.get("status") in ["DONE", "CANCELLED"] and not is_admin:
         raise AppException(ErrorCode.BAD_REQUEST, message="Không thể sửa công việc đã hoàn thành hoặc đã hủy")
+        
+    # Validation: Ensure all subtasks are submitted/completed before allowing the parent task to be submitted/completed
+    new_status = update_data.get("status")
+    if new_status:
+        status_val = new_status.value if hasattr(new_status, 'value') else new_status
+        if status_val in ["IN_REVIEW", "COMPLETED", "DONE"]:
+            from boto3.dynamodb.conditions import Attr
+            from app.shared.aws.dynamodb import scan_items_paginated
+            subtasks, _ = scan_items_paginated(repo.TABLE, filter_expression=Attr("parent_task_id").eq(task_id), limit=100)
+            for sub in subtasks:
+                if sub.get("status") not in ["IN_REVIEW", "COMPLETED", "DONE"]:
+                    raise AppException(ErrorCode.BAD_REQUEST, message="Không thể nộp hoặc hoàn thành công việc khi vẫn còn công việc con chưa hoàn thành.")
         
     update_expr = "SET updated_at = :now"
     remove_expr = ""
@@ -364,26 +380,72 @@ def get_presigned_upload_url(file_name: str, file_type: str) -> dict:
         raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, message=f"Failed to generate presigned URL: {str(e)}")
 
 
-def check_and_notify_overdue_tasks() -> dict:
+def check_and_notify_task_deadlines() -> dict:
     """
-    Quét tất cả công việc trong hệ thống, tìm các việc đã quá hạn (due_date < hôm nay)
-    và chưa hoàn thành, sau đó tự động gửi thông báo (TASK_OVERDUE) tới người chịu trách nhiệm.
+    Quét tất cả công việc trong hệ thống, tìm các việc sắp đến hạn (< 10 phút)
+    và các việc đã quá hạn để gửi thông báo.
     """
     from app.modules.notifications.schemas import NotificationEventType
     
     tasks_data, _ = repo.list_tasks_paginated(limit=1000)
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now_utc = datetime.now(timezone.utc)
     
+    upcoming_tasks = []
     overdue_tasks = []
+    
     for task in tasks_data:
-        due_date = task.get("due_date")
+        due_date_str = task.get("due_date")
         status_val = task.get("status", "OPEN")
-        if due_date and due_date < today_str and status_val not in ["COMPLETED", "DONE", "CANCELLED"]:
-            overdue_tasks.append(task)
+        if not due_date_str or status_val in ["COMPLETED", "DONE", "CANCELLED"]:
+            continue
+            
+        try:
+            # Parse due_date. If it's old data 'YYYY-MM-DD', append 'T00:00:00Z'
+            if len(due_date_str) == 10:
+                due_date_str += "T00:00:00Z"
+                
+            due_dt = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
+            delta_seconds = (due_dt - now_utc).total_seconds()
+            
+            # Quá hạn (delta < 0)
+            if delta_seconds < 0 and not task.get("overdue_notified", False):
+                overdue_tasks.append(task)
+            
+            # Sắp đến hạn (0 <= delta <= 600) (10 phút)
+            elif 0 <= delta_seconds <= 600 and not task.get("upcoming_notified", False):
+                upcoming_tasks.append(task)
+                
+        except ValueError:
+            continue
             
     notified_ids = []
+    
+    # Process upcoming
+    for task in upcoming_tasks:
+        assignee_id = task.get("assignee_id")
+        task_id = task.get("task_id")
+        if assignee_id:
+            reporter_name = _get_user_name(task.get("reporter_id"))
+            _send_task_notif(
+                user_id=assignee_id,
+                event_type=NotificationEventType.TASK_UPCOMING_DEADLINE,
+                context={
+                    "task_title": task.get("title", "N/A"),
+                    "due_date": task.get("due_date"),
+                    "reporter_name": reporter_name
+                }
+            )
+            repo.update_task_in_db(
+                task_id=task_id,
+                update_expr="SET upcoming_notified = :t",
+                expr_vals={":t": True}
+            )
+            notified_ids.append(task_id)
+            
+    # Process overdue
     for task in overdue_tasks:
         assignee_id = task.get("assignee_id")
+        task_id = task.get("task_id")
         if assignee_id:
             reporter_name = _get_user_name(task.get("reporter_id"))
             _send_task_notif(
@@ -395,13 +457,16 @@ def check_and_notify_overdue_tasks() -> dict:
                     "reporter_name": reporter_name
                 }
             )
-            notified_ids.append(task.get("task_id"))
+            repo.update_task_in_db(
+                task_id=task_id,
+                update_expr="SET overdue_notified = :t",
+                expr_vals={":t": True}
+            )
+            notified_ids.append(task_id)
             
     return {
         "success": True,
         "checked_count": len(tasks_data),
-        "overdue_count": len(overdue_tasks),
-        "notified_count": len(notified_ids),
         "overdue_details": [
             {
                 "task_id": t.get("task_id"),
