@@ -2,18 +2,42 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import asyncio
+from datetime import datetime
 
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.exceptions import AppException, ErrorCode
 from app.core.responses import APIResponse
+from app.modules.tasks.service import check_and_notify_task_deadlines
 
+async def periodic_overdue_checker():
+    """Chạy ngầm liên tục, tự động quét và gửi cảnh báo việc trễ hạn và sắp đến hạn mỗi 60 giây."""
+    while True:
+        try:
+            check_and_notify_task_deadlines()
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print("Lỗi khi chạy quét task trễ hạn tự động:", e)
+            await asyncio.sleep(60)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Bắt đầu tiến trình ngầm
+    task_checker = asyncio.create_task(periodic_overdue_checker())
+    yield
+    # Shutdown: Hủy tiến trình ngầm
+    task_checker.cancel()
 
 def create_app() -> FastAPI:
     application = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         description="Serverless API for Smart Campus Platform",
+        lifespan=lifespan,
     )
 
     # CORS phải được add TRƯỚC khi include_router

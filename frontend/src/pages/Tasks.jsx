@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CheckSquare, Plus, Search, FileText, Paperclip,
   Loader, Calendar, User, UserCheck, ChevronDown,
@@ -136,10 +137,10 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
     ? new Date(task.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : null;
   const dueStr = task.due_date
-    ? new Date(task.due_date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ? new Date(task.due_date).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : null;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 200 }} />
@@ -224,12 +225,12 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
           </div>
 
           {/* 4. Tệp đính kèm */}
-          {(task.file_url || task.submission_file_url) && (
+          {((task.file_urls && task.file_urls.length > 0) || task.file_url || (task.submission_file_urls && task.submission_file_urls.length > 0) || task.submission_file_url) && (
             <div>
               <SectionLabel>📎 Tệp đính kèm</SectionLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {task.file_url && (
-                  <a href={task.file_url} target="_blank" rel="noreferrer" style={{
+                {task.file_urls && task.file_urls.map((url, idx) => (
+                  <a key={`req-${idx}`} href={url} target="_blank" rel="noreferrer" style={{
                     display: 'flex', alignItems: 'center', gap: '0.75rem',
                     padding: '0.75rem 1rem',
                     background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.2)',
@@ -239,14 +240,14 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
                       <Paperclip size={16} color="var(--accent-primary)" />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: 'var(--accent-primary)' }}>Tài liệu yêu cầu</p>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: 'var(--accent-primary)' }}>Tài liệu yêu cầu {task.file_urls.length > 1 ? idx + 1 : ''}</p>
                       <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Click để tải xuống / xem</p>
                     </div>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>↗</span>
                   </a>
-                )}
-                {task.submission_file_url && (
-                  <a href={task.submission_file_url} target="_blank" rel="noreferrer" style={{
+                ))}
+                {task.submission_file_urls && task.submission_file_urls.map((url, idx) => (
+                  <a key={`sub-${idx}`} href={url} target="_blank" rel="noreferrer" style={{
                     display: 'flex', alignItems: 'center', gap: '0.75rem',
                     padding: '0.75rem 1rem',
                     background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)',
@@ -256,12 +257,12 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
                       <FileText size={16} color="var(--accent-secondary)" />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: 'var(--accent-secondary)' }}>Báo cáo kết quả</p>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: 'var(--accent-secondary)' }}>Báo cáo kết quả {task.submission_file_urls.length > 1 ? idx + 1 : ''}</p>
                       <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>File nộp bởi người thực hiện</p>
                     </div>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>↗</span>
                   </a>
-                )}
+                ))}
               </div>
             </div>
           )}
@@ -320,7 +321,8 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
       <style>{`
         @keyframes modalZoomIn { from { transform: translate(-50%, -45%) scale(0.96); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
       `}</style>
-    </>
+    </>,
+    document.body
   );
 };
 
@@ -394,7 +396,7 @@ const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubt
               fontWeight: 600, whiteSpace: 'nowrap',
             }}>
               <Calendar size={11} />
-              {new Date(task.due_date).toLocaleDateString('vi-VN')}
+              {new Date(task.due_date).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
 
@@ -470,26 +472,26 @@ const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubt
 
           {/* Attachments */}
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {task.file_url && (
-              <a href={task.file_url} target="_blank" rel="noreferrer" style={{
+            {task.file_urls && task.file_urls.map((url, idx) => (
+              <a key={`req-${idx}`} href={url} target="_blank" rel="noreferrer" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                 fontSize: '0.78rem', color: 'var(--accent-primary)',
                 background: 'rgba(6,182,212,0.1)', padding: '0.3rem 0.7rem',
                 borderRadius: '6px', textDecoration: 'none', border: '1px solid rgba(6,182,212,0.2)',
               }}>
-                <Paperclip size={13} /> Tài liệu yêu cầu
+                <Paperclip size={13} /> Tài liệu yêu cầu {task.file_urls.length > 1 ? idx + 1 : ''}
               </a>
-            )}
-            {task.submission_file_url && (
-              <a href={task.submission_file_url} target="_blank" rel="noreferrer" style={{
+            ))}
+            {task.submission_file_urls && task.submission_file_urls.map((url, idx) => (
+              <a key={`sub-${idx}`} href={url} target="_blank" rel="noreferrer" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
                 fontSize: '0.78rem', color: 'var(--accent-secondary)',
                 background: 'rgba(139,92,246,0.1)', padding: '0.3rem 0.7rem',
                 borderRadius: '6px', textDecoration: 'none', border: '1px solid rgba(139,92,246,0.2)',
               }}>
-                <FileText size={13} /> Báo cáo đã nộp
+                <FileText size={13} /> Báo cáo đã nộp {task.submission_file_urls.length > 1 ? idx + 1 : ''}
               </a>
-            )}
+            ))}
           </div>
 
           {/* Action buttons */}
@@ -556,38 +558,24 @@ export default function Tasks() {
   // Create modal
   const [showModal, setShowModal] = useState(false);
   const [editTaskId, setEditTaskId] = useState(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '' });
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [newTask, setNewTask] = useState({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '', file_urls: [] });
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
 
   // Submit modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [taskToSubmit, setTaskToSubmit] = useState(null);
-  const [submissionFile, setSubmissionFile] = useState(null);
+  const [submissionFiles, setSubmissionFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submissionNote, setSubmissionNote] = useState('');
 
-  const [checkingOverdue, setCheckingOverdue] = useState(false);
-
-  const handleCheckOverdue = async () => {
-    setCheckingOverdue(true);
-    try {
-      const res = await fetch(`${API_BASE}/tasks/check-overdue`, { method: 'POST' });
-      const json = await res.json();
-      if (res.ok && json.data) {
-        const d = json.data;
-        alert(`🔔 Quét và cảnh báo trễ hạn hoàn tất!\n• Tổng số việc kiểm tra: ${d.checked_count}\n• Số việc quá hạn: ${d.overdue_count}\n• Đã gửi thông báo cảnh báo: ${d.notified_count} nhân sự.`);
-        fetchTasks(false);
-      } else {
-        alert('Lỗi khi gửi thông báo quá hạn!');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Lỗi kết nối máy chủ!');
-    } finally {
-      setCheckingOverdue(false);
-    }
+  const [toast, setToast] = useState(null);
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
   };
+
+
 
   const fetchUsers = async () => {
     try {
@@ -658,29 +646,40 @@ export default function Tasks() {
   }, [currentUser, filterStatus, filterPriority, searchQ]);
 
   const handleSaveTask = async () => {
-    if (!newTask.title) return alert('Vui lòng điền tiêu đề');
-    if (newTask.task_type === 'STANDARD' && !newTask.assignee_id) return alert('Công việc thường bắt buộc phải chọn người nhận việc');
-    if (newTask.task_type === 'INCIDENT' && !newTask.department) return alert('Báo cáo sự cố bắt buộc phải chọn phòng ban xử lý');
+    if (!newTask.title) return showToast('Vui lòng điền tiêu đề');
+    if (newTask.task_type === 'STANDARD' && !newTask.assignee_id) return showToast('Công việc thường bắt buộc phải chọn người nhận việc');
+    if (newTask.task_type === 'INCIDENT' && !newTask.department) return showToast('Báo cáo sự cố bắt buộc phải chọn phòng ban xử lý');
     if (newTask.due_date) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const selectedDate = new Date(newTask.due_date);
       if (selectedDate < today) {
-        return alert('Hạn chót (Due Date) không được nằm trong quá khứ.');
+        return showToast('Hạn chót (Due Date) không được nằm trong quá khứ.');
+      }
+      if (newTask.parent_task_id) {
+        const parent = tasks.find(t => t.task_id === newTask.parent_task_id);
+        if (parent && parent.due_date) {
+          const parentDate = new Date(parent.due_date);
+          if (selectedDate > parentDate) {
+            return showToast('Hạn chót của công việc con không được trễ hơn công việc chính (' + parentDate.toLocaleDateString('vi-VN') + ').');
+          }
+        }
       }
     }
     setUploading(true);
-    let finalFileUrl = null;
+    let finalFileUrls = newTask.file_urls ? [...newTask.file_urls] : [];
 
-    if (selectedFile) {
-      try {
-        const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: selectedFile.name, file_type: selectedFile.type }) });
-        const prd = await pr.json();
-        if (prd.success) {
-          await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': selectedFile.type }, body: selectedFile });
-          finalFileUrl = prd.data.public_url;
-        }
-      } catch (e) { alert('Lỗi upload file!'); setUploading(false); return; }
+    if (selectedFiles && selectedFiles.length > 0) {
+      for (const file of selectedFiles) {
+        try {
+          const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_type: file.type }) });
+          const prd = await pr.json();
+          if (prd.success) {
+            await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+            finalFileUrls.push(prd.data.public_url);
+          }
+        } catch (e) { showToast(`Lỗi upload file ${file.name}!`); setUploading(false); return; }
+      }
     }
 
     try {
@@ -690,15 +689,19 @@ export default function Tasks() {
       if (!body.department) {
         if (currentUser?.role === 'MANAGER' || currentUser?.role === 'PM') {
           body.department = currentUser.department;
-        } else {
-          body.department = null;
-        }
+        } else { body.department = null; }
       }
       if (!body.category) body.category = null;
-      if (!body.due_date) body.due_date = null;
+      if (!body.due_date) {
+        body.due_date = null;
+      } else {
+        body.due_date = new Date(body.due_date).toISOString();
+      }
       if (!body.assignee_id) body.assignee_id = null;
       if (!editTaskId) body.reporter_id = currentUser.user_id;
-      if (finalFileUrl) body.file_url = finalFileUrl;
+      if (finalFileUrls.length > 0) {
+        body.file_urls = finalFileUrls;
+      } else { body.file_urls = []; }
 
       const res = await fetch(url, {
         method,
@@ -707,52 +710,79 @@ export default function Tasks() {
       });
       if (res.ok) {
         setShowModal(false);
-        setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '' });
-        setSelectedFile(null);
+        setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD', department: '', category: '', file_urls: [] });
+        setSelectedFiles([]);
         setEditTaskId(null);
         fetchTasks(false);
       } else {
         const err = await res.json();
-        alert(`Lỗi: ${err.message || 'Không thể lưu công việc'}`);
+        showToast(`Lỗi: ${err.message || 'Không thể lưu công việc'}`);
       }
     } catch (e) { console.error(e); }
     finally { setUploading(false); }
   };
 
   const updateStatus = async (taskId, newStatus) => {
+    if (newStatus === 'COMPLETED' || newStatus === 'DONE') {
+      const pendingSubs = tasks.filter(t => t.parent_task_id === taskId && !['IN_REVIEW', 'COMPLETED', 'DONE'].includes(t.status));
+      if (pendingSubs.length > 0) {
+        return showToast('Không thể nghiệm thu/hoàn thành khi vẫn còn công việc con chưa xong.');
+      }
+    }
     try {
-      await fetch(`${API_BASE}/tasks/${taskId}/status`, {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
         body: JSON.stringify({ status: newStatus })
       });
+      if (!res.ok) {
+        const err = await res.json();
+        return showToast(err.message || 'Lỗi cập nhật trạng thái');
+      }
       fetchTasks(false);
     } catch (e) { console.error(e); }
   };
 
   const handleSubmitTask = async () => {
     if (!taskToSubmit) return;
-    setSubmitting(true);
-    let finalFileUrl = null;
+    
+    const pendingSubs = tasks.filter(t => t.parent_task_id === taskToSubmit.task_id && !['IN_REVIEW', 'COMPLETED', 'DONE'].includes(t.status));
+    if (pendingSubs.length > 0) {
+      return showToast('Bạn phải hoàn thành/nộp tất cả công việc con trước khi nộp công việc chính.');
+    }
 
-    if (submissionFile) {
-      try {
-        const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: submissionFile.name, file_type: submissionFile.type }) });
-        const prd = await pr.json();
-        if (prd.success) {
-          await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': submissionFile.type }, body: submissionFile });
-          finalFileUrl = prd.data.public_url;
-        }
-      } catch (e) { alert('Lỗi upload file báo cáo!'); setSubmitting(false); return; }
+    setSubmitting(true);
+    let finalFileUrls = [];
+
+    if (submissionFiles && submissionFiles.length > 0) {
+      for (const file of submissionFiles) {
+        try {
+          const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_type: file.type }) });
+          const prd = await pr.json();
+          if (prd.success) {
+            await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+            finalFileUrls.push(prd.data.public_url);
+          }
+        } catch (e) { showToast(`Lỗi upload file báo cáo ${file.name}!`); setSubmitting(false); return; }
+      }
     }
 
     try {
       const res = await fetch(`${API_BASE}/tasks/${taskToSubmit.task_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
-        body: JSON.stringify({ status: 'IN_REVIEW', submission_file_url: finalFileUrl, submission_note: submissionNote })
+        body: JSON.stringify({ status: 'IN_REVIEW', submission_file_urls: finalFileUrls, submission_note: submissionNote })
       });
-      if (res.ok) { setShowSubmitModal(false); setTaskToSubmit(null); setSubmissionFile(null); setSubmissionNote(''); fetchTasks(false); }
+      if (res.ok) { 
+        setShowSubmitModal(false); 
+        setTaskToSubmit(null); 
+        setSubmissionFiles([]); 
+        setSubmissionNote(''); 
+        fetchTasks(false); 
+      } else {
+        const err = await res.json();
+        showToast(`Lỗi: ${err.message || 'Không thể gửi duyệt'}`);
+      }
     } catch (e) { console.error(e); }
     finally { setSubmitting(false); }
   };
@@ -768,8 +798,9 @@ export default function Tasks() {
       parent_task_id: parentTaskId,
       task_type: parent?.task_type || 'STANDARD',
       department: parent?.department || '',
-      file_url: parent?.file_url || null
+      file_urls: parent?.file_urls ? [...parent.file_urls] : []
     });
+    setSelectedFiles([]);
     setShowModal(true);
   };
 
@@ -793,7 +824,7 @@ export default function Tasks() {
       description: task.description || '',
       assignee_id: task.assignee_id || '',
       priority: task.priority || 'MEDIUM',
-      due_date: task.due_date ? task.due_date.split('T')[0] : '',
+      due_date: task.due_date ? new Date(new Date(task.due_date).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '',
       parent_task_id: task.parent_task_id || null,
       task_type: task.task_type || 'STANDARD',
       department: task.department || '',
@@ -858,9 +889,7 @@ export default function Tasks() {
           )}
           {(currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER') && (
             <>
-              <Btn variant="danger" size="md" onClick={handleCheckOverdue} disabled={checkingOverdue}>
-                <Clock size={16} /> {checkingOverdue ? '⏳ Đang quét...' : '⚠️ Quét & Nhắc việc trễ hạn'}
-              </Btn>
+
               <Btn variant="primary" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'MEDIUM', due_date: '', parent_task_id: null, task_type: 'STANDARD' }); setShowModal(true); }}>
                 <Plus size={16} /> Giao việc
               </Btn>
@@ -1005,7 +1034,7 @@ export default function Tasks() {
         />
       )}
 
-      {showModal && (
+      {showModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
           <div style={{ background: 'var(--bg-panel)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
@@ -1102,7 +1131,7 @@ export default function Tasks() {
                   <label style={labelStyle}>Hạn chót (Due Date)</label>
                   <div style={{ position: 'relative' }}>
                     <Calendar size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input type="date" value={newTask.due_date} onChange={e => setNewTask({ ...newTask, due_date: e.target.value })} style={{ ...inputStyle, paddingLeft: '2.2rem', colorScheme: 'dark', cursor: 'pointer' }} />
+                    <input type="datetime-local" value={newTask.due_date} onChange={e => setNewTask({ ...newTask, due_date: e.target.value })} style={{ ...inputStyle, paddingLeft: '2.2rem', colorScheme: 'dark', cursor: 'pointer' }} />
                   </div>
                 </div>
               </div>
@@ -1124,41 +1153,72 @@ export default function Tasks() {
 
             <div>
               <label style={labelStyle}>Tài liệu đính kèm (tùy chọn)</label>
-              {(newTask.file_url || selectedFile) ? (
-                <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '1rem', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <FileText size={22} color="var(--accent-primary)" />
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--accent-primary)' }}>
-                      {selectedFile ? selectedFile.name : (newTask.file_url ? "Tài liệu đính kèm gốc" : "")}
+              {(newTask.file_urls && newTask.file_urls.length > 0) || (selectedFiles && selectedFiles.length > 0) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {/* Existing Files */}
+                  {newTask.file_urls && newTask.file_urls.map((url, idx) => (
+                    <div key={`exist-${idx}`} style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <FileText size={18} color="var(--accent-primary)" />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--accent-primary)' }}>
+                          Tài liệu đính kèm gốc {newTask.file_urls.length > 1 ? idx + 1 : ''}
+                        </div>
+                        <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
+                          Nhấn để xem
+                        </a>
+                      </div>
+                      <button onClick={() => {
+                        const newUrls = [...newTask.file_urls];
+                        newUrls.splice(idx, 1);
+                        setNewTask({ ...newTask, file_urls: newUrls });
+                      }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '0.3rem' }} title="Gỡ bỏ">
+                        <X size={16} />
+                      </button>
                     </div>
-                    {selectedFile && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>}
-                    {!selectedFile && newTask.file_url && (
-                      <a href={newTask.file_url} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
-                        Nhấn để xem
-                      </a>
-                    )}
-                  </div>
-                  <button onClick={() => { 
-                    if (selectedFile) {
-                      setSelectedFile(null);
-                    } else {
-                      setNewTask({...newTask, file_url: null}); 
-                    }
-                  }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Gỡ bỏ tài liệu này">
-                    <X size={18} />
-                  </button>
+                  ))}
+
+                  {/* New Selected Files */}
+                  {selectedFiles && selectedFiles.map((file, idx) => (
+                    <div key={`new-${idx}`} style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <FileText size={18} color="var(--accent-primary)" />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--accent-primary)' }}>{file.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                      </div>
+                      <button onClick={() => {
+                        const newFiles = [...selectedFiles];
+                        newFiles.splice(idx, 1);
+                        setSelectedFiles(newFiles);
+                      }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '0.3rem' }} title="Gỡ bỏ">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--accent-primary)', cursor: 'pointer', alignSelf: 'flex-start', padding: '0.25rem 0.5rem', background: 'rgba(6,182,212,0.1)', borderRadius: '6px' }}>
+                    <Plus size={14} /> Thêm file khác
+                    <input type="file" multiple style={{ display: 'none' }} onChange={e => {
+                        if (e.target.files) {
+                            setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)]);
+                        }
+                    }} />
+                  </label>
                 </div>
               ) : (
                 <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
                   onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
                   onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
                   onDragOver={e => e.preventDefault()}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files && e.dataTransfer.files[0]) setSelectedFile(e.dataTransfer.files[0]); }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files) setSelectedFiles([...selectedFiles, ...Array.from(e.dataTransfer.files)]); }}
                 >
-                  <input type="file" style={{ display: 'none' }} onChange={e => setSelectedFile(e.target.files[0])} />
+                  <input type="file" multiple style={{ display: 'none' }} onChange={e => {
+                      if (e.target.files) {
+                          setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)]);
+                      }
+                  }} />
                   <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                     <FileText size={22} />
-                    <span style={{ fontSize: '0.85rem' }}>Click để chọn file hoặc kéo thả</span>
+                    <span style={{ fontSize: '0.85rem' }}>Click để chọn nhiều file hoặc kéo thả</span>
                   </div>
                 </label>
               )}
@@ -1171,11 +1231,12 @@ export default function Tasks() {
               </Btn>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Submit Task Modal ── */}
-      {showSubmitModal && (
+      {showSubmitModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
           <div style={{ background: 'var(--bg-panel)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <h3 style={{ margin: 0 }}>Nộp kết quả công việc</h3>
@@ -1183,24 +1244,54 @@ export default function Tasks() {
               Tải lên file báo cáo và điền ghi chú kết quả trước khi gửi duyệt.
             </p>
 
-            <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files && e.dataTransfer.files[0]) setSubmissionFile(e.dataTransfer.files[0]); }}
-            >
-              <input type="file" style={{ display: 'none' }} onChange={e => setSubmissionFile(e.target.files[0])} />
-              {submissionFile ? (
-                <div style={{ color: 'var(--accent-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
-                  <FileText size={22} /><span style={{ fontWeight: 600 }}>{submissionFile.name}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(submissionFile.size / 1024 / 1024).toFixed(2)} MB</span>
+            <div>
+              {submissionFiles && submissionFiles.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {submissionFiles.map((file, idx) => (
+                    <div key={idx} style={{ position: 'relative', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <FileText size={18} color="var(--accent-primary)" />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--accent-primary)' }}>{file.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                      </div>
+                      <button onClick={() => {
+                        const newFiles = [...submissionFiles];
+                        newFiles.splice(idx, 1);
+                        setSubmissionFiles(newFiles);
+                      }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '0.3rem' }} title="Gỡ bỏ">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--accent-primary)', cursor: 'pointer', alignSelf: 'flex-start', padding: '0.25rem 0.5rem', background: 'rgba(6,182,212,0.1)', borderRadius: '6px' }}>
+                    <Plus size={14} /> Thêm file khác
+                    <input type="file" multiple style={{ display: 'none' }} onChange={e => {
+                        if (e.target.files) {
+                            setSubmissionFiles([...submissionFiles, ...Array.from(e.target.files)]);
+                        }
+                    }} />
+                  </label>
                 </div>
               ) : (
-                <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
-                  <FileText size={22} /><span style={{ fontSize: '0.85rem' }}>Click hoặc kéo thả file báo cáo</span>
-                </div>
+                <label style={{ border: '2px dashed rgba(255,255,255,0.12)', borderRadius: '10px', padding: '1.25rem', textAlign: 'center', cursor: 'pointer', display: 'block', background: 'rgba(255,255,255,0.02)', transition: 'border-color 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                  onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; if (e.dataTransfer.files) setSubmissionFiles([...submissionFiles, ...Array.from(e.dataTransfer.files)]); }}
+                >
+                  <input type="file" multiple style={{ display: 'none' }} onChange={e => {
+                      if (e.target.files) {
+                          setSubmissionFiles([...submissionFiles, ...Array.from(e.target.files)]);
+                      }
+                  }} />
+                  <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                    <FileText size={22} />
+                    <span style={{ fontSize: '0.85rem' }}>Click để chọn nhiều file báo cáo hoặc kéo thả</span>
+                  </div>
+                </label>
               )}
-            </label>
+            </div>
 
             {/* Note textarea */}
             <div>
@@ -1236,10 +1327,50 @@ export default function Tasks() {
               </Btn>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeInDown {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+      `}</style>
+
+      {/* ── Toast Notification ── */}
+      {toast && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: '2rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: toast.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
+          color: 'white',
+          padding: '1rem 1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          backdropFilter: 'blur(10px)',
+          animation: 'fadeInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          maxWidth: '90vw',
+          whiteSpace: 'pre-wrap',
+          lineHeight: 1.5,
+          fontWeight: 500,
+          fontSize: '0.95rem'
+        }}>
+          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          <div style={{ flex: 1 }}>{toast.message}</div>
+          <button onClick={() => setToast(null)} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '0.2rem', display: 'flex' }}>
+            <X size={16} />
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

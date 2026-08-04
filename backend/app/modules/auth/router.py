@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.core.responses import APIResponse
-from .schemas import LoginRequest, TokenResponse, NewPasswordChallengeRequest, VerifyFaceRequest, ResetPasswordFaceRequest
+from .schemas import LoginRequest, TokenResponse, NewPasswordChallengeRequest, VerifyFaceRequest, ResetPasswordFaceRequest, ChangePasswordRequest
 from . import service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -44,4 +44,14 @@ def verify_face_reset(payload: VerifyFaceRequest):
 )
 def reset_password_face(payload: ResetPasswordFaceRequest):
     data = service.reset_password_by_face(payload)
+    return APIResponse.ok(data)
+
+@router.post(
+    "/change-password",
+    response_model=APIResponse[dict],
+    summary="Đổi mật khẩu",
+    description="Cho phép người dùng đã đăng nhập đổi mật khẩu."
+)
+def change_password(payload: ChangePasswordRequest):
+    data = service.change_password(payload)
     return APIResponse.ok(data)

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield } from 'lucide-react';
 import Card from '../components/Card';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
 const CAMERA_ID = 'CAM-MAIN-001';
@@ -35,6 +36,10 @@ const formatTime = (iso) => {
 
 // ========================================================
 export default function Attendance() {
+  // Auth context
+  const { currentUser, updateUser } = useAuth();
+  const [registering, setRegistering] = useState(false);
+
   // webcam
   const videoRef    = useRef(null);
   const [stream,    setStream]    = useState(null);
@@ -130,6 +135,42 @@ export default function Attendance() {
     }
   }, [scanning]);
 
+  const captureAndRegister = useCallback(async () => {
+    if (!videoRef.current || registering) return;
+    setRegistering(true);
+    setCamError('');
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = videoRef.current.videoWidth  || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.getContext('2d').drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+    try {
+      const res = await fetch(`${API_BASE}/faces/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser.user_id,
+          image_base64: imageBase64,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        updateUser({ ...currentUser, face_registered: true });
+        setLastResult({ success: true, message: 'Đăng ký khuôn mặt thành công! Hệ thống đã ghi nhận mẫu khuôn mặt của bạn. Bạn đã có thể sử dụng tính năng Điểm danh ngay bây giờ.', attendance: null, user: currentUser });
+        setResultType('success');
+      } else {
+        setCamError(json.message || 'Lỗi đăng ký khuôn mặt');
+      }
+    } catch (e) {
+      setCamError('Lỗi kết nối máy chủ: ' + e.message);
+    } finally {
+      setRegistering(false);
+    }
+  }, [registering, currentUser, updateUser]);
+
+
   // ---------- Auto scan every 3s ----------
   useEffect(() => {
     autoScanRef.current = autoScan;
@@ -208,7 +249,7 @@ export default function Attendance() {
         {/* ---- Camera Panel ---- */}
         <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>📷 Camera Nhận diện</h2>
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentUser?.face_registered ? '📷 Camera Nhận diện' : '📸 Đăng ký Khuôn mặt lần đầu'}</h2>
             {camActive && (
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--accent-success)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-success)', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
@@ -224,15 +265,27 @@ export default function Attendance() {
             border: camActive ? '2px solid var(--accent-primary)' : '2px solid var(--glass-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {scanning && (
+            {!currentUser?.face_registered && camActive && !registering && (
               <div style={{
                 position: 'absolute', inset: 0, zIndex: 10,
-                background: 'rgba(6,182,212,0.08)',
+                background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                padding: '2rem', textAlign: 'center', pointerEvents: 'none'
+              }}>
+                <div style={{ background: 'var(--accent-warning)', color: '#000', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Bắt buộc</div>
+                <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Tài khoản của bạn chưa có khuôn mặt</p>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', margin: 0 }}>Vui lòng ngồi thẳng, tháo khẩu trang và bấm nút Đăng ký bên dưới để chụp ảnh lưu vào hệ thống.</p>
+              </div>
+            )}
+            {(scanning || registering) && (
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 11,
+                background: 'rgba(6,182,212,0.15)', backdropFilter: 'blur(4px)',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 gap: '0.75rem',
               }}>
-                <Loader size={36} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
-                <p style={{ color: 'var(--accent-primary)', fontWeight: 600, fontSize: '0.875rem' }}>Đang nhận diện...</p>
+                <Loader size={40} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang nhận diện...'}</p>
               </div>
             )}
             <video
@@ -278,6 +331,17 @@ export default function Attendance() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
               }}>
                 <Camera size={18} /> Bật Camera
+              </button>
+            ) : !currentUser?.face_registered ? (
+              <button id="btn-register-face" onClick={captureAndRegister} disabled={registering} style={{
+                flex: 2, background: registering ? 'rgba(16,185,129,0.4)' : 'var(--accent-success)',
+                color: 'white', border: 'none', borderRadius: '8px',
+                padding: '0.75rem', cursor: registering ? 'not-allowed' : 'pointer', fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
+              }}>
+                {registering ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={18} />}
+                {registering ? 'Đang đăng ký...' : 'Chụp ảnh & Đăng ký khuôn mặt'}
               </button>
             ) : (
               <>
@@ -387,7 +451,6 @@ export default function Attendance() {
                   {[
                     { label: 'Trạng thái', value: <StatusBadge status={lastResult.attendance.status} /> },
                     { label: 'Độ tin cậy', value: `${Number(lastResult.attendance.confidence || 0).toFixed(1)}%` },
-                    { label: 'Ca học', value: lastResult.attendance.session_type || '—' },
                     { label: 'Thời gian', value: formatTime(lastResult.attendance.timestamp) },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '0.6rem 0.8rem' }}>
@@ -446,7 +509,7 @@ export default function Attendance() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  {['#', 'Mã nhân sự', 'Ca học', 'Phòng', 'Độ tin cậy', 'Trạng thái', 'Thời gian'].map(h => (
+                  {['#', 'Độ tin cậy', 'Trạng thái', 'Thời gian'].map(h => (
                     <th key={h} style={{
                       padding: '0.6rem 0.75rem', textAlign: 'left',
                       color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.75rem',
@@ -456,7 +519,7 @@ export default function Attendance() {
               </thead>
               <tbody>
                 {history.map((item, idx) => (
-                  <tr key={item.attendanceId || idx} style={{
+                  <tr key={item.attendance_id || idx} style={{
                     borderBottom: '1px solid rgba(255,255,255,0.04)',
                     transition: 'background 0.15s',
                   }}
@@ -464,9 +527,6 @@ export default function Attendance() {
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                    <td style={{ padding: '0.7rem 0.75rem', fontWeight: 600 }}>{item.userId || '—'}</td>
-                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-secondary)' }}>{item.sessionType || '—'}</td>
-                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-secondary)' }}>{item.roomId || '—'}</td>
                     <td style={{ padding: '0.7rem 0.75rem' }}>
                       <span style={{ color: 'var(--accent-primary)' }}>
                         {Number(item.confidence || 0).toFixed(1)}%

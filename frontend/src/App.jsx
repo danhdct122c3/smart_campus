@@ -32,7 +32,7 @@ function App() {
 
               {/* ADMIN ONLY */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR']} />}>
-                <Route path="security" element={<div style={{padding:'2rem'}}>Security Page (Mock)</div>} />
+
               </Route>
 
               {/* EVERYONE LOGGED IN */}

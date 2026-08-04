@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Camera, Upload, CameraOff, CheckCircle2, UserCircle, Loader } from 'lucide-react';
+import React, { useState } from 'react';
+import { UserCircle, Loader, KeyRound, CheckCircle2, Edit2 } from 'lucide-react';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,84 +8,72 @@ const API_BASE_URL = 'http://127.0.0.1:8000/api';
 const Profile = () => {
   const { currentUser, setCurrentUser } = useAuth();
   
-  const [faceMode, setFaceMode] = useState('upload'); // 'upload' | 'webcam'
-  const [faceStream, setFaceStream] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [faceSubmitting, setFaceSubmitting] = useState(false);
-  const [faceResult, setFaceResult] = useState(null);
-  const faceVideoRef = useRef(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [passResult, setPassResult] = useState(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
 
   if (!currentUser) return null;
 
-  const startFaceCamera = async () => {
+  const handleUpdatePhone = async () => {
+    if (!newPhone) return;
+    setIsUpdatingPhone(true);
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360 } });
-      setFaceStream(s);
-      setFaceMode('webcam');
-      setCapturedImage(null);
-      setTimeout(() => { if (faceVideoRef.current) faceVideoRef.current.srcObject = s; }, 100);
-    } catch (e) {
-      alert('Không thể mở camera: ' + e.message);
-    }
-  };
-
-  const stopFaceCamera = () => {
-    if (faceStream) { faceStream.getTracks().forEach(t => t.stop()); setFaceStream(null); }
-    setFaceMode('upload');
-  };
-
-  const captureFromWebcam = () => {
-    if (!faceVideoRef.current) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = faceVideoRef.current.videoWidth || 480;
-    canvas.height = faceVideoRef.current.videoHeight || 360;
-    canvas.getContext('2d').drawImage(faceVideoRef.current, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-    setCapturedImage(dataUrl);
-    stopFaceCamera();
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      alert('Chỉ hỗ trợ ảnh JPEG hoặc PNG');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Ảnh không được vượt quá 5MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => setCapturedImage(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-
-  const submitFaceRegistration = async () => {
-    if (!capturedImage || !currentUser.user_id) return;
-    setFaceSubmitting(true);
-    setFaceResult(null);
-    try {
-      const res = await fetch(`${API_BASE_URL}/faces/register`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE_URL}/users/${currentUser.user_id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.user_id, image_base64: capturedImage }),
+        body: JSON.stringify({ phone: newPhone })
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || 'Đăng ký khuôn mặt thất bại');
+      if (!res.ok) throw new Error(json.message || 'Cập nhật thất bại');
       
-      setFaceResult({ success: true, message: 'Đăng ký khuôn mặt thành công!' });
-      
-      // Cập nhật state current user để hiện thị là đã đăng ký khuôn mặt (nếu cần)
-      if (setCurrentUser) {
-          setCurrentUser({...currentUser, face_registered: true});
-      }
-
-      setCapturedImage(null);
+      setCurrentUser({ ...currentUser, phone: newPhone });
+      setIsEditingPhone(false);
     } catch (err) {
-      setFaceResult({ success: false, message: err.message });
+      alert(err.message);
     } finally {
-      setFaceSubmitting(false);
+      setIsUpdatingPhone(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setPassResult({ success: false, message: 'Mật khẩu xác nhận không khớp.' });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setPassResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser.email,
+          current_password: currentPassword,
+          new_password: newPassword
+        }),
+      });
+      
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Đổi mật khẩu thất bại');
+      
+      setPassResult({ success: true, message: 'Đổi mật khẩu thành công!' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPassResult({ success: false, message: err.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -100,7 +88,7 @@ const Profile = () => {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Thông tin cá nhân */}
         <Card title="Thông tin cơ bản">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -125,147 +113,144 @@ const Profile = () => {
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Vai trò</div>
                     <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{currentUser.role}</div>
                 </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Số điện thoại</div>
+                    {!isEditingPhone ? (
+                        <div style={{ color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {currentUser.phone || 'Chưa cập nhật'}
+                            <button onClick={() => { setNewPhone(currentUser.phone || ''); setIsEditingPhone(true); }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', padding: 0 }}>
+                                <Edit2 size={14} />
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <input 
+                                value={newPhone} 
+                                onChange={(e) => setNewPhone(e.target.value)}
+                                style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white', width: '120px', fontSize: '0.875rem' }}
+                            />
+                            <button onClick={handleUpdatePhone} disabled={isUpdatingPhone} style={{ background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                {isUpdatingPhone ? '...' : 'Lưu'}
+                            </button>
+                            <button onClick={() => setIsEditingPhone(false)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                Hủy
+                            </button>
+                        </div>
+                    )}
+                </div>
+                <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Ngày bắt đầu</div>
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                        {currentUser.created_at ? new Date(currentUser.created_at).toLocaleDateString('vi-VN') : 'N/A'}
+                    </div>
+                </div>
             </div>
             
-            <div>
+            <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Trạng thái Khuôn mặt</div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.5rem', borderRadius: '4px', background: currentUser.face_registered ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: currentUser.face_registered ? 'var(--status-success)' : 'var(--status-error)', fontSize: '0.75rem', fontWeight: 600 }}>
                     {currentUser.face_registered ? 'Đã đăng ký' : 'Chưa đăng ký'}
                 </div>
             </div>
           </div>
+          </div>
         </Card>
 
-        {/* Đăng ký khuôn mặt */}
-        <Card title="Đăng ký Khuôn mặt">
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              Hãy cập nhật khuôn mặt của bạn để sử dụng tính năng Điểm danh (Attendance). Bạn có thể tải ảnh chụp chính diện hoặc dùng Camera.
-            </p>
-            
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                    onClick={() => { stopFaceCamera(); setCapturedImage(null); }}
-                    style={{
-                        flex: 1, padding: '0.5rem', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 500,
-                        border: '1px solid',
-                        borderColor: faceMode === 'upload' ? 'var(--accent-primary)' : 'var(--glass-border)',
-                        background: faceMode === 'upload' ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-                        color: faceMode === 'upload' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                        cursor: 'pointer'
-                    }}
+        {/* Form đổi mật khẩu */}
+        <Card title="Đổi mật khẩu">
+          {!showPasswordForm ? (
+            <div style={{ marginTop: '1rem' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>Bạn nên thay đổi mật khẩu định kỳ để bảo vệ tài khoản.</p>
+                <button 
+                  onClick={() => setShowPasswordForm(true)}
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)', border: '1px solid var(--glass-border)', borderRadius: '8px',
+                    padding: '0.75rem 1.5rem', cursor: 'pointer', fontWeight: 600,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                  }}
                 >
-                    <Upload size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                    Tải ảnh lên
-                </button>
-                <button
-                    onClick={startFaceCamera}
-                    style={{
-                        flex: 1, padding: '0.5rem', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 500,
-                        border: '1px solid',
-                        borderColor: faceMode === 'webcam' ? 'var(--accent-primary)' : 'var(--glass-border)',
-                        background: faceMode === 'webcam' ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
-                        color: faceMode === 'webcam' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                        cursor: 'pointer'
-                    }}
-                >
-                    <Camera size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
-                    Chụp Camera
+                  <KeyRound size={18} /> Thay đổi mật khẩu
                 </button>
             </div>
-
-            <div style={{
-                border: '1px dashed var(--glass-border)', borderRadius: '8px',
-                height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(0,0,0,0.2)', position: 'relative', overflow: 'hidden'
-            }}>
-                {faceMode === 'upload' && !capturedImage && (
-                    <div style={{ textAlign: 'center', padding: '1rem' }}>
-                        <input type="file" accept="image/jpeg, image/png" onChange={handleFileUpload} id="profile-upload" style={{ display: 'none' }} />
-                        <label htmlFor="profile-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Upload size={24} color="var(--text-muted)" />
-                            </div>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Nhấn để chọn ảnh thẻ (JPG/PNG)</span>
-                        </label>
-                    </div>
-                )}
-
-                {faceMode === 'webcam' && !capturedImage && (
-                    <>
-                        <video ref={faceVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button
-                            onClick={captureFromWebcam}
-                            style={{
-                                position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)',
-                                background: 'white', color: 'black', border: 'none', borderRadius: '50%',
-                                width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                            }}
-                        >
-                            <Camera size={24} />
-                        </button>
-                        <button
-                            onClick={stopFaceCamera}
-                            style={{
-                                position: 'absolute', top: '16px', right: '16px',
-                                background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '4px',
-                                padding: '4px', cursor: 'pointer'
-                            }}
-                        >
-                            <CameraOff size={16} />
-                        </button>
-                    </>
-                )}
-
-                {capturedImage && (
-                    <>
-                        <img src={capturedImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        <button
-                            onClick={() => { setCapturedImage(null); if(faceMode==='webcam') startFaceCamera(); }}
-                            style={{
-                                position: 'absolute', top: '16px', right: '16px',
-                                background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '4px',
-                                padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.75rem'
-                            }}
-                        >
-                            Thử lại
-                        </button>
-                    </>
-                )}
+          ) : (
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Mật khẩu hiện tại</label>
+              <input 
+                type="password" 
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} 
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Mật khẩu mới</label>
+              <input 
+                type="password" 
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} 
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Xác nhận mật khẩu mới</label>
+              <input 
+                type="password" 
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} 
+              />
             </div>
 
-            {faceResult && (
-                <div style={{
-                    padding: '0.75rem', borderRadius: '8px', fontSize: '0.875rem',
-                    background: faceResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid', borderColor: faceResult.success ? 'var(--status-success)' : 'var(--status-error)',
-                    color: faceResult.success ? 'var(--status-success)' : 'var(--status-error)',
-                    display: 'flex', alignItems: 'center', gap: '0.5rem'
-                }}>
-                    {faceResult.success ? <CheckCircle2 size={16} /> : null}
-                    {faceResult.message}
-                </div>
+            {passResult && (
+              <div style={{
+                  padding: '0.75rem', borderRadius: '8px', fontSize: '0.875rem',
+                  background: passResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid', borderColor: passResult.success ? 'var(--status-success)' : 'var(--status-error)',
+                  color: passResult.success ? 'var(--status-success)' : 'var(--status-error)',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem'
+              }}>
+                  {passResult.success ? <CheckCircle2 size={16} /> : null}
+                  {passResult.message}
+              </div>
             )}
 
-            <button
-                onClick={submitFaceRegistration}
-                disabled={!capturedImage || faceSubmitting}
-                style={{
-                    background: (!capturedImage || faceSubmitting) ? 'var(--bg-card)' : 'var(--accent-primary)',
-                    color: (!capturedImage || faceSubmitting) ? 'var(--text-muted)' : 'white',
-                    border: '1px solid', borderColor: (!capturedImage || faceSubmitting) ? 'var(--glass-border)' : 'var(--accent-primary)',
-                    padding: '0.75rem', borderRadius: '8px', fontWeight: 600, cursor: (!capturedImage || faceSubmitting) ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'all 0.2s'
-                }}
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              style={{
+                marginTop: '0.5rem',
+                background: 'var(--accent-primary)',
+                color: 'white', border: 'none', borderRadius: '8px',
+                padding: '0.75rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                opacity: isSubmitting ? 0.7 : 1
+              }}
             >
-                {faceSubmitting ? (
-                    <><Loader size={18} className="spin" /> Đang xử lý...</>
-                ) : (
-                    'Cập nhật Khuôn mặt'
-                )}
+              {isSubmitting ? <Loader size={18} className="spin" /> : <KeyRound size={18} />}
+              {isSubmitting ? 'Đang xử lý...' : 'Cập nhật mật khẩu'}
             </button>
-          </div>
+            <button 
+              type="button" 
+              onClick={() => setShowPasswordForm(false)}
+              style={{
+                background: 'transparent',
+                color: 'var(--text-secondary)', border: 'none',
+                padding: '0.5rem', cursor: 'pointer', fontWeight: 500,
+                textAlign: 'center'
+              }}
+            >
+              Hủy
+            </button>
+          </form>
+          )}
         </Card>
       </div>
     </div>

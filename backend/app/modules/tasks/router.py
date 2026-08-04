@@ -72,5 +72,5 @@ def get_upload_url(payload: PresignedUrlRequest):
 @router.post("/check-overdue", response_model=APIResponse[dict], summary="Quét và gửi cảnh báo công việc quá hạn")
 def trigger_check_overdue():
     """Trigger quét tất cả task trong hệ thống và gửi thông báo cảnh báo quá hạn cho người được giao."""
-    data = service.check_and_notify_overdue_tasks()
-    return APIResponse.ok(data, message="Đã hoàn thành quét và gửi cảnh báo công việc quá hạn")
+    data = service.check_and_notify_task_deadlines()
+    return APIResponse.ok(data, message="Đã hoàn thành quét và gửi cảnh báo công việc quá hạn/sắp đến hạn")

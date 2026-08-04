@@ -786,7 +786,7 @@ const Users = () => {
                                 background: task.priority === 'URGENT' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)',
                                 color: task.priority === 'URGENT' ? 'var(--accent-danger)' : 'var(--text-secondary)'
                               }}>
-                                {task.priority}
+                                {({'LOW': 'THẤP', 'MEDIUM': 'TRUNG BÌNH', 'HIGH': 'CAO', 'URGENT': 'KHẨN CẤP'})[task.priority] || task.priority}
                               </span>
                             )}
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -805,8 +805,8 @@ const Users = () => {
                         {task.due_date && (
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Hạn chót</span>
-                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: task.due_date < new Date().toISOString().slice(0, 10) && task.status !== 'COMPLETED' ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
-                              📅 {task.due_date}
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: new Date(task.due_date) < new Date() && !['COMPLETED', 'DONE'].includes(task.status) ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
+                              📅 {new Date(task.due_date).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
                         )}

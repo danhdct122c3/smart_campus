@@ -12,6 +12,8 @@ class UserProfile(BaseModel):
     role: str
     department: Optional[str] = None
     face_registered: bool = False
+    phone: Optional[str] = None
+    created_at: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: Optional[str] = None
@@ -21,6 +23,11 @@ class TokenResponse(BaseModel):
     user: Optional[UserProfile] = None
     challenge_name: Optional[str] = None
     session: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    email: EmailStr
+    current_password: str
+    new_password: str
 
 class NewPasswordChallengeRequest(BaseModel):
     email: EmailStr
