@@ -16,7 +16,7 @@ phases:
     commands:
       - echo "Packaging Lambda function..."
       # Copy toàn bộ code trong thư mục app vào dist
-      - cp -r app/* dist/
+      - cp -r app dist/
       - cd dist
       # Nén thư mục thành file zip
       - zip -r9 ../lambda_function.zip .
