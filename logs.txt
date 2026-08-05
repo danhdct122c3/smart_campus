@@ -1,0 +1,174 @@
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72ee-f796-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72ee-f796-41f3-abd2-a6d92b31663f	Duration: 97.28 ms	Billed Duration: 98 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e16a72ee-f796-41f3-abd2-a6d92b31663f Version: $LATEST
+
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72ee-f796-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72ee-f796-41f3-abd2-a6d92b31663f	Duration: 268.12 ms	Billed Duration: 269 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f Version: $LATEST
+
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f	Duration: 271.45 ms	Billed Duration: 272 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f Version: $LATEST
+
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f	Duration: 82.10 ms	Billed Duration: 83 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: 8112cc11-0cca-45e5-a74c-70c71c7d042b Version: $LATEST
+
+[ERROR] RuntimeError: There is no current event loop in thread 'MainThread'.
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 104, in handler
+    return mangum_handler(event, context)
+  File "/var/task/mangum/adapter.py", line 75, in __call__
+    lifespan_cycle = LifespanCycle(self.app, self.lifespan)
+  File "/var/task/mangum/protocols/lifespan.py", line 62, in __init__
+    self.loop = asyncio.get_event_loop()
+  File "/var/lang/lib/python3.12/asyncio/events.py", line 702, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+END RequestId: 8112cc11-0cca-45e5-a74c-70c71c7d042b
+
+REPORT RequestId: 8112cc11-0cca-45e5-a74c-70c71c7d042b	Duration: 62.91 ms	Billed Duration: 63 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e9ce8f67-9821-4f79-917a-6fbcbed240e0 Version: $LATEST
+
+[ERROR] RuntimeError: There is no current event loop in thread 'MainThread'.
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 104, in handler
+    return mangum_handler(event, context)
+  File "/var/task/mangum/adapter.py", line 75, in __call__
+    lifespan_cycle = LifespanCycle(self.app, self.lifespan)
+  File "/var/task/mangum/protocols/lifespan.py", line 62, in __init__
+    self.loop = asyncio.get_event_loop()
+  File "/var/lang/lib/python3.12/asyncio/events.py", line 702, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+END RequestId: e9ce8f67-9821-4f79-917a-6fbcbed240e0
+
+REPORT RequestId: e9ce8f67-9821-4f79-917a-6fbcbed240e0	Duration: 1.98 ms	Billed Duration: 2 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: fc0749a4-212f-461c-989a-190d40c77b37 Version: $LATEST
+
+[ERROR] RuntimeError: There is no current event loop in thread 'MainThread'.
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 104, in handler
+    return mangum_handler(event, context)
+  File "/var/task/mangum/adapter.py", line 75, in __call__
+    lifespan_cycle = LifespanCycle(self.app, self.lifespan)
+  File "/var/task/mangum/protocols/lifespan.py", line 62, in __init__
+    self.loop = asyncio.get_event_loop()
+  File "/var/lang/lib/python3.12/asyncio/events.py", line 702, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+END RequestId: fc0749a4-212f-461c-989a-190d40c77b37
+
+REPORT RequestId: fc0749a4-212f-461c-989a-190d40c77b37	Duration: 1.89 ms	Billed Duration: 2 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f Version: $LATEST
+
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72f0-2396-41f3-abd2-a6d92b31663f	Duration: 245.03 ms	Billed Duration: 246 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: 0dd51d6e-cbf1-4f21-9ad0-c7cc3285e36c Version: $LATEST
+
+[ERROR] RuntimeError: There is no current event loop in thread 'MainThread'.
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 104, in handler
+    return mangum_handler(event, context)
+  File "/var/task/mangum/adapter.py", line 75, in __call__
+    lifespan_cycle = LifespanCycle(self.app, self.lifespan)
+  File "/var/task/mangum/protocols/lifespan.py", line 62, in __init__
+    self.loop = asyncio.get_event_loop()
+  File "/var/lang/lib/python3.12/asyncio/events.py", line 702, in get_event_loop
+    raise RuntimeError('There is no current event loop in thread %r.'
+END RequestId: 0dd51d6e-cbf1-4f21-9ad0-c7cc3285e36c
+
+REPORT RequestId: 0dd51d6e-cbf1-4f21-9ad0-c7cc3285e36c	Duration: 12.66 ms	Billed Duration: 13 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e16a72f1-4f96-41f3-abd2-a6d92b31663f Version: $LATEST
+
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72f1-4f96-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72f1-4f96-41f3-abd2-a6d92b31663f	Duration: 261.85 ms	Billed Duration: 262 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
+START RequestId: e16a72f1-4f96-41f3-abd2-a6d92b31663f Version: $LATEST
+
+Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...
+
+[ERROR] ValueError: a coroutine was expected, got {'success': True, 'checked_count': 17, 'overdue_details': []}
+Traceback (most recent call last):
+  File "/var/task/app/main.py", line 100, in handler
+    asyncio.run(check_and_notify_task_deadlines())
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/var/lang/lib/python3.12/asyncio/runners.py", line 89, in run
+    raise ValueError("a coroutine was expected, got {!r}".format(coro))
+END RequestId: e16a72f1-4f96-41f3-abd2-a6d92b31663f
+
+REPORT RequestId: e16a72f1-4f96-41f3-abd2-a6d92b31663f	Duration: 97.52 ms	Billed Duration: 98 ms	Memory Size: 128 MB	Max Memory Used: 103 MB	
+
