@@ -21,6 +21,7 @@ const Profile = () => {
 
   // --- Admin WAF Network Management ---
   const [networks, setNetworks] = useState([]);
+  const [currentWafIp, setCurrentWafIp] = useState(null);
   const [newNetName, setNewNetName] = useState('');
   const [newNetIp, setNewNetIp] = useState('');
   const [isAddingNet, setIsAddingNet] = useState(false);
@@ -31,7 +32,12 @@ const Profile = () => {
     if (currentUser?.role?.toUpperCase() === 'ADMIN') {
       fetch(`${API_BASE_URL}/security/networks`)
         .then(res => res.json())
-        .then(data => { if (data.data) setNetworks(data.data); })
+        .then(data => { 
+          if (data.data) {
+            setNetworks(data.data.networks || []); 
+            setCurrentWafIp(data.data.current_waf_ip);
+          }
+        })
         .catch(() => {});
     }
   }, [currentUser]);
@@ -80,6 +86,7 @@ const Profile = () => {
       });
       const data = await res.json();
       if (res.ok) {
+        setCurrentWafIp(net.ip);
         setWafMsg({ success: true, text: `Áp dụng mạng "${net.name}" (${net.ip}) làm mạng Công ty thành công!` });
       } else throw new Error(data.message || 'Lỗi cập nhật WAF');
     } catch (err) {
@@ -361,17 +368,23 @@ const Profile = () => {
                   <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Chưa có mạng nào. Vui lòng thêm mạng mới.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {networks.map(net => (
-                      <div key={net.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.75rem 1rem' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{net.name}</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>{net.ip}</div>
+                    {networks.map(net => {
+                      const isActive = currentWafIp === net.ip;
+                      return (
+                        <div key={net.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: isActive ? 'rgba(34, 197, 94, 0.05)' : 'rgba(255,255,255,0.02)', border: isActive ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {net.name}
+                              {isActive && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--accent-primary)', color: 'white' }}>Đang áp dụng</span>}
+                            </div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>{net.ip}</div>
+                          </div>
+                          <button onClick={() => handleApplyWafIp(net)} disabled={isApplyingIp === net.id || isActive} style={{ background: isActive ? 'transparent' : 'rgba(34, 197, 94, 0.15)', color: isActive ? 'var(--text-muted)' : 'var(--status-success)', border: isActive ? '1px solid var(--glass-border)' : '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: isActive ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {isApplyingIp === net.id ? <Loader size={14} className="spin" /> : <ShieldCheck size={14} />} {isActive ? 'Đã áp dụng' : 'Áp dụng'}
+                          </button>
                         </div>
-                        <button onClick={() => handleApplyWafIp(net)} disabled={isApplyingIp === net.id} style={{ background: 'rgba(34, 197, 94, 0.15)', color: 'var(--status-success)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          {isApplyingIp === net.id ? <Loader size={14} className="spin" /> : <ShieldCheck size={14} />} Áp dụng
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

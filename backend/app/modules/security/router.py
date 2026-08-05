@@ -64,11 +64,11 @@ def resolve_incident(incident_id: str, payload: ResolveIncidentRequest):
 
 # ── Network & WAF Endpoints ──────────────────────────────────────────────────
 
-from .schemas import NetworkItem, AddNetworkRequest, UpdateWafIpRequest
+from .schemas import NetworkItem, AddNetworkRequest, UpdateWafIpRequest, NetworkListResponse
 
 @router.get(
     "/networks",
-    response_model=APIResponse[list[NetworkItem]],
+    response_model=APIResponse[NetworkListResponse],
     summary="Danh sách mạng được lưu",
 )
 def list_networks():

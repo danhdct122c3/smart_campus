@@ -199,11 +199,30 @@ def _to_incident(item: dict) -> SecurityIncident:
 
 import boto3
 from . import settings_repo
-from .schemas import NetworkItem, AddNetworkRequest
+from .schemas import NetworkItem, AddNetworkRequest, NetworkListResponse
 
-def list_networks() -> list[NetworkItem]:
+def get_current_waf_ip() -> str | None:
+    waf = boto3.client("wafv2", region_name="us-east-1")
+    ip_set_name = "SmartCampusIPSet"
+    ip_set_id = "4ebe5eff-235c-4a55-8c04-c1155b3118e0"
+    try:
+        res = waf.get_ip_set(
+            Name=ip_set_name,
+            Scope="CLOUDFRONT",
+            Id=ip_set_id
+        )
+        addresses = res.get("IPSet", {}).get("Addresses", [])
+        if addresses:
+            return addresses[0].split("/")[0]
+        return None
+    except Exception:
+        return None
+
+def list_networks() -> NetworkListResponse:
     items = settings_repo.get_networks()
-    return [NetworkItem(**i) for i in items]
+    networks = [NetworkItem(**i) for i in items]
+    current_waf_ip = get_current_waf_ip()
+    return NetworkListResponse(networks=networks, current_waf_ip=current_waf_ip)
 
 def add_network(payload: AddNetworkRequest) -> NetworkItem:
     items = settings_repo.get_networks()

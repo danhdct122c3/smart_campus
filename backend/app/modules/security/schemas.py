@@ -60,6 +60,9 @@ class NetworkItem(BaseModel):
     name: str
     ip: str
 
+class NetworkListResponse(BaseModel):
+    networks: list[NetworkItem]
+    current_waf_ip: str | None
 
 class AddNetworkRequest(BaseModel):
     name: str
