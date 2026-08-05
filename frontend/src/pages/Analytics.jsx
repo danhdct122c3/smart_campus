@@ -431,11 +431,11 @@ const Analytics = () => {
   const taskDonutData = useMemo(() => {
     if (!taskData?.stats) return [];
     const stats = taskData.stats;
-    const done = (stats['DONE'] || 0) + (stats['RESOLVED'] || 0);
-    const ip = stats['IN_PROGRESS'] || 0;
+    const done = (stats['DONE'] || 0) + (stats['RESOLVED'] || 0) + (stats['COMPLETED'] || 0);
+    const ip = (stats['IN_PROGRESS'] || 0) + (stats['IN_REVIEW'] || 0);
     const overdue = stats['OVERDUE'] || 0;
     const todo = (stats['TODO'] || 0) + (stats['OPEN'] || 0);
-    const cancelled = stats['CANCELLED'] || 0;
+    const cancelled = (stats['CANCELLED'] || 0) + (stats['REJECTED'] || 0);
     return [
       { label: 'Hoàn thành', value: done, color: '#10b981' },
       { label: 'Đang xử lý', value: ip, color: '#06b6d4' },
