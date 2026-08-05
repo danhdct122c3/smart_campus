@@ -51,3 +51,21 @@ class SecurityIncident(BaseModel):
 class SecurityIncidentListResponse(BaseModel):
     items: list[SecurityIncident]
     total: int
+
+
+# ── Network & WAF models ─────────────────────────────────────────────────────────
+
+class NetworkItem(BaseModel):
+    id: str
+    name: str
+    ip: str
+
+
+class AddNetworkRequest(BaseModel):
+    name: str
+    ip: str
+
+
+class UpdateWafIpRequest(BaseModel):
+    ip: str
+

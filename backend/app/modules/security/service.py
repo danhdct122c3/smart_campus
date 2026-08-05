@@ -193,3 +193,47 @@ def _to_incident(item: dict) -> SecurityIncident:
         resolved_at=item.get("resolvedAt"),
         resolution_note=item.get("resolutionNote"),
     )
+
+
+# ── Network & WAF Operations ───────────────────────────────────────────────────
+
+import boto3
+from . import settings_repo
+from .schemas import NetworkItem, AddNetworkRequest
+
+def list_networks() -> list[NetworkItem]:
+    items = settings_repo.get_networks()
+    return [NetworkItem(**i) for i in items]
+
+def add_network(payload: AddNetworkRequest) -> NetworkItem:
+    items = settings_repo.get_networks()
+    new_item = {
+        "id": str(uuid.uuid4()),
+        "name": payload.name,
+        "ip": payload.ip
+    }
+    items.append(new_item)
+    settings_repo.save_networks(items)
+    return NetworkItem(**new_item)
+
+def update_waf_ip(ip: str) -> None:
+    waf = boto3.client("wafv2", region_name="us-east-1")
+    ip_set_name = "SmartCampusIPSet"
+    ip_set_id = "4ebe5eff-235c-4a55-8c04-c1155b3118e0"
+    
+    res = waf.get_ip_set(
+        Name=ip_set_name,
+        Scope="CLOUDFRONT",
+        Id=ip_set_id
+    )
+    lock_token = res["LockToken"]
+    
+    ip_with_cidr = f"{ip}/32" if "/" not in ip else ip
+    waf.update_ip_set(
+        Name=ip_set_name,
+        Scope="CLOUDFRONT",
+        Id=ip_set_id,
+        Addresses=[ip_with_cidr],
+        LockToken=lock_token
+    )
+

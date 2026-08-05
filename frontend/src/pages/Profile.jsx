@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCircle, Loader, KeyRound, CheckCircle2, Edit2 } from 'lucide-react';
+import { UserCircle, Loader, KeyRound, CheckCircle2, Edit2, ShieldCheck, Wifi, Plus, RefreshCw } from 'lucide-react';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,6 +18,74 @@ const Profile = () => {
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
+
+  // --- Admin WAF Network Management ---
+  const [networks, setNetworks] = useState([]);
+  const [newNetName, setNewNetName] = useState('');
+  const [newNetIp, setNewNetIp] = useState('');
+  const [isAddingNet, setIsAddingNet] = useState(false);
+  const [isApplyingIp, setIsApplyingIp] = useState('');
+  const [wafMsg, setWafMsg] = useState(null);
+
+  React.useEffect(() => {
+    if (currentUser?.role === 'Admin') {
+      fetch(`${API_BASE_URL}/security/networks`)
+        .then(res => res.json())
+        .then(data => { if (data.data) setNetworks(data.data); })
+        .catch(() => {});
+    }
+  }, [currentUser]);
+
+  const handleFetchCurrentIp = async () => {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      setNewNetIp(data.ip);
+    } catch (err) {
+      alert('Không thể tự động lấy IP: ' + err.message);
+    }
+  };
+
+  const handleAddNetwork = async (e) => {
+    e.preventDefault();
+    if (!newNetName || !newNetIp) return;
+    setIsAddingNet(true);
+    setWafMsg(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/networks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newNetName, ip: newNetIp })
+      });
+      const data = await res.json();
+      if (res.ok && data.data) {
+        setNetworks([...networks, data.data]);
+        setNewNetName('');
+        setNewNetIp('');
+        setWafMsg({ success: true, text: 'Đã thêm mạng mới vào danh sách.' });
+      } else throw new Error(data.message || 'Lỗi thêm mạng');
+    } catch (err) {
+      setWafMsg({ success: false, text: err.message });
+    } finally { setIsAddingNet(false); }
+  };
+
+  const handleApplyWafIp = async (net) => {
+    setIsApplyingIp(net.id);
+    setWafMsg(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/waf-ip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: net.ip })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWafMsg({ success: true, text: `Áp dụng mạng "${net.name}" (${net.ip}) làm mạng Công ty thành công!` });
+      } else throw new Error(data.message || 'Lỗi cập nhật WAF');
+    } catch (err) {
+      setWafMsg({ success: false, text: err.message });
+    } finally { setIsApplyingIp(''); }
+  };
 
   if (!currentUser) return null;
 
@@ -252,6 +320,66 @@ const Profile = () => {
           </form>
           )}
         </Card>
+
+        {/* Form Quản lý mạng công ty (Chỉ dành cho Admin) */}
+        {currentUser?.role === 'Admin' && (
+          <Card title="Quản lý Mạng Công ty (Bảo mật WAF)">
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Thêm mạng mới */}
+              <form onSubmit={handleAddNetwork} style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', border: '1px dashed var(--glass-border)' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Wifi size={16}/> Thêm mạng mới</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Tên mạng (VD: WiFi Công ty)</label>
+                    <input value={newNetName} onChange={e => setNewNetName(e.target.value)} required style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.875rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Địa chỉ IP Public (IPv4)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input value={newNetIp} onChange={e => setNewNetIp(e.target.value)} required style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.875rem', fontFamily: 'monospace' }} />
+                      <button type="button" onClick={handleFetchCurrentIp} title="Lấy IP hiện tại" style={{ background: 'var(--bg-card)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '0 0.75rem', cursor: 'pointer' }}><RefreshCw size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" disabled={isAddingNet} style={{ background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '6px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, cursor: isAddingNet ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {isAddingNet ? <Loader size={14} className="spin" /> : <Plus size={14} />} Thêm vào danh sách
+                </button>
+              </form>
+
+              {/* Thông báo kết quả WAF */}
+              {wafMsg && (
+                <div style={{ padding: '0.75rem', borderRadius: '8px', fontSize: '0.875rem', background: wafMsg.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: '1px solid', borderColor: wafMsg.success ? 'var(--status-success)' : 'var(--status-error)', color: wafMsg.success ? 'var(--status-success)' : 'var(--status-error)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {wafMsg.success ? <CheckCircle2 size={16} /> : null} {wafMsg.text}
+                </div>
+              )}
+
+              {/* Danh sách mạng */}
+              <div>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.75rem 0' }}>Danh sách mạng đã lưu</h3>
+                {networks.length === 0 ? (
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Chưa có mạng nào. Vui lòng thêm mạng mới.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {networks.map(net => (
+                      <div key={net.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{net.name}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>{net.ip}</div>
+                        </div>
+                        <button onClick={() => handleApplyWafIp(net)} disabled={isApplyingIp === net.id} style={{ background: 'rgba(34, 197, 94, 0.15)', color: 'var(--status-success)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {isApplyingIp === net.id ? <Loader size={14} className="spin" /> : <ShieldCheck size={14} />} Áp dụng
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+            </div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </Card>
+        )}
       </div>
     </div>
   );

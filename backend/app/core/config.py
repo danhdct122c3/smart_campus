@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     tasks_table: str = "smart-campus-tasks"
     leaves_table: str = "smart-campus-leaves"
     holidays_table: str = "smart-campus-holidays"
-
+    settings_table: str = "smart-campus-settings"
 
     # Rekognition
     face_collection_id: str = "smart-campus-faces"

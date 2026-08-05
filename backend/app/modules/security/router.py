@@ -60,3 +60,38 @@ def get_incident(incident_id: str):
 def resolve_incident(incident_id: str, payload: ResolveIncidentRequest):
     data = service.resolve_incident(incident_id, payload)
     return APIResponse.ok(data, message="Incident đã được đánh dấu xử lý xong.")
+
+
+# ── Network & WAF Endpoints ──────────────────────────────────────────────────
+
+from .schemas import NetworkItem, AddNetworkRequest, UpdateWafIpRequest
+
+@router.get(
+    "/networks",
+    response_model=APIResponse[list[NetworkItem]],
+    summary="Danh sách mạng được lưu",
+)
+def list_networks():
+    data = service.list_networks()
+    return APIResponse.ok(data)
+
+
+@router.post(
+    "/networks",
+    response_model=APIResponse[NetworkItem],
+    summary="Thêm mạng mới",
+)
+def add_network(payload: AddNetworkRequest):
+    data = service.add_network(payload)
+    return APIResponse.ok(data, message="Đã thêm mạng thành công.")
+
+
+@router.post(
+    "/waf-ip",
+    response_model=APIResponse[dict],
+    summary="Cập nhật IP mạng Công ty (WAF)",
+)
+def update_waf_ip(payload: UpdateWafIpRequest):
+    service.update_waf_ip(payload.ip)
+    return APIResponse.ok({"ip": payload.ip}, message="Đã cập nhật IP lên WAF thành công.")
+
