@@ -17,4 +17,7 @@ phases:
       - echo "Deploying to AWS S3 Bucket..."
       # Đồng bộ thư mục dist lên S3, xóa những file cũ không còn tồn tại trên S3
       - aws s3 sync dist/ s3://smart-campus-frontend-2026 --delete
+      - echo "Invalidating CloudFront Cache..."
+      - aws cloudfront create-invalidation --distribution-id E2OV5WZYS81HRJ --paths "/*"
       - echo "Frontend deployment complete!"
+
