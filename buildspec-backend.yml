@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "Installing dependencies for Backend..."
+      - cd backend
+      # Dọn dẹp thư mục dist nếu có
+      - rm -rf dist lambda_function.zip
+      - mkdir dist
+      # Cài đặt thư viện bản Linux (manylinux) để tương thích với AWS Lambda
+      - pip install --platform manylinux2014_x86_64 -t ./dist --implementation cp --python-version 3.12 --only-binary=:all: --upgrade -r requirements.txt
+  build:
+    commands:
+      - echo "Packaging Lambda function..."
+      # Copy toàn bộ code trong thư mục app vào dist
+      - cp -r app/* dist/
+      - cd dist
+      # Nén thư mục thành file zip
+      - zip -r9 ../lambda_function.zip .
+  post_build:
+    commands:
+      - echo "Deploying to AWS Lambda..."
+      - cd ..
+      # Cập nhật code mới nhất lên hàm Lambda
+      - aws lambda update-function-code --function-name smart-campus-api --zip-file fileb://lambda_function.zip
+      - echo "Backend deployment complete!"

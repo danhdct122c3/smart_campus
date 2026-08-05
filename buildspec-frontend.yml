@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Installing dependencies for Frontend..."
+      - cd frontend
+      - npm install
+  build:
+    commands:
+      - echo "Building Vite React Application..."
+      - npm run build
+  post_build:
+    commands:
+      - echo "Deploying to AWS S3 Bucket..."
+      # Đồng bộ thư mục dist lên S3, xóa những file cũ không còn tồn tại trên S3
+      - aws s3 sync dist/ s3://smart-campus-frontend-2026 --delete
+      - echo "Frontend deployment complete!"
