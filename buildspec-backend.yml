@@ -11,7 +11,7 @@ phases:
       - rm -rf dist lambda_function.zip
       - mkdir dist
       # Cài đặt thư viện bản Linux (manylinux) để tương thích với AWS Lambda
-      - pip install --platform manylinux2014_x86_64 -t ./dist --implementation cp --python-version 3.12 --only-binary=:all: --upgrade -r requirements.txt
+      - "pip install --platform manylinux2014_x86_64 -t ./dist --implementation cp --python-version 3.12 --only-binary=:all: --upgrade -r requirements.txt"
   build:
     commands:
       - echo "Packaging Lambda function..."
