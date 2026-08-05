@@ -28,7 +28,7 @@ const Profile = () => {
   const [wafMsg, setWafMsg] = useState(null);
 
   React.useEffect(() => {
-    if (currentUser?.role === 'Admin') {
+    if (currentUser?.role?.toUpperCase() === 'ADMIN') {
       fetch(`${API_BASE_URL}/security/networks`)
         .then(res => res.json())
         .then(data => { if (data.data) setNetworks(data.data); })
@@ -322,7 +322,7 @@ const Profile = () => {
         </Card>
 
         {/* Form Quản lý mạng công ty (Chỉ dành cho Admin) */}
-        {currentUser?.role === 'Admin' && (
+        {currentUser?.role?.toUpperCase() === 'ADMIN' && (
           <Card title="Quản lý Mạng Công ty (Bảo mật WAF)">
             <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               
