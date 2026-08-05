@@ -150,15 +150,42 @@ def query_tasks_summary_from_athena(department: str | None = None) -> list[dict]
 
 def get_trend_records(start: str, end: str) -> tuple[list[dict], str]:
     """
-    Fetch trend data using Athena if configured, else fall back to DynamoDB.
-
-    Returns:
-        (records, data_source) where data_source is "athena" or "dynamodb".
+    Fetch trend data using Hybrid Architecture (Lambda Architecture).
+    - Cold Data (past dates): Amazon Athena
+    - Hot Data (today onwards): Amazon DynamoDB
     """
     if _athena_available():
         try:
-            records = query_trend_from_athena(start, end)
-            return records, "athena"
+            today_str = datetime.utcnow().strftime("%Y-%m-%d")
+            
+            athena_records = []
+            if start < today_str:
+                # Query past data from Athena
+                yesterday_str = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+                athena_end = min(end, yesterday_str)
+                athena_records = query_trend_from_athena(start, athena_end)
+            
+            # Query hot data (today onwards) from DynamoDB
+            dynamo_start = max(start, today_str)
+            dynamo_raw = []
+            if dynamo_start <= end:
+                dynamo_raw = query_trend_from_dynamo(dynamo_start, end)
+            
+            # Aggregate DynamoDB raw records to match Athena's format: {date, status, cnt}
+            agg = {}
+            for r in dynamo_raw:
+                date = r.get("date", "")
+                status = r.get("status", "")
+                if status in ("PRESENT", "LATE"):
+                    key = (date, status)
+                    agg[key] = agg.get(key, 0) + 1
+            
+            dynamo_agg = [{"date": d, "status": s, "cnt": c} for (d, s), c in agg.items()]
+            
+            # Merge Hot and Cold data
+            combined = athena_records + dynamo_agg
+            logger.info("Hybrid Merge: %d from Athena, %d from DynamoDB", len(athena_records), len(dynamo_agg))
+            return combined, "athena"
         except AthenaQueryError as exc:
             logger.warning("Athena query failed, falling back to DynamoDB: %s", exc)
 
@@ -167,15 +194,29 @@ def get_trend_records(start: str, end: str) -> tuple[list[dict], str]:
 
 def get_user_records(user_id: str, start: str, end: str) -> tuple[list[dict], str]:
     """
-    Fetch user records using Athena if configured, else fall back to DynamoDB.
-
-    Returns:
-        (records, data_source) where data_source is "athena" or "dynamodb".
+    Fetch user records using Hybrid Architecture (Lambda Architecture).
+    - Cold Data (past dates): Amazon Athena
+    - Hot Data (today onwards): Amazon DynamoDB
     """
     if _athena_available():
         try:
-            records = query_user_stats_from_athena(user_id, start, end)
-            return records, "athena"
+            today_str = datetime.utcnow().strftime("%Y-%m-%d")
+            
+            athena_records = []
+            if start < today_str:
+                yesterday_str = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+                athena_end = min(end, yesterday_str)
+                athena_records = query_user_stats_from_athena(user_id, start, athena_end)
+            
+            dynamo_raw = []
+            dynamo_start = max(start, today_str)
+            if dynamo_start <= end:
+                dynamo_raw = query_user_stats_from_dynamo(user_id, dynamo_start, end)
+            
+            # DynamoDB items are flat dicts similar to Athena results, so we just concat
+            combined = athena_records + dynamo_raw
+            logger.info("Hybrid Merge (User): %d from Athena, %d from DynamoDB", len(athena_records), len(dynamo_raw))
+            return combined, "athena"
         except AthenaQueryError as exc:
             logger.warning("Athena user query failed, falling back to DynamoDB: %s", exc)
 
