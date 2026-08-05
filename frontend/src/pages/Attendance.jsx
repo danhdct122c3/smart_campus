@@ -3,7 +3,7 @@ import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, R
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = 'https://z302xxoa9a.execute-api.ap-southeast-1.amazonaws.com/api';
 const CAMERA_ID = 'CAM-MAIN-001';
 const ROOM_ID = 'ROOM-A101';
 

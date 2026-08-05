@@ -3,7 +3,7 @@ import { UserCircle, Loader, KeyRound, CheckCircle2, Edit2 } from 'lucide-react'
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = 'https://z302xxoa9a.execute-api.ap-southeast-1.amazonaws.com/api';
 
 const Profile = () => {
   const { currentUser, setCurrentUser } = useAuth();

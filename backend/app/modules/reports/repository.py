@@ -31,7 +31,9 @@ from app.shared.aws.athena import run_query_sync, AthenaQueryError
 logger = logging.getLogger(__name__)
 
 _ATTENDANCE_TABLE = settings.attendance_table
-_ATHENA_TABLE = "attendance_records"
+_ATHENA_ATTENDANCE_TABLE = "attendance"
+_ATHENA_TASKS_TABLE = "tasks"
+_ATHENA_USERS_TABLE = "users"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -95,7 +97,7 @@ def query_trend_from_athena(start: str, end: str) -> list[dict]:
             SUBSTR(timestamp, 1, 10)  AS date,
             status,
             COUNT(*)                  AS cnt
-        FROM {_ATHENA_TABLE}
+        FROM {_ATHENA_ATTENDANCE_TABLE}
         WHERE SUBSTR(timestamp, 1, 10) BETWEEN '{start}' AND '{end}'
           AND status IN ('PRESENT', 'LATE')
         GROUP BY SUBSTR(timestamp, 1, 10), status
@@ -120,12 +122,29 @@ def query_user_stats_from_athena(user_id: str, start: str, end: str) -> list[dic
             status,
             timestamp,
             SUBSTR(timestamp, 1, 10) AS date
-        FROM {_ATHENA_TABLE}
+        FROM {_ATHENA_ATTENDANCE_TABLE}
         WHERE user_id = '{user_id}'
           AND SUBSTR(timestamp, 1, 10) BETWEEN '{start}' AND '{end}'
         ORDER BY timestamp
     """
     logger.info("Running Athena user-stats query for user=%s", user_id)
+    return run_query_sync(sql.strip())
+
+
+def query_tasks_summary_from_athena(department: str | None = None) -> list[dict]:
+    """
+    Query tasks summary from Athena Data Lake.
+    """
+    dept_filter = f"WHERE department = '{department}'" if department and department != 'ALL' else ""
+    sql = f"""
+        SELECT 
+            status, 
+            COUNT(*) as cnt 
+        FROM {_ATHENA_TASKS_TABLE}
+        {dept_filter}
+        GROUP BY status
+    """
+    logger.info("Running Athena tasks-summary query")
     return run_query_sync(sql.strip())
 
 

@@ -54,10 +54,10 @@ async function fetchMyAnalytics(userId, start, end) {
   return (await res.json()).data;
 }
 
-async function fetchTasksList(department = '') {
-  const params = new URLSearchParams({ limit: '200' });
+async function fetchTasksSummary(department = '') {
+  const params = new URLSearchParams({});
   if (department && department !== 'ALL') params.append('department', department);
-  const res = await fetch(`${API_BASE}/tasks?${params}`);
+  const res = await fetch(`${API_BASE}/reports/tasks-summary?${params}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()).data;
 }
@@ -343,7 +343,7 @@ const Analytics = () => {
         const promises = [
           fetchReportSummary(dateRange.start, dateRange.end, dept),
           fetchTrend(dateRange.start, dateRange.end, dept),
-          fetchTasksList(dept),
+          fetchTasksSummary(dept),
         ];
         if (isAdmin) {
           promises.push(fetchDepartmentComparison(dateRange.start, dateRange.end));
@@ -429,20 +429,16 @@ const Analytics = () => {
   }, [trendChartData]);
 
   const taskDonutData = useMemo(() => {
-    if (!taskData?.items?.length) return [];
-    const items = taskData.items;
-    const today = new Date().toISOString().slice(0, 10);
-    const done = items.filter(t => ['DONE', 'RESOLVED'].includes(t.status)).length;
-    const inProgress = items.filter(t => t.status === 'IN_PROGRESS').length;
-    const overdue = items.filter(t =>
-      !['DONE', 'RESOLVED', 'CANCELLED'].includes(t.status) &&
-      t.due_date && t.due_date < today
-    ).length;
-    const todo = items.filter(t => t.status === 'TODO' || t.status === 'OPEN').length - overdue;
-    const cancelled = items.filter(t => t.status === 'CANCELLED').length;
+    if (!taskData?.stats) return [];
+    const stats = taskData.stats;
+    const done = (stats['DONE'] || 0) + (stats['RESOLVED'] || 0);
+    const ip = stats['IN_PROGRESS'] || 0;
+    const overdue = stats['OVERDUE'] || 0;
+    const todo = (stats['TODO'] || 0) + (stats['OPEN'] || 0);
+    const cancelled = stats['CANCELLED'] || 0;
     return [
       { label: 'Hoàn thành', value: done, color: '#10b981' },
-      { label: 'Đang xử lý', value: inProgress, color: '#06b6d4' },
+      { label: 'Đang xử lý', value: ip, color: '#06b6d4' },
       { label: 'Quá hạn', value: Math.max(0, overdue), color: '#ef4444' },
       { label: 'Chờ xử lý', value: Math.max(0, todo), color: '#64748b' },
       { label: 'Đã hủy', value: cancelled, color: '#475569' },
@@ -697,7 +693,12 @@ const Analytics = () => {
             </SectionCard>
 
             {/* Task Overview Donut */}
-            <SectionCard title="Tổng quan công việc" icon={PieChart} delay={0.3}>
+            <SectionCard title="Tổng quan công việc" icon={PieChart} delay={0.3}
+              badge={taskData?.data_source === 'athena' ? (
+                <span style={{ padding: '2px 8px', background: 'rgba(6,182,212,0.1)', color: '#06b6d4', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Database size={10} /> Athena
+                </span>
+              ) : null}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
                 <DonutChart data={taskDonutData} size={170} />
                 {/* Legend */}
@@ -711,13 +712,17 @@ const Analytics = () => {
                   ))}
                 </div>
                 {/* Quick stats */}
-                {taskData?.items && (
+                {taskData?.stats && (
                   <div style={{
                     display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', width: '100%',
                   }}>
                     {[
-                      { label: 'Tỉ lệ hoàn thành', value: `${taskData.items.length > 0 ? Math.round(taskData.items.filter(t => ['DONE', 'RESOLVED'].includes(t.status)).length / taskData.items.length * 100) : 0}%`, color: 'var(--accent-success)' },
-                      { label: 'Đang xử lý', value: taskData.items.filter(t => t.status === 'IN_PROGRESS').length, color: '#06b6d4' },
+                      { 
+                        label: 'Tỉ lệ hoàn thành', 
+                        value: `${Object.values(taskData.stats).reduce((a,b)=>a+b, 0) > 0 ? Math.round(((taskData.stats['DONE']||0) + (taskData.stats['RESOLVED']||0)) / Object.values(taskData.stats).reduce((a,b)=>a+b, 0) * 100) : 0}%`, 
+                        color: 'var(--accent-success)' 
+                      },
+                      { label: 'Đang xử lý', value: taskData.stats['IN_PROGRESS'] || 0, color: '#06b6d4' },
                       { label: 'Quá hạn', value: taskDonutData.find(d => d.label === 'Quá hạn')?.value || 0, color: 'var(--accent-danger)' },
                     ].map((s, i) => (
                       <div key={i} style={{ textAlign: 'center', padding: '0.6rem 0.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>

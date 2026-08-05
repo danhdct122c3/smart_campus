@@ -3,7 +3,7 @@ import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Lo
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api/users';
+const API_BASE_URL = 'https://z302xxoa9a.execute-api.ap-southeast-1.amazonaws.com/api/users';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -41,7 +41,7 @@ const Users = () => {
     setShowTaskModal(true);
     setLoadingTasks(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/users/${user.user_id}/tasks`);
+      const res = await fetch(`https://z302xxoa9a.execute-api.ap-southeast-1.amazonaws.com/api/users/${user.user_id}/tasks`);
       const json = await res.json();
       setUserTasks(json.data?.items || []);
     } catch (err) {
@@ -246,7 +246,7 @@ const Users = () => {
     setFaceSubmitting(true);
     setFaceResult(null);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/faces/register', {
+      const res = await fetch('https://z302xxoa9a.execute-api.ap-southeast-1.amazonaws.com/api/faces/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: faceUserId, image_base64: capturedImage }),

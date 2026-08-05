@@ -500,3 +500,23 @@ def get_my_analytics(
         ),
         recent_records=records[:20],
     )
+
+def get_tasks_summary(department: str | None = None) -> dict:
+    """
+    Get aggregated task statistics.
+    Returns: {"data_source": "athena", "stats": {"DONE": 10, "IN_PROGRESS": 5, ...}}
+    """
+    if repo._athena_available():
+        try:
+            records = repo.query_tasks_summary_from_athena(department)
+            stats = {r["status"]: int(r["cnt"]) for r in records}
+            return {"data_source": "athena", "stats": stats}
+        except Exception as exc:
+            pass
+            
+    # Fallback to DynamoDB
+    tasks = task_repo.list_tasks_paginated(department=department, limit=1000)[0]
+    stats = defaultdict(int)
+    for t in tasks:
+        stats[t.get("status", "UNKNOWN")] += 1
+    return {"data_source": "dynamodb", "stats": dict(stats)}

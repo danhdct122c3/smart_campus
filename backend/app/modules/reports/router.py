@@ -211,3 +211,18 @@ def get_my_analytics(
 
     data = service.get_my_analytics(user_id, period_start, period_end)
     return APIResponse.ok(data)
+
+
+@router.get(
+    "/tasks-summary",
+    summary="Thống kê trạng thái công việc (Analytics)",
+    description="Lấy thống kê trạng thái các tasks phục vụ biểu đồ Tổng quan công việc.",
+)
+def get_tasks_summary(
+    department: str = Query(
+        default=None,
+        description="Lọc theo phòng ban",
+    ),
+):
+    data = service.get_tasks_summary(department=department)
+    return APIResponse.ok(data)
