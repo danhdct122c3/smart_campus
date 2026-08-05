@@ -401,3 +401,42 @@ Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm
 - **Fix Crash React (`createPortal`):** Khắc phục lỗi màn hình trắng/đen toàn tập khi truy cập trang Tasks, nguyên nhân do hàm `createPortal` của `TaskDetailDrawer` bị thiếu tham số `document.body` (lỗi cú pháp React).
 - **UX trang Nghỉ phép (Leaves):** Đảo lại thứ tự các tab điều hướng trên trang Nghỉ phép thành: `Lịch tháng` (Mặc định) $\rightarrow$ `Chờ duyệt` (Dành cho Quản lý) $\rightarrow$ `Lịch sử của tôi` $\rightarrow$ `Ngày lễ` (Dành cho Admin), ưu tiên lịch tương tác lên đầu để tiện sử dụng.
 - **Quyền Cập nhật Task:** Khóa cứng hai trường `Loại công việc` và `Phòng ban xử lý` khi cập nhật công việc đã tạo, tránh tình trạng User hoặc Manager tự ý đổi sai luồng nghiệp vụ.
+
+---
+
+## Giai đoạn 18: Triển khai Hạ tầng Đám mây Toàn diện & Tự động hóa CI/CD (2026-08-05)
+
+Hôm nay hệ thống đã trải qua một đợt nâng cấp hạ tầng (Infrastructure) khổng lồ, chuyển mình từ một dự án Local/Dev sang môi trường Production thực thụ trên AWS.
+
+### 18.1 – Thiết lập Mạng lưới Phân phối Toàn cầu (AWS CloudFront & API Gateway)
+- **Frontend tĩnh (S3 Hosting):** Triển khai toàn bộ mã nguồn React Vite lên Amazon S3 Bucket.
+- **CloudFront CDN cho Frontend:** Cấu hình CloudFront đứng trước S3 để tăng tốc độ tải trang. Khắc phục triệt để lỗi định tuyến (Routing 404/403 của React SPA) bằng cách thiết lập **Custom Error Responses**, ép CloudFront luôn trả về `index.html` và mã HTTP 200 khi người dùng truy cập trực tiếp các đường dẫn phụ (như `/profile`, `/attendance`).
+- **CloudFront CDN cho Backend:** Tích hợp CloudFront đứng trước **API Gateway** của FastAPI. Việc này giúp Backend ẩn mình hoàn toàn, chống lại các cuộc tấn công DDoS trực tiếp và cho phép tận dụng khả năng WAF mạnh mẽ của CloudFront.
+
+### 18.2 – Đóng gói và Triển khai Backend (AWS Lambda & Amazon ECR)
+- **Container hóa Backend:** Sử dụng Docker để đóng gói toàn bộ mã nguồn FastAPI cùng với bộ thư viện (Boto3, Pydantic) thành một Container Image siêu nhẹ.
+- **Amazon ECR:** Đẩy (Push) Image lên kho lưu trữ riêng tư của AWS (Elastic Container Registry).
+- **Cấu hình AWS Lambda:** Thiết lập Lambda function chạy dựa trên Container Image vừa tạo. Tích hợp trực tiếp với API Gateway bằng cơ chế Proxy Integration để hứng và xử lý toàn bộ các HTTP Requests từ Client.
+
+### 18.3 – Cấu hình Luồng Sự kiện Phân tán (Amazon EventBridge)
+- **Kiến trúc Hướng sự kiện (Event-Driven):** Cấu hình các **Rules** trên EventBridge để lắng nghe và định tuyến (Route) các sự kiện sinh ra từ API (ví dụ: `AttendanceRecorded`, `TaskAssigned`).
+- Liên kết EventBridge với các dịch vụ đích (Targets) như AWS Lambda (Analytics Worker) và Amazon SNS (Gửi thông báo), giúp hệ thống decouple hoàn toàn các module với nhau, đảm bảo hiệu suất cực cao cho API chính.
+
+### 18.4 – Tự động hóa CI/CD Pipeline (CodePipeline & CodeBuild)
+- **Phân quyền bảo mật (IAM Roles):** Tạo mới và thiết lập chặt chẽ các IAM Roles (`CodePipelineServiceRole`, `CodeBuildServiceRole`) cấp quyền tối thiểu (Principle of Least Privilege) cho phép các dịch vụ tự động truy cập GitHub, S3, ECR và Lambda.
+- **Backend Pipeline (`buildspec-backend.yml`):**
+  - Tự động đóng gói ứng dụng FastAPI thành Docker Image.
+  - Tự động lấy chứng chỉ đăng nhập, đẩy (Push) image lên Amazon ECR.
+  - Gọi AWS CLI để cập nhật mã nguồn Lambda (`aws lambda update-function-code`), giúp cập nhật Backend mà không gây thời gian chết (Zero downtime).
+- **Frontend Pipeline (`buildspec-frontend.yml`):**
+  - Cài đặt dependency (npm) và build dự án React.
+  - Đồng bộ hóa (`aws s3 sync --delete`) thư mục `dist` lên S3 Bucket.
+  - **Tự động Invalidates Cache:** Gọi AWS CLI xóa sạch bộ nhớ đệm toàn cầu của CloudFront (`create-invalidation`) ngay lập tức để User thấy giao diện mới thay vì tải bản lưu cũ.
+
+### 18.5 – Bảo mật Hệ thống bằng AWS WAF (Web Application Firewall)
+- **WAF cho API Điểm danh:** Để chống việc nhân viên điểm danh giả mạo từ xa, ta đã thiết lập một bộ quy tắc (WebACL) và gắn vào CloudFront của Backend.
+- **Quản lý Mạng Động (Dynamic IPSet):** 
+  - Khởi tạo bảng **DynamoDB** `smart-campus-settings` lưu tên và IP mạng công ty.
+  - Cấu hình quy tắc WAF: Mọi Request tới `/api/attendance/recognize` phải xuất phát từ IP nằm trong IPSet. Nếu không, trả về lỗi `403 Forbidden` ngay ở Edge Location.
+  - **Khắc phục lỗi IPv6:** Tắt hỗ trợ IPv6 trên CloudFront vì WAF rule đang dùng IPv4, giúp IP match chính xác 100%.
+  - **Giao diện Admin UI:** Tạo giao diện trên trang `Profile.jsx` cho Admin thêm IP mạng và nút **"Áp dụng"**. Nút này gọi API Backend (sử dụng `boto3` wafv2) cập nhật IPSet lên AWS WAF ngay theo thời gian thực (Real-time). Giao diện còn thông minh nhận diện và tô màu viền xanh lá hiển thị nhãn **"Đang áp dụng"** cho mạng hiện tại.
