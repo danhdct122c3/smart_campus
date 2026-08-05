@@ -504,17 +504,10 @@ def get_my_analytics(
 def get_tasks_summary(department: str | None = None) -> dict:
     """
     Get aggregated task statistics.
-    Returns: {"data_source": "athena", "stats": {"DONE": 10, "IN_PROGRESS": 5, ...}}
+    Tasks are highly mutable OLTP data, so we ALWAYS query DynamoDB to get 
+    the real-time, accurate state (ignoring Athena Data Lake for this specific widget).
     """
-    if repo._athena_available():
-        try:
-            records = repo.query_tasks_summary_from_athena(department)
-            stats = {r["status"]: int(r["cnt"]) for r in records}
-            return {"data_source": "athena", "stats": stats}
-        except Exception as exc:
-            pass
-            
-    # Fallback to DynamoDB
+    # Always use DynamoDB for real-time task status
     tasks = task_repo.list_tasks_paginated(department=department, limit=1000)[0]
     stats = defaultdict(int)
     for t in tasks:
