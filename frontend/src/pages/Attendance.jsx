@@ -128,7 +128,11 @@ export default function Attendance() {
         setResultType('error');
       }
     } catch (e) {
-      setLastResult({ success: false, message: 'Không kết nối được backend: ' + e.message, attendance: null, user: null });
+      const isBlocked = e.message.includes('Failed to fetch') || e.message.includes('NetworkError');
+      const msg = isBlocked 
+        ? 'Bị chặn kết nối: Vui lòng kết nối vào mạng WiFi công ty để điểm danh.' 
+        : 'Không kết nối được backend: ' + e.message;
+      setLastResult({ success: false, message: msg, attendance: null, user: null });
       setResultType('error');
     } finally {
       setScanning(false);
@@ -164,7 +168,8 @@ export default function Attendance() {
         setCamError(json.message || 'Lỗi đăng ký khuôn mặt');
       }
     } catch (e) {
-      setCamError('Lỗi kết nối máy chủ: ' + e.message);
+      const isBlocked = e.message.includes('Failed to fetch') || e.message.includes('NetworkError');
+      setCamError(isBlocked ? 'Bị chặn kết nối: Vui lòng kết nối vào mạng WiFi công ty để đăng ký.' : 'Lỗi kết nối máy chủ: ' + e.message);
     } finally {
       setRegistering(false);
     }
