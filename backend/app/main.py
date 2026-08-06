@@ -94,10 +94,25 @@ app = create_app()
 # Adapter cho AWS Lambda
 from mangum import Mangum
 from app.modules.tasks.service import check_and_notify_task_deadlines
+from app.workers.analytics_worker import handler as analytics_worker_handler
+from app.workers.notification_worker import handler as notification_worker_handler
 
 mangum_handler = Mangum(app, lifespan="off")
 
 def handler(event, context):
+    # Kiểm tra nếu đây là sự kiện từ SQS
+    if "Records" in event and len(event["Records"]) > 0 and event["Records"][0].get("eventSource") == "aws:sqs":
+        sqs_arn = event["Records"][0].get("eventSourceARN", "")
+        if "analytics-queue" in sqs_arn:
+            print("Routing SQS event to Analytics Worker...")
+            return analytics_worker_handler(event, context)
+        elif "notification-queue" in sqs_arn:
+            print("Routing SQS event to Notification Worker...")
+            return notification_worker_handler(event, context)
+        else:
+            print(f"Unknown SQS queue triggered this lambda: {sqs_arn}")
+            return {"batchItemFailures": []}
+
     # Kiểm tra xem đây có phải là sự kiện hẹn giờ từ EventBridge không
     if event.get("source") == "aws.events" or event.get("source") == "smart_campus.scheduler":
         print("Bắt đầu chạy Cronjob kiểm tra task trễ hạn (EventBridge trigger)...")
