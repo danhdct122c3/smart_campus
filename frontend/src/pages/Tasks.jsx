@@ -1074,7 +1074,7 @@ export default function Tasks() {
                 currentUser={currentUser}
                 users={users}
                 onUpdateStatus={updateStatus}
-                onSubmit={() => handleOpenSubmitModal(t)}
+                onSubmit={() => handleOpenSubmitModal(task)}
                 onAddSubtask={openSubtaskModal}
                 onViewDetail={handleOpenDetailTask}
                 onEdit={handleEditTask}
