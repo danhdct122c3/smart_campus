@@ -29,6 +29,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Thêm XRayMiddleware để X-Ray bắt được Fault khi API trả về 500
+    from aws_xray_sdk.ext.starlette.middleware import XRayMiddleware
+    application.add_middleware(XRayMiddleware, app_name=settings.app_name)
+
     application.include_router(
         api_router,
         prefix="/api",
@@ -79,6 +83,16 @@ def create_app() -> FastAPI:
         """Catch-all – tránh lộ stack trace ra ngoài môi trường production."""
         import traceback
         traceback.print_exc()
+
+        try:
+            segment = xray_recorder.current_subsegment()
+            if segment:
+                segment.add_exception(exc, traceback.extract_stack())
+                segment.put_http_meta('status', 500)
+                segment.fault = True
+        except Exception:
+            pass
+
         return JSONResponse(
             status_code=500,
             content=APIResponse.error(
