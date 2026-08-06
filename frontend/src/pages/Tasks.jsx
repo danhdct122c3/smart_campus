@@ -118,7 +118,7 @@ const DateCard = ({ label, value, danger }) => (
   </div>
 );
 
-const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, onSubmit, onAddSubtask, onEdit, onDelete }) => {
+const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, onSubmit, onAddSubtask, onEdit, onDelete, aggregatedFiles, loadingAggregated }) => {
   if (!task) return null;
 
   const getUser = (id) => users.find(x => x.user_id === id) || { name: id || '—', role: '—' };
@@ -280,6 +280,45 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
                   {task.submission_note}
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* 6. Tệp nộp từ công việc con */}
+          {!task.parent_task_id && (
+            <div>
+              <SectionLabel>📦 Tệp nộp từ nhân viên (việc con)</SectionLabel>
+              {loadingAggregated ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                  <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span> Đang tải file từ các việc con...
+                </div>
+              ) : aggregatedFiles && aggregatedFiles.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {aggregatedFiles.map((url, idx) => {
+                    const filename = decodeURIComponent(url.split('/').pop().split('?')[0]);
+                    return (
+                      <a key={idx} href={url} target="_blank" rel="noreferrer" style={{
+                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+                        borderRadius: '10px', textDecoration: 'none',
+                      }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <FileText size={16} color="var(--accent-success, #10b981)" />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: '#10b981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filename || `File ${idx + 1}`}</p>
+                          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>Nộp bởi nhân viên từ việc con</p>
+                        </div>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>↗</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '10px', padding: '0.9rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                  Chưa có file nộp từ việc con nào
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -549,6 +588,28 @@ export default function Tasks() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterPriority, setFilterPriority] = useState('ALL');
   const [detailTask, setDetailTask] = useState(null); // detail drawer
+
+  const handleOpenDetailTask = (task) => {
+    setDetailTask(task);
+    setAggregatedFiles([]);
+    setSelectedAggregatedFiles([]);
+    if (!task) return;
+    // Fetch aggregated files from subtasks for parent tasks
+    if (!task.parent_task_id) {
+      setLoadingAggregated(true);
+      fetch(`${API_BASE}/tasks/${task.task_id}/aggregate-files`, {
+        headers: { 'x-user-id': currentUser.user_id }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          const files = data?.data || [];
+          setAggregatedFiles(files);
+          setSelectedAggregatedFiles(files);
+        })
+        .catch(e => console.error('Error fetching aggregated files:', e))
+        .finally(() => setLoadingAggregated(false));
+    }
+  };
 
   const [cursor, setCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
@@ -1015,7 +1076,7 @@ export default function Tasks() {
                 onUpdateStatus={updateStatus}
                 onSubmit={() => handleOpenSubmitModal(t)}
                 onAddSubtask={openSubtaskModal}
-                onViewDetail={setDetailTask}
+                onViewDetail={handleOpenDetailTask}
                 onEdit={handleEditTask}
                 onDelete={handleDeleteTask}
               />
@@ -1070,6 +1131,8 @@ export default function Tasks() {
           onUpdateStatus={(id, s) => { updateStatus(id, s); setDetailTask(null); }}
           onSubmit={t => { handleOpenSubmitModal(t); setDetailTask(null); }}
           onAddSubtask={id => { openSubtaskModal(id); setDetailTask(null); }}
+          aggregatedFiles={aggregatedFiles}
+          loadingAggregated={loadingAggregated}
         />
       )}
 
