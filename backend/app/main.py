@@ -29,10 +29,6 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Thêm XRayMiddleware để X-Ray bắt được Fault khi API trả về 500
-    from aws_xray_sdk.ext.starlette.middleware import XRayMiddleware
-    application.add_middleware(XRayMiddleware, app_name=settings.app_name)
-
     application.include_router(
         api_router,
         prefix="/api",
