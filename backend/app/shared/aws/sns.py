@@ -56,7 +56,7 @@ def publish_security_alert(topic_arn: str, incident: dict) -> str:
     )
 
 
-def publish_attendance_notification(topic_arn: str, payload: dict) -> str:
+def publish_attendance_notification(topic_arn: str, payload: dict | str) -> str:
     """Publish an attendance notification to SNS."""
     return publish_to_topic(
         topic_arn=topic_arn,

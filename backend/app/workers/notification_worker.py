@@ -65,7 +65,7 @@ def _format_message(detail_type: str, detail: dict) -> str:
 def _send_to_sns(topic_arn: str, detail_type: str, detail: dict) -> str:
     """Send a formatted notification to SNS topic."""
     message = _format_message(detail_type, detail)
-    return publish_attendance_notification(topic_arn, {"message": message, **detail})
+    return publish_attendance_notification(topic_arn, message)
 
 
 # ── Lambda Handler ─────────────────────────────────────────────────────────────
