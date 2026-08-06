@@ -419,7 +419,6 @@ export default function Attendance() {
                 </>
               )
             ) : (
-            ) : (
               !isLivenessActive && !camActive ? (
                 <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
                   <button id="btn-start-liveness" onClick={startLivenessSession} disabled={scanning} style={{
