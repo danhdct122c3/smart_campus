@@ -373,7 +373,7 @@ def get_department_comparison_stats(
         dept = u.get("department") or "OTHER"
         dept_users[dept].append(u)
 
-    raw_records = repo.query_trend_from_dynamo(period_start, period_end)
+    user_agg, _ = repo.get_user_aggregated_stats(period_start, period_end)
     tasks_data, _ = task_repo.list_tasks_paginated(limit=1000)
 
     dept_stats: list[DepartmentComparisonStat] = []
@@ -381,10 +381,14 @@ def get_department_comparison_stats(
         uids = {u.get("user_id", u.get("userId", "")) for u in ulist}
         total_u = len(ulist)
 
-        dept_records = [r for r in raw_records if (r.get("userId") or r.get("user_id", "")) in uids]
-        present = sum(1 for r in dept_records if r.get("status") == "PRESENT")
-        late = sum(1 for r in dept_records if r.get("status") == "LATE")
-        total_att = len(dept_records)
+        present = 0
+        late = 0
+        for uid in uids:
+            if uid in user_agg:
+                present += user_agg[uid].get("PRESENT", 0)
+                late += user_agg[uid].get("LATE", 0)
+        
+        total_att = present + late
         punctuality_rate = round(present / total_att * 100, 1) if total_att else 0.0
         tardiness_index = round(late / total_att * 100, 1) if total_att else 0.0
 
