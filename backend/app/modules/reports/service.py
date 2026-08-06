@@ -373,7 +373,7 @@ def get_department_comparison_stats(
         dept = u.get("department") or "OTHER"
         dept_users[dept].append(u)
 
-    raw_records, _ = repo.get_trend_records(period_start, period_end)
+    raw_records = repo.query_trend_from_dynamo(period_start, period_end)
     tasks_data, _ = task_repo.list_tasks_paginated(limit=1000)
 
     dept_stats: list[DepartmentComparisonStat] = []
