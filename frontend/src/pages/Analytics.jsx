@@ -648,7 +648,7 @@ const Analytics = () => {
             <StatCard icon={Clock} label="Đi muộn" value={`${trendTotals.late} lượt`}
               sub="check-in trễ trong kỳ" color="var(--accent-warning)" delay={0.2} />
             <StatCard icon={Users} label="Tổng nhân sự" value={summary.total_users}
-              sub={department === 'ALL' ? 'toàn hệ thống' : `phòng ${isPM ? userDept : department}`}
+              sub={(isPM ? userDept : department) === 'ALL' ? 'toàn hệ thống' : `phòng ${isPM ? userDept : department}`}
               color="var(--accent-secondary)" delay={0.3} />
           </div>
 

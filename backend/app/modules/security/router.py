@@ -95,3 +95,11 @@ def update_waf_ip(payload: UpdateWafIpRequest):
     service.update_waf_ip(payload.ip)
     return APIResponse.ok({"ip": payload.ip}, message="Đã cập nhật IP lên WAF thành công.")
 
+@router.delete(
+    "/networks/{network_id}",
+    response_model=APIResponse[dict],
+    summary="Xóa mạng",
+)
+def delete_network(network_id: str):
+    service.delete_network(network_id)
+    return APIResponse.ok({}, message="Đã xóa mạng thành công.")

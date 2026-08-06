@@ -256,3 +256,9 @@ def update_waf_ip(ip: str) -> None:
         LockToken=lock_token
     )
 
+def delete_network(network_id: str) -> None:
+    items = settings_repo.get_networks()
+    new_items = [i for i in items if i.get("id") != network_id]
+    if len(new_items) == len(items):
+        raise AppException(ErrorCode.INTERNAL_ERROR, message="Mạng không tồn tại.")
+    settings_repo.save_networks(new_items)

@@ -147,7 +147,8 @@ export default function Attendance() {
         setResultType('error');
       }
     } catch (e) {
-      setLastResult({ success: false, message: 'Lỗi kết nối Backend: ' + e.message, attendance: null, user: null });
+      const isBlocked = e.message.includes('Failed to fetch') || e.message.includes('NetworkError');
+      setLastResult({ success: false, message: isBlocked ? 'Bị chặn kết nối: Vui lòng kết nối vào mạng WiFi công ty để điểm danh.' : 'Lỗi kết nối Backend: ' + e.message, attendance: null, user: null });
       setResultType('error');
     } finally {
       setScanning(false);
@@ -341,7 +342,7 @@ export default function Attendance() {
                   borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
                 }}>
-                  <Camera size={18} /> Điểm danh)
+                  <Camera size={18} /> Điểm danh
                 </button>
               ) : (
                 <>

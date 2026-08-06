@@ -109,7 +109,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             publish_unknown_face_detected(
                 camera_id=payload.camera_id,
                 s3_key=s3_key,
-                timestamp=capture_time.isoformat(),
+                timestamp=local_time.isoformat(),
             )
         except Exception:
             pass
@@ -172,7 +172,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
         "session_type": rule.session_name,
         "status": rule.status,
         "confidence": str(confidence),
-        "timestamp": capture_time.isoformat(),
+        "timestamp": local_time.isoformat(),
         "date": date_str,
     }
     repo.save_record(item)
@@ -185,7 +185,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             camera_id=payload.camera_id,
             room_id=payload.room_id,
             status=rule.status,
-            timestamp=capture_time.isoformat(),
+            timestamp=local_time.isoformat(),
         )
     except Exception:
         pass  # Non-critical
@@ -196,7 +196,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             ses.send_attendance_email(
                 to_email=user.email,
                 user_name=user.name,
-                timestamp=capture_time.isoformat(),
+                timestamp=local_time.isoformat(),
                 room_id=payload.room_id,
                 status=rule.status,
                 session_type=rule.session_name,
