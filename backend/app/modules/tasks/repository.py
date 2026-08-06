@@ -81,43 +81,41 @@ def delete_task_in_db(task_id: str) -> bool:
 
 def delete_task_with_subtasks(task_id: str) -> bool:
     from boto3.dynamodb.conditions import Attr
-    from app.shared.aws.dynamodb import scan_items_paginated
+    from app.shared.aws.dynamodb import get_table
     
-    # 1. Delete all subtasks (loop to fetch all paginated)
-    cursor = None
+    table = get_table(TABLE)
+    
+    # 1. Delete all subtasks (handle pagination manually)
+    kwargs = {"FilterExpression": Attr("parent_task_id").eq(task_id)}
+    
     while True:
-        subtasks, next_key = scan_items_paginated(
-            TABLE, 
-            filter_expression=Attr("parent_task_id").eq(task_id), 
-            limit=50, 
-            cursor=cursor
-        )
-        for sub in subtasks:
+        response = table.scan(**kwargs)
+        for sub in response.get("Items", []):
             delete_task_in_db(sub["task_id"])
             
-        cursor = next_key
-        if not cursor:
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
             break
+        kwargs["ExclusiveStartKey"] = last_key
             
     # 2. Delete the parent task
     return delete_task_in_db(task_id)
 
 def get_all_subtasks(parent_task_id: str) -> list[dict]:
     from boto3.dynamodb.conditions import Attr
-    from app.shared.aws.dynamodb import scan_items_paginated
+    from app.shared.aws.dynamodb import get_table
     
+    table = get_table(TABLE)
     all_subtasks = []
-    cursor = None
+    kwargs = {"FilterExpression": Attr("parent_task_id").eq(parent_task_id)}
+    
     while True:
-        subtasks, next_key = scan_items_paginated(
-            TABLE, 
-            filter_expression=Attr("parent_task_id").eq(parent_task_id), 
-            limit=50, 
-            cursor=cursor
-        )
-        all_subtasks.extend(subtasks)
-        cursor = next_key
-        if not cursor:
+        response = table.scan(**kwargs)
+        all_subtasks.extend(response.get("Items", []))
+        
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
             break
+        kwargs["ExclusiveStartKey"] = last_key
             
     return all_subtasks
