@@ -65,7 +65,7 @@ export default function Attendance() {
   const fetchHistory = useCallback(async () => {
     setLoadingHist(true);
     try {
-      const res = await fetch(`${API_BASE}/attendance/history?date=${todayStr}`);
+      const res = await fetch(`${API_BASE}/attendance?date=${todayStr}`);
       if (res.ok) {
         const json = await res.json();
         setHistory(json.data || []);
