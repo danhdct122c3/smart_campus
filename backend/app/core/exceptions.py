@@ -34,8 +34,11 @@ class ErrorCode(Enum):
     ATTENDANCE_INVALID_TIMESTAMP= ("ATTEND_005", status.HTTP_400_BAD_REQUEST, "Định dạng timestamp không hợp lệ. Sử dụng ISO-8601 (VD: 2026-07-06T09:00:00Z).")
     ATTENDANCE_MISSING_FILTER   = ("ATTEND_006", status.HTTP_400_BAD_REQUEST, "Vui lòng cung cấp ít nhất một trong hai tham số: user_id hoặc date.")
 
-    # ── Reports ────────────────────────────────────────────────────────────────
+    # ── Reports ──────────────────────────────────────────────────────────────────────
     REPORT_INVALID_DATE_RANGE   = ("REPORT_001", status.HTTP_400_BAD_REQUEST, "Khoảng thời gian báo cáo không hợp lệ.")
+
+    # ── Tasks ────────────────────────────────────────────────────────────────────────
+    TASK_NOT_FOUND              = ("TASK_001", status.HTTP_404_NOT_FOUND, "Không tìm thấy công việc.")
 
     # ── AWS / System ───────────────────────────────────────────────────────────
     AWS_REKOGNITION_ERROR   = ("AWS_001", status.HTTP_503_SERVICE_UNAVAILABLE, "Lỗi dịch vụ Rekognition.")

@@ -327,7 +327,7 @@ def delete_task(task_id: str, user_id: str) -> bool:
         
     existing = repo.get_task(task_id)
     if not existing:
-        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
+        raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
 
     is_admin = current_user.get("role") == "ADMIN"
     is_reporter = current_user.get("user_id") == existing.get("reporter_id")
@@ -348,7 +348,7 @@ def delete_task(task_id: str, user_id: str) -> bool:
             )
             return True
         else:
-            raise AppException(ErrorCode.BAD_REQUEST, message="Không thể hủy công việc đã bắt đầu thực hiện")
+            raise AppException(ErrorCode.FORBIDDEN, message="Không thể hủy công việc đã bắt đầu thực hiện")
     else:
         raise AppException(ErrorCode.FORBIDDEN, message="Bạn không có quyền xóa công việc này")
 
