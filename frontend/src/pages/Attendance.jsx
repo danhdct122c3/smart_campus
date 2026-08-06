@@ -62,6 +62,25 @@ export default function Attendance() {
   // today string
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const fetchHistory = useCallback(async () => {
+    setLoadingHist(true);
+    try {
+      const res = await fetch(`${API_BASE}/attendance/history?date=${todayStr}`);
+      if (res.ok) {
+        const json = await res.json();
+        setHistory(json.data || []);
+      }
+    } catch (e) {
+      console.error('Fetch history error:', e);
+    } finally {
+      setLoadingHist(false);
+    }
+  }, [todayStr]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
   // Liveness session state
   const [livenessSessionId, setLivenessSessionId] = useState(null);
   const [isLivenessActive, setIsLivenessActive] = useState(false);
