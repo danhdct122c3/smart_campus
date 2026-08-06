@@ -40,6 +40,10 @@ _TEMPLATES: dict[NotificationEventType, dict] = {
         "subject": "[Smart Campus] Yêu cầu nghỉ/WFH của bạn đã được duyệt",
         "message": "Đơn xin {leave_type} từ ngày {date_from} đến {date_to} của bạn đã được phê duyệt thành công.",
     },
+    NotificationEventType.WFH_REQUEST_SUBMITTED: {
+        "subject": "[Smart Campus] Thông báo",
+        "message": "Đơn xin {leave_type} của {requester_name} từ ngày {date_from} đến {date_to} đã được gửi. Ghi chú: {reason}",
+    },
     NotificationEventType.ATTENDANCE_RECORDED: {
         "subject": "[Smart Campus] Điểm danh thành công",
         "message": "Bạn đã được ghi nhận điểm danh lúc {timestamp} tại phòng {room_id}. Trạng thái: {status}.",

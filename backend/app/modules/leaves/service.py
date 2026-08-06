@@ -115,17 +115,31 @@ def submit_leave_request(payload: LeaveRequestCreate) -> LeaveRecord:
     item = {k: v for k, v in item.items() if v is not None}
     repo.save_leave(item)
 
+    # Thông báo cho người gửi (requester)
+    try:
+        _notify(payload.user_id, "WFH_REQUEST_SUBMITTED", {
+            "requester_name": "Bạn",
+            "leave_type": payload.leave_type.value,
+            "date_from": payload.date_from,
+            "date_to": payload.date_to,
+            "reason": payload.reason or "Không có",
+        })
+    except Exception:
+        pass
+
     # Thông báo cho Manager phòng ban
     try:
         from app.modules.users.repository import list_users
         managers, _ = list_users(role="MANAGER")
+        # Thêm thông báo cho ADMIN (tùy chọn, hiện tại chỉ gửi cho MANAGER cùng phòng ban)
         for m in managers:
-            if m.get("department") == department:
+            if m.get("department") == department and m.get("user_id") != payload.user_id:
                 _notify(m["user_id"], "WFH_REQUEST_SUBMITTED", {
                     "requester_name": user.get("name", payload.user_id) if user else payload.user_id,
                     "leave_type": payload.leave_type.value,
                     "date_from": payload.date_from,
                     "date_to": payload.date_to,
+                    "reason": payload.reason or "Không có",
                 })
     except Exception:
         pass
