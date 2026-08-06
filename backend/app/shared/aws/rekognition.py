@@ -132,3 +132,31 @@ def delete_face(face_id: str) -> bool:
         return True
     except ClientError as exc:
         raise RekognitionError(str(exc)) from exc
+
+
+def create_face_liveness_session() -> str:
+    """
+    Create a new Face Liveness Session.
+    Returns the SessionId.
+    """
+    client = get_rekognition_client()
+    try:
+        response = client.create_face_liveness_session()
+        return response.get("SessionId")
+    except ClientError as exc:
+        raise RekognitionError(str(exc)) from exc
+
+
+def get_face_liveness_session_results(session_id: str) -> dict:
+    """
+    Retrieve results of a Face Liveness Session.
+    Returns a dict containing 'Confidence' and 'ReferenceImage'.
+    """
+    client = get_rekognition_client()
+    try:
+        response = client.get_face_liveness_session_results(
+            SessionId=session_id
+        )
+        return response
+    except ClientError as exc:
+        raise RekognitionError(str(exc)) from exc

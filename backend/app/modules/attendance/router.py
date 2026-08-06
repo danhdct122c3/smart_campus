@@ -9,10 +9,42 @@ from .schemas import (
     AttendanceRecognizeRequest,
     AttendanceRecognizeResponse,
     AttendanceListResponse,
+    LivenessSessionResponse,
+    LivenessRecognizeRequest,
 )
 from . import service
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
+
+
+@router.get(
+    "/liveness/session",
+    response_model=APIResponse[LivenessSessionResponse],
+    status_code=200,
+    summary="Tạo phiên kiểm tra Liveness",
+)
+def create_liveness_session():
+    from app.shared.aws.rekognition import create_face_liveness_session
+    session_id = create_face_liveness_session()
+    data = LivenessSessionResponse(session_id=session_id)
+    return APIResponse.ok(data)
+
+
+@router.post(
+    "/liveness/recognize",
+    response_model=APIResponse[AttendanceRecognizeResponse],
+    status_code=200,
+    summary="Điểm danh qua kết quả Face Liveness",
+)
+def recognize_liveness(payload: LivenessRecognizeRequest):
+    data = service.recognize_liveness_and_record(
+        session_id=payload.session_id,
+        camera_id=payload.camera_id,
+        room_id=payload.room_id,
+        timestamp_str=payload.timestamp
+    )
+    return APIResponse.ok(data)
+
 
 
 @router.post(

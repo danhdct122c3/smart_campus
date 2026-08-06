@@ -68,7 +68,49 @@ def _decode_image(image_base64: str) -> bytes:
     return data
 
 
+def recognize_liveness_and_record(session_id: str, camera_id: str, room_id: str, timestamp_str: str = None) -> AttendanceRecognizeResponse:
+    """Execute Workflow 3 via Face Liveness result."""
+    from app.shared.aws.rekognition import get_face_liveness_session_results
+    
+    # Get Liveness Result
+    try:
+        liveness_res = get_face_liveness_session_results(session_id)
+    except Exception as exc:
+        raise AppException(
+            ErrorCode.AWS_REKOGNITION_ERROR,
+            message=f"Lỗi kiểm tra Liveness Session: {exc}"
+        )
+    
+    confidence = liveness_res.get("Confidence", 0)
+    if confidence < 90.0:
+        raise AppException(
+            ErrorCode.VALIDATION_ERROR,
+            message=f"Phát hiện rủi ro gian lận (Liveness Confidence: {confidence:.2f}%). Điểm danh bị từ chối."
+        )
+    
+    ref_image_info = liveness_res.get("ReferenceImage")
+    if not ref_image_info or "Bytes" not in ref_image_info:
+        raise AppException(
+            ErrorCode.VALIDATION_ERROR,
+            message="Không tìm thấy khuôn mặt hợp lệ trong video liveness."
+        )
+    
+    # Convert ReferenceImage (bytes) to base64 to reuse recognize_and_record
+    # or just reuse recognize_and_record directly but it expects base64
+    image_bytes = ref_image_info["Bytes"]
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    
+    payload = AttendanceRecognizeRequest(
+        camera_id=camera_id,
+        room_id=room_id,
+        image_base64=image_b64,
+        timestamp=timestamp_str
+    )
+    return recognize_and_record(payload)
+
+
 def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecognizeResponse:
+
     """Execute Workflow 3 end-to-end."""
 
     # ── Step 3: Validate ──────────────────────────────────────────────────────

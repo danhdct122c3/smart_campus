@@ -64,3 +64,18 @@ class AttendanceQueryParams(BaseModel):
     date: Optional[str] = None          # YYYY-MM-DD
     room_id: Optional[str] = None
     status: Optional[AttendanceStatus] = None
+
+
+class LivenessSessionResponse(BaseModel):
+    session_id: str
+
+
+class LivenessRecognizeRequest(BaseModel):
+    """Payload sent by frontend after completing Face Liveness."""
+    session_id: str = Field(..., description="The Liveness Session ID")
+    camera_id: str = Field(..., description="Unique ID of the registered camera/kiosk")
+    room_id: str = Field(..., description="Room or location identifier")
+    timestamp: Optional[str] = Field(
+        None,
+        description="ISO-8601 timestamp of the capture (defaults to server time)",
+    )
