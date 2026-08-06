@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield } from 'lucide-react';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
+import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
 
 const API_BASE = 'https://d2utvhhrx300xg.cloudfront.net/api';
 const CAMERA_ID = 'CAM-MAIN-001';
@@ -59,8 +60,6 @@ export default function Attendance() {
 
   // today string
   const todayStr = new Date().toISOString().split('T')[0];
-
-import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
 
   // Liveness session state
   const [livenessSessionId, setLivenessSessionId] = useState(null);
