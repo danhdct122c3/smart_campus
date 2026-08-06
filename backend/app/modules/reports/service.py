@@ -385,7 +385,7 @@ def get_department_comparison_stats(
         present = sum(1 for r in dept_records if r.get("status") == "PRESENT")
         late = sum(1 for r in dept_records if r.get("status") == "LATE")
         total_att = len(dept_records)
-        punctuality_rate = round(present / total_att * 100, 1) if total_att else 100.0
+        punctuality_rate = round(present / total_att * 100, 1) if total_att else 0.0
         tardiness_index = round(late / total_att * 100, 1) if total_att else 0.0
 
         dept_tasks = [
@@ -393,8 +393,8 @@ def get_department_comparison_stats(
             if t.get("assignee_id") in uids or t.get("department") == dept
         ]
         total_tasks = len(dept_tasks)
-        done_tasks = sum(1 for t in dept_tasks if t.get("status") in ("DONE", "RESOLVED"))
-        task_completion_rate = round(done_tasks / total_tasks * 100, 1) if total_tasks else 100.0
+        done_tasks = sum(1 for t in dept_tasks if t.get("status") == "COMPLETED")
+        task_completion_rate = round(done_tasks / total_tasks * 100, 1) if total_tasks else 0.0
 
         if punctuality_rate >= 92.0 and tardiness_index <= 10.0:
             eval_status = "EXCELLENT"
