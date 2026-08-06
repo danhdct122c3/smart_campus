@@ -74,45 +74,53 @@ def handler(event: dict, context) -> dict:
     """
     AWS Lambda entry point for Notification Worker.
 
-    EventBridge invokes this Lambda with:
-    {
-        "source": "smart-campus.api",
-        "detail-type": "AttendanceRecorded",
-        "detail": { ... }
-    }
+    SQS invokes this Lambda with a batch of messages.
     """
-    detail_type = event.get("detail-type", "")
-    detail = event.get("detail", {})
-
-    logger.info("NotificationWorker received: %s", detail_type)
+    records = event.get("Records", [])
+    logger.info("NotificationWorker (SQS) received %d records", len(records))
 
     topic_arn = settings.notification_topic_arn
     if not topic_arn:
         logger.warning("NOTIFICATION_TOPIC_ARN not configured – skipping SNS publish.")
-        return {"status": "skipped", "reason": "no_topic_arn"}
+        # If no topic ARN, we effectively skip everything, no failures.
+        return {"batchItemFailures": []}
 
-    try:
-        message_id = _send_to_sns(topic_arn, detail_type, detail)
-        logger.info("Notification sent. MessageId=%s", message_id)
+    failed_message_ids = []
 
-        # Publish NotificationSent event (for audit trail)
-        publish_event(
-            detail_type="NotificationSent",
-            detail={"snsMessageId": message_id, "originalEvent": detail_type},
-        )
-
-        return {"status": "sent", "messageId": message_id}
-
-    except Exception as exc:
-        logger.error("Failed to send notification: %s", exc, exc_info=True)
-
-        # Publish NotificationFailed event
+    for record in records:
+        sqs_message_id = record.get("messageId")
         try:
-            publish_event(
-                detail_type="NotificationFailed",
-                detail={"error": str(exc), "originalEvent": detail_type},
-            )
-        except Exception:
-            pass
+            # EventBridge payload is embedded in the SQS body
+            body_str = record.get("body", "{}")
+            eb_event = json.loads(body_str)
 
-        raise  # Re-raise so Lambda retries / sends to DLQ
+            detail_type = eb_event.get("detail-type", "")
+            detail = eb_event.get("detail", {})
+
+            logger.info("Processing SQS message %s: %s", sqs_message_id, detail_type)
+
+            sns_message_id = _send_to_sns(topic_arn, detail_type, detail)
+            logger.info("Notification sent for SQS msg %s. SNS_MessageId=%s", sqs_message_id, sns_message_id)
+
+            # Publish NotificationSent event (for audit trail)
+            publish_event(
+                detail_type="NotificationSent",
+                detail={"snsMessageId": sns_message_id, "originalEvent": detail_type},
+            )
+
+        except Exception as exc:
+            logger.error("Failed to process message %s: %s", sqs_message_id, exc, exc_info=True)
+            failed_message_ids.append(sqs_message_id)
+            
+            # Publish NotificationFailed event
+            try:
+                publish_event(
+                    detail_type="NotificationFailed",
+                    detail={"error": str(exc), "originalEvent": detail_type},
+                )
+            except Exception:
+                pass
+
+    return {
+        "batchItemFailures": [{"itemIdentifier": msg_id} for msg_id in failed_message_ids]
+    }
