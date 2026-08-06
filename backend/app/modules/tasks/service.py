@@ -477,3 +477,31 @@ def check_and_notify_task_deadlines() -> dict:
             } for t in overdue_tasks
         ]
     }
+
+def get_aggregated_submission_files(parent_task_id: str) -> list[str]:
+    """Retrieve all submission files from COMPLETED or DONE subtasks of a parent task."""
+    subtasks = repo.get_all_subtasks(parent_task_id)
+    files = []
+    for sub in subtasks:
+        if sub.get("status") in ["COMPLETED", "DONE"]:
+            sub_files = sub.get("submission_file_urls") or []
+            # We want the original unsigned url or the signed one? 
+            # Subtasks submission_file_urls are stored as S3 URLs or signed URLs? 
+            # In DB they are stored as original keys if uploaded via upload-url.
+            # We should just return the raw URLs from the DB. They will be signed when returned in the final task, or we can sign them here so they can be previewed on the frontend.
+            # But the frontend will submit them back in the PATCH request. 
+            # If they are signed, submitting them back as signed URLs will cause double-signing later or DB pollution.
+            # Wait, in item_to_record we sign URLs. Let's look at how file_urls is handled.
+            # We should return the RAW URLs (the ones in the DB) so the frontend can submit them back, and then we'll sign them in the UI.
+            # Actually, frontend doesn't need to preview them in the submit modal, just see names.
+            # Let's return RAW URLs.
+            for url in sub_files:
+                if url and url not in files:
+                    files.append(url)
+                    
+            # also check the single string field if any
+            sub_file = sub.get("submission_file_url")
+            if sub_file and sub_file not in files:
+                files.append(sub_file)
+                
+    return files

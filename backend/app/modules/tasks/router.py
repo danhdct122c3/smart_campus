@@ -60,6 +60,11 @@ def delete_task(task_id: str = Path(...), x_user_id: str = Header(...)):
     service.delete_task(task_id, x_user_id)
     return APIResponse.ok({"message": "Task deleted successfully"})
 
+@router.get("/{task_id}/aggregate-files", response_model=APIResponse[list[str]], summary="Get aggregated files from subtasks")
+def get_aggregated_files(task_id: str = Path(...)):
+    files = service.get_aggregated_submission_files(task_id)
+    return APIResponse.ok(files)
+
 class PresignedUrlRequest(BaseModel):
     file_name: str
     file_type: str

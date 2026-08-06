@@ -101,3 +101,23 @@ def delete_task_with_subtasks(task_id: str) -> bool:
             
     # 2. Delete the parent task
     return delete_task_in_db(task_id)
+
+def get_all_subtasks(parent_task_id: str) -> list[dict]:
+    from boto3.dynamodb.conditions import Attr
+    from app.shared.aws.dynamodb import scan_items_paginated
+    
+    all_subtasks = []
+    cursor = None
+    while True:
+        subtasks, next_key = scan_items_paginated(
+            TABLE, 
+            filter_expression=Attr("parent_task_id").eq(parent_task_id), 
+            limit=50, 
+            cursor=cursor
+        )
+        all_subtasks.extend(subtasks)
+        cursor = next_key
+        if not cursor:
+            break
+            
+    return all_subtasks

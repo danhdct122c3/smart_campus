@@ -565,6 +565,9 @@ export default function Tasks() {
   // Submit modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [taskToSubmit, setTaskToSubmit] = useState(null);
+  const [aggregatedFiles, setAggregatedFiles] = useState([]);
+  const [selectedAggregatedFiles, setSelectedAggregatedFiles] = useState([]);
+  const [loadingAggregated, setLoadingAggregated] = useState(false);
   const [submissionFiles, setSubmissionFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submissionNote, setSubmissionNote] = useState('');
@@ -743,6 +746,42 @@ export default function Tasks() {
     } catch (e) { console.error(e); }
   };
 
+  const handleOpenSubmitModal = async (task) => {
+    setTaskToSubmit(task);
+    
+    const pendingSubs = tasks.filter(t => t.parent_task_id === task.task_id && !['IN_REVIEW', 'COMPLETED', 'DONE'].includes(t.status));
+    if (pendingSubs.length > 0) {
+      return showToast('Bạn phải hoàn thành/nộp tất cả công việc con trước khi nộp công việc chính.');
+    }
+
+    setShowSubmitModal(true);
+    setDetailTask(null);
+    setSubmissionFiles([]);
+    setSubmissionNote('');
+    setAggregatedFiles([]);
+    setSelectedAggregatedFiles([]);
+
+    const hasCompletedSubs = tasks.some(t => t.parent_task_id === task.task_id && ['COMPLETED', 'DONE'].includes(t.status));
+    if (hasCompletedSubs) {
+      setLoadingAggregated(true);
+      try {
+        const res = await fetch(`${API_BASE}/tasks/${task.task_id}/aggregate-files`, {
+          headers: { 'x-user-id': currentUser.user_id }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const files = data.data || [];
+          setAggregatedFiles(files);
+          setSelectedAggregatedFiles(files); // Check all by default
+        }
+      } catch (e) {
+        console.error('Error fetching aggregated files:', e);
+      } finally {
+        setLoadingAggregated(false);
+      }
+    }
+  };
+
   const handleSubmitTask = async () => {
     if (!taskToSubmit) return;
     
@@ -771,7 +810,7 @@ export default function Tasks() {
       const res = await fetch(`${API_BASE}/tasks/${taskToSubmit.task_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
-        body: JSON.stringify({ status: 'IN_REVIEW', submission_file_urls: finalFileUrls, submission_note: submissionNote })
+        body: JSON.stringify({ status: 'IN_REVIEW', submission_file_urls: [...finalFileUrls, ...selectedAggregatedFiles], submission_note: submissionNote })
       });
       if (res.ok) { 
         setShowSubmitModal(false); 
@@ -974,7 +1013,7 @@ export default function Tasks() {
                 currentUser={currentUser}
                 users={users}
                 onUpdateStatus={updateStatus}
-                onSubmit={t => { setTaskToSubmit(t); setShowSubmitModal(true); }}
+                onSubmit={() => handleOpenSubmitModal(t)}
                 onAddSubtask={openSubtaskModal}
                 onViewDetail={setDetailTask}
                 onEdit={handleEditTask}
@@ -1029,7 +1068,7 @@ export default function Tasks() {
           currentUser={currentUser}
           onClose={() => setDetailTask(null)}
           onUpdateStatus={(id, s) => { updateStatus(id, s); setDetailTask(null); }}
-          onSubmit={t => { setTaskToSubmit(t); setShowSubmitModal(true); setDetailTask(null); }}
+          onSubmit={t => { handleOpenSubmitModal(t); setDetailTask(null); }}
           onAddSubtask={id => { openSubtaskModal(id); setDetailTask(null); }}
         />
       )}
@@ -1292,6 +1331,45 @@ export default function Tasks() {
                 </label>
               )}
             </div>
+
+            {/* Aggregated files from subtasks */}
+            {loadingAggregated ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang tải file từ các công việc con...
+              </div>
+            ) : aggregatedFiles && aggregatedFiles.length > 0 ? (
+              <div>
+                <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', display: 'block' }}>
+                  Các file đính kèm từ Nhân viên (công việc con)
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '0.3rem' }}>
+                  {aggregatedFiles.map((url, idx) => {
+                    const filename = url.split('/').pop().split('?')[0];
+                    const isSelected = selectedAggregatedFiles.includes(url);
+                    return (
+                      <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedAggregatedFiles([...selectedAggregatedFiles, url]);
+                            } else {
+                              setSelectedAggregatedFiles(selectedAggregatedFiles.filter(u => u !== url));
+                            }
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <FileText size={16} color="var(--accent-primary)" />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                          {filename}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             {/* Note textarea */}
             <div>
