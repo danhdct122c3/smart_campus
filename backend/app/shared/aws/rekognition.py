@@ -139,7 +139,7 @@ def create_face_liveness_session() -> str:
     Create a new Face Liveness Session.
     Returns the SessionId.
     """
-    client = get_rekognition_client()
+    client = boto3.client("rekognition", region_name="us-east-1")
     try:
         response = client.create_face_liveness_session()
         return response.get("SessionId")
@@ -152,7 +152,7 @@ def get_face_liveness_session_results(session_id: str) -> dict:
     Retrieve results of a Face Liveness Session.
     Returns a dict containing 'Confidence' and 'ReferenceImage'.
     """
-    client = get_rekognition_client()
+    client = boto3.client("rekognition", region_name="us-east-1")
     try:
         response = client.get_face_liveness_session_results(
             SessionId=session_id
