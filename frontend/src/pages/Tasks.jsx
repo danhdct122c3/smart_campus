@@ -589,28 +589,6 @@ export default function Tasks() {
   const [filterPriority, setFilterPriority] = useState('ALL');
   const [detailTask, setDetailTask] = useState(null); // detail drawer
 
-  const handleOpenDetailTask = (task) => {
-    setDetailTask(task);
-    setAggregatedFiles([]);
-    setSelectedAggregatedFiles([]);
-    if (!task) return;
-    // Fetch aggregated files from subtasks for parent tasks
-    if (!task.parent_task_id) {
-      setLoadingAggregated(true);
-      fetch(`${API_BASE}/tasks/${task.task_id}/aggregate-files`, {
-        headers: { 'x-user-id': currentUser.user_id }
-      })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          const files = data?.data || [];
-          setAggregatedFiles(files);
-          setSelectedAggregatedFiles(files);
-        })
-        .catch(e => console.error('Error fetching aggregated files:', e))
-        .finally(() => setLoadingAggregated(false));
-    }
-  };
-
   const [cursor, setCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -634,6 +612,28 @@ export default function Tasks() {
   const [submissionNote, setSubmissionNote] = useState('');
 
   const [toast, setToast] = useState(null);
+
+  const handleOpenDetailTask = (task) => {
+    setDetailTask(task);
+    setAggregatedFiles([]);
+    setSelectedAggregatedFiles([]);
+    if (!task) return;
+    if (!task.parent_task_id) {
+      setLoadingAggregated(true);
+      fetch(`${API_BASE}/tasks/${task.task_id}/aggregate-files`, {
+        headers: { 'x-user-id': currentUser.user_id }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          const files = data?.data || [];
+          setAggregatedFiles(files);
+          setSelectedAggregatedFiles(files);
+        })
+        .catch(e => console.error('Error fetching aggregated files:', e))
+        .finally(() => setLoadingAggregated(false));
+    }
+  };
+
   const showToast = (message, type = 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
