@@ -64,7 +64,7 @@ export default function Attendance() {
   const fetchHistory = useCallback(async () => {
     setLoadingHist(true);
     try {
-      const res = await fetch(`${API_BASE}/attendance?date=${todayStr}`);
+      const res = await fetch(`${API_BASE}/attendance?date=${todayStr}&user_id=${currentUser?.user_id || ''}`);
       if (res.ok) {
         const json = await res.json();
         setHistory(json.data?.items || []);
@@ -74,7 +74,7 @@ export default function Attendance() {
     } finally {
       setLoadingHist(false);
     }
-  }, [todayStr]);
+  }, [todayStr, currentUser]);
 
   useEffect(() => {
     fetchHistory();
