@@ -401,3 +401,35 @@ Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm
 - **Fix Crash React (`createPortal`):** Khắc phục lỗi màn hình trắng/đen toàn tập khi truy cập trang Tasks, nguyên nhân do hàm `createPortal` của `TaskDetailDrawer` bị thiếu tham số `document.body` (lỗi cú pháp React).
 - **UX trang Nghỉ phép (Leaves):** Đảo lại thứ tự các tab điều hướng trên trang Nghỉ phép thành: `Lịch tháng` (Mặc định) $\rightarrow$ `Chờ duyệt` (Dành cho Quản lý) $\rightarrow$ `Lịch sử của tôi` $\rightarrow$ `Ngày lễ` (Dành cho Admin), ưu tiên lịch tương tác lên đầu để tiện sử dụng.
 - **Quyền Cập nhật Task:** Khóa cứng hai trường `Loại công việc` và `Phòng ban xử lý` khi cập nhật công việc đã tạo, tránh tình trạng User hoặc Manager tự ý đổi sai luồng nghiệp vụ.
+
+---
+
+## Giai đoạn 18: Tích hợp Hệ thống Giám sát & Báo động (Monitoring & Observability) (2026-08-06)
+
+### 18.1 – Truy vết Hệ thống bằng AWS X-Ray (Tracing)
+- **Tích hợp AWS X-Ray SDK:** Thêm thư viện `aws-xray-sdk` vào `requirements.txt` để hỗ trợ truy vết các luồng API.
+- **Theo dõi Tự động (Auto-Patching):** Gọi hàm `patch_all()` trong `main.py` để X-Ray tự động "bám" vào thư viện `boto3`. Nhờ đó, tất cả các request giao tiếp từ Lambda sang DynamoDB, Rekognition, S3... đều được vẽ lên biểu đồ mạng nhện (Service Map) với tốc độ mili-giây rất trực quan.
+- **Fix Bug Xung đột Segment (Lỗi 500 Lambda):**
+  - **Vấn đề:** Khi deploy lên AWS, toàn bộ hệ thống bị sập với lỗi 500 Internal Server Error.
+  - **Nguyên nhân gốc:** FastAPI sử dụng `XRayMiddleware` cố tạo ra một "Segment" mới cho mỗi request. Tuy nhiên, môi trường thực thi của AWS Lambda đã tự tạo sẵn một root Segment. Việc tạo đè lên khiến X-Ray SDK văng Exception.
+  - **Giải pháp:** Gỡ bỏ hoàn toàn `XRayMiddleware` khỏi FastAPI khi chạy trên Lambda, chỉ giữ lại `patch_all()`. Các subsegment gọi `boto3` sẽ tự động bám vào root Segment mặc định của Lambda.
+
+### 18.2 – Thiết lập Cảnh báo Tự động (CloudWatch Alarms + SNS)
+- **Thiết lập Metric giám sát:** Cấu hình CloudWatch Alarm theo dõi chỉ số `Errors` (Lỗi 5xx/Crash hệ thống) của hàm Lambda `smart-campus-api`.
+- **Tích hợp Kênh thông báo khẩn cấp:** Liên kết Alarm với danh sách nhận thông báo **Amazon SNS** (`smart-campus-notifications`). Khi Lambda văng lỗi nghiêm trọng (vd: đứt kết nối DB), hệ thống sẽ gửi Email cảnh báo trực tiếp về hòm thư của Admin trong vòng chưa tới 5 phút.
+- **Tối ưu hóa Báo động (Alerting Best Practices):** Thống nhất kiến trúc chỉ báo động qua Email đối với lỗi hệ thống (5xx) được ghi nhận ở Lambda. Còn các lỗi thao tác của người dùng (4xx như sai mật khẩu, thiếu dữ liệu) thì hệ thống chủ động bắt và bỏ qua, không kích hoạt báo động sai (False Alarm).
+
+---
+
+## Giai đoạn 19: Nâng cấp Độ tin cậy (Reliability Upgrade) với Amazon SQS (2026-08-06)
+
+### 19.1 – Triển khai Kiến trúc Hàng đợi (Message Queue)
+- **Vấn đề:** Ban đầu hệ thống sử dụng **Amazon EventBridge** đẩy thẳng sự kiện điểm danh (AttendanceRecorded) trực tiếp vào Lambda (Worker). Kiến trúc này gặp rủi ro nếu có hàng ngàn sinh viên điểm danh cùng một lúc (Spike Traffic) hoặc khi Lambda/Database gặp lỗi kết nối, sự kiện sẽ bị EventBridge Drop (đánh rơi) dẫn đến mất mát dữ liệu điểm danh.
+- **Giải pháp:** Chèn **Amazon SQS (Simple Queue Service)** vào giữa luồng EventBridge và Lambda làm bộ đệm (Buffer). Hệ thống tạo ra 2 Hàng đợi chính (`smart-campus-analytics-queue` và `smart-campus-notification-queue`) cùng với 1 Thùng rác lỗi (`smart-campus-dlq`). Mọi sự kiện điểm danh sẽ nằm xếp hàng trong SQS và Lambda sẽ từ từ kéo về xử lý (Pull Model), đảm bảo hệ thống không bao giờ bị nghẽn mạng hay sập nguồn. Dữ liệu lỗi sẽ tự động tống vào DLQ để kỹ sư kiểm tra lại.
+
+### 19.2 – Tối ưu hóa Backend (Partial Batch Response)
+- **Thay đổi định dạng dữ liệu (Data Payload):** Cập nhật toàn bộ các file Worker (`analytics_worker.py` và `notification_worker.py`) để nhận biết và xử lý mảng `Records` thay vì 1 JSON object đơn lẻ như trước kia.
+- **Xử lý Partial Batch Failures (Chuẩn Enterprise):**
+  - Cấu hình SQS gộp 10 sự kiện vào thành 1 lô (Batch size = 10) để tiết kiệm tài nguyên Lambda.
+  - Tích hợp kỹ thuật **Report batch item failures**. Trong 1 lô 10 sự kiện, nếu có 1 sự kiện bị lỗi mã code, hàm Lambda sẽ trả về ID của duy nhất 1 sự kiện đó (`batchItemFailures`). SQS sẽ chỉ gửi lại đúng 1 sự kiện lỗi đó để thử lại, 9 sự kiện thành công còn lại sẽ bị xóa khỏi hàng đợi. Cơ chế này loại bỏ hoàn toàn rủi ro gửi nhầm 1 thông báo/email lặp lại 10 lần.
+- **Xây dựng Router Trung chuyển:** Tái cấu trúc hàm Handler gốc trong `app/main.py`. Hàm này giờ đóng vai trò phân luồng thông minh: Nhận diện sự kiện API Request thì đưa vào FastAPI Mangum, nhận diện Cronjob thì kích hoạt Rule Check, và nhận diện sự kiện đến từ SQS thì định tuyến chính xác vào các hàm Worker tương ứng, giúp toàn bộ hệ thống Backend chạy trơn tru bên trong 1 hàm Lambda `smart-campus-api` duy nhất (Monolith pattern).
