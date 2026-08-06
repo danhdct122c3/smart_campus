@@ -172,6 +172,57 @@ export default function Attendance() {
     }
   };
 
+  const captureAndRecognize = useCallback(async () => {
+    if (!videoRef.current || scanning) return;
+    setScanning(true);
+    setCamError('');
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = videoRef.current.videoWidth  || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.getContext('2d').drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+    try {
+      const res = await fetch(`${API_BASE}/attendance/recognize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: imageBase64,
+          camera_id: CAMERA_ID,
+          room_id: ROOM_ID,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        const data = json.data;
+        if (data.success) {
+          let userInfo = null;
+          try {
+            const ur = await fetch(`${API_BASE}/users/${data.attendance?.user_id}`);
+            if (ur.ok) { const uj = await ur.json(); userInfo = uj.data; }
+          } catch {}
+          setLastResult({ ...data, user: userInfo });
+          setResultType(data.attendance?.is_duplicate ? 'warning' : 'success');
+          fetchHistory();
+        } else {
+          setLastResult({ ...data, user: null });
+          setResultType('warning');
+        }
+      } else {
+        const msg = json.message || 'Lỗi nhận diện';
+        setLastResult({ success: false, message: msg, attendance: null, user: null });
+        setResultType('error');
+      }
+    } catch (e) {
+      setLastResult({ success: false, message: 'Lỗi kết nối Backend: ' + e.message, attendance: null, user: null });
+      setResultType('error');
+    } finally {
+      setScanning(false);
+    }
+  }, [scanning]);
+
   const captureAndRegister = useCallback(async () => {
     if (!videoRef.current || registering) return;
     setRegistering(true);
@@ -368,16 +419,26 @@ export default function Attendance() {
                 </>
               )
             ) : (
-              !isLivenessActive ? (
-                <button id="btn-start-liveness" onClick={startLivenessSession} disabled={scanning} style={{
-                  flex: 1, background: scanning ? 'rgba(6,182,212,0.4)' : 'var(--accent-primary)', color: 'white', border: 'none',
-                  borderRadius: '8px', padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
-                }}>
-                  {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Shield size={18} />}
-                  {scanning ? 'Đang khởi tạo...' : 'Bắt đầu Điểm danh (Face Liveness)'}
-                </button>
-              ) : (
+            ) : (
+              !isLivenessActive && !camActive ? (
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
+                  <button id="btn-start-liveness" onClick={startLivenessSession} disabled={scanning} style={{
+                    flex: 1, background: scanning ? 'rgba(6,182,212,0.4)' : 'var(--accent-primary)', color: 'white', border: 'none',
+                    borderRadius: '8px', padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
+                  }}>
+                    {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Shield size={18} />}
+                    {scanning ? 'Đang tải...' : 'Liveness 3D'}
+                  </button>
+                  <button onClick={startCamera} style={{
+                    flex: 1, background: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)',
+                    borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
+                  }}>
+                    <Camera size={18} /> Chụp thủ công
+                  </button>
+                </div>
+              ) : isLivenessActive ? (
                 <button id="btn-cancel-liveness" onClick={() => { setIsLivenessActive(false); setLivenessSessionId(null); }} style={{
                   flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
                   border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px',
@@ -386,6 +447,26 @@ export default function Attendance() {
                 }}>
                   <XCircle size={18} /> Hủy kiểm tra
                 </button>
+              ) : (
+                <>
+                  <button onClick={captureAndRecognize} disabled={scanning} style={{
+                    flex: 2, background: scanning ? 'rgba(16,185,129,0.4)' : 'var(--accent-success)',
+                    color: 'white', border: 'none', borderRadius: '8px',
+                    padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                    boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
+                  }}>
+                    {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={18} />}
+                    {scanning ? 'Đang nhận diện...' : 'Chụp ảnh Điểm danh'}
+                  </button>
+                  <button onClick={stopCamera} style={{
+                    background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
+                    border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px',
+                    padding: '0.75rem 1rem', cursor: 'pointer',
+                  }}>
+                    <CameraOff size={18} />
+                  </button>
+                </>
               )
             )}
           </div>
