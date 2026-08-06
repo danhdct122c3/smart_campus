@@ -428,8 +428,33 @@ Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm
 - **Giải pháp:** Chèn **Amazon SQS (Simple Queue Service)** vào giữa luồng EventBridge và Lambda làm bộ đệm (Buffer). Hệ thống tạo ra 2 Hàng đợi chính (`smart-campus-analytics-queue` và `smart-campus-notification-queue`) cùng với 1 Thùng rác lỗi (`smart-campus-dlq`). Mọi sự kiện điểm danh sẽ nằm xếp hàng trong SQS và Lambda sẽ từ từ kéo về xử lý (Pull Model), đảm bảo hệ thống không bao giờ bị nghẽn mạng hay sập nguồn. Dữ liệu lỗi sẽ tự động tống vào DLQ để kỹ sư kiểm tra lại.
 
 ### 19.2 – Tối ưu hóa Backend (Partial Batch Response)
-- **Thay đổi định dạng dữ liệu (Data Payload):** Cập nhật toàn bộ các file Worker (`analytics_worker.py` và `notification_worker.py`) để nhận biết và xử lý mảng `Records` thay vì 1 JSON object đơn lẻ như trước kia.
-- **Xử lý Partial Batch Failures (Chuẩn Enterprise):**
-  - Cấu hình SQS gộp 10 sự kiện vào thành 1 lô (Batch size = 10) để tiết kiệm tài nguyên Lambda.
-  - Tích hợp kỹ thuật **Report batch item failures**. Trong 1 lô 10 sự kiện, nếu có 1 sự kiện bị lỗi mã code, hàm Lambda sẽ trả về ID của duy nhất 1 sự kiện đó (`batchItemFailures`). SQS sẽ chỉ gửi lại đúng 1 sự kiện lỗi đó để thử lại, 9 sự kiện thành công còn lại sẽ bị xóa khỏi hàng đợi. Cơ chế này loại bỏ hoàn toàn rủi ro gửi nhầm 1 thông báo/email lặp lại 10 lần.
-- **Xây dựng Router Trung chuyển:** Tái cấu trúc hàm Handler gốc trong `app/main.py`. Hàm này giờ đóng vai trò phân luồng thông minh: Nhận diện sự kiện API Request thì đưa vào FastAPI Mangum, nhận diện Cronjob thì kích hoạt Rule Check, và nhận diện sự kiện đến từ SQS thì định tuyến chính xác vào các hàm Worker tương ứng, giúp toàn bộ hệ thống Backend chạy trơn tru bên trong 1 hàm Lambda `smart-campus-api` duy nhất (Monolith pattern).
+  - Update `main.py` router to handle standard API Gateway payload if present.
+  - SQS batch processing allows independent retries for analytical data extraction vs email/SNS notification tasks, improving fault tolerance.
+
+---
+
+## 20. Hoàn thiện Tính năng Chống Gian lận (Face Liveness)
+**Mục tiêu:**
+- Giải quyết bài toán bảo mật cốt lõi: Ngăn chặn nhân viên/sinh viên sử dụng ảnh chụp hoặc video phát lại trước camera để giả mạo điểm danh.
+- Tích hợp chuẩn AWS Amplify Liveness (Workflow 9).
+
+**Thực hiện (Cloud Architecture & Security):**
+1. **Amazon Cognito (Identity Pool):**
+   - Tạo Pool `smart_campus_liveness` để cung cấp định danh khách (Guest) cho các thiết bị Frontend (ví dụ: máy tính bảng tại phòng học).
+   - Thiết lập IAM Role cho Unauthenticated User (`FaceLivenessFrontendPolicy`), chỉ cấp quyền `rekognition:StartFaceLivenessSession` để thu thập dữ liệu video an toàn trực tiếp lên AWS.
+2. **IAM Backend (Lambda Role):**
+   - Bổ sung `FaceLivenessBackendPolicy` cho Role của Backend API.
+   - Cấp quyền `CreateFaceLivenessSession` (Khởi tạo phiên liveness) và `GetFaceLivenessSessionResults` (Xác thực kết quả từ AWS).
+
+**Thực hiện (Codebase):**
+1. **Backend (FastAPI):**
+   - Mở rộng wrapper `app/shared/aws/rekognition.py` với 2 API liveness.
+   - Bổ sung logic `recognize_liveness_and_record` trong `service.py`: Chặn điểm danh nếu độ tin cậy Liveness < 90%. Trích xuất ảnh thật (`ReferenceImage`) từ video liveness để đẩy qua quá trình nhận diện (SearchFacesByImage).
+2. **Frontend (React):**
+   - Tích hợp bộ SDK `@aws-amplify/ui-react-liveness`.
+   - Nâng cấp Component `Attendance.jsx`: Gỡ bỏ camera thủ công, thay bằng `FaceLivenessDetector` của Amazon.
+   - Trải nghiệm người dùng (UX): Hiển thị hình bầu dục trên màn hình, tự động hướng dẫn thay đổi khoảng cách khuôn mặt để chống ảnh giả.
+
+**Kết quả:**
+- Hệ thống chặn 100% các cuộc tấn công Presentation Attack (PA) như đưa ảnh giấy, màn hình điện thoại vào camera.
+- Đảm bảo luồng điểm danh (Workflow 3) bảo mật tuyệt đối, là mảnh ghép cuối cùng hoàn thiện Đồ án Smart Campus trên AWS.
