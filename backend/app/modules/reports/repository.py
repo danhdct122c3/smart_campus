@@ -86,13 +86,20 @@ def _athena_available() -> bool:
     return bool(settings.athena_output_location)
 
 
-def query_trend_from_athena(start: str, end: str) -> list[dict]:
+def query_trend_from_athena(start: str, end: str, user_ids: list[str] | None = None) -> list[dict]:
     """
     Query attendance trend from Athena S3 Data Lake.
 
     Returns list of dicts with keys: date, session_type, present, late, total
     Raises AthenaQueryError on failure.
     """
+    user_filter = ""
+    if user_ids is not None:
+        if not user_ids:
+            return [] # Empty department
+        in_clause = ", ".join(f"'{uid}'" for uid in user_ids)
+        user_filter = f"AND user_id IN ({in_clause})"
+
     sql = f"""
         SELECT
             SUBSTR(timestamp, 1, 10)  AS date,
@@ -101,6 +108,7 @@ def query_trend_from_athena(start: str, end: str) -> list[dict]:
         FROM {_ATHENA_ATTENDANCE_TABLE}
         WHERE SUBSTR(timestamp, 1, 10) BETWEEN '{start}' AND '{end}'
           AND status IN ('PRESENT', 'LATE')
+          {user_filter}
         GROUP BY SUBSTR(timestamp, 1, 10), status
         ORDER BY date
     """
@@ -169,7 +177,7 @@ def query_tasks_summary_from_athena(department: str | None = None) -> list[dict]
     return run_query_sync(sql.strip())
 
 
-def get_trend_records(start: str, end: str) -> tuple[list[dict], str]:
+def get_trend_records(start: str, end: str, user_ids: list[str] | None = None) -> tuple[list[dict], str]:
     """
     Fetch trend data using Hybrid Architecture (Lambda Architecture).
     - Cold Data (past dates): Amazon Athena
@@ -184,7 +192,7 @@ def get_trend_records(start: str, end: str) -> tuple[list[dict], str]:
                 # Query past data from Athena
                 yesterday_str = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
                 athena_end = min(end, yesterday_str)
-                athena_records = query_trend_from_athena(start, athena_end)
+                athena_records = query_trend_from_athena(start, athena_end, user_ids)
             
             # Query hot data (today onwards) from DynamoDB
             dynamo_start = max(start, today_str)

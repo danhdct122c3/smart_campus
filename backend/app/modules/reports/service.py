@@ -194,8 +194,8 @@ def get_attendance_trend(
     Automatically uses Athena if configured, else falls back to DynamoDB.
     Athena returns aggregated counts; DynamoDB path aggregates in Python.
     """
-    raw_records, data_source = repo.get_trend_records(period_start, period_end)
     dept_uids = _get_dept_user_ids(department)
+    raw_records, data_source = repo.get_trend_records(period_start, period_end, dept_uids)
 
     if dept_uids is not None and data_source != "athena":
         raw_records = [r for r in raw_records if (r.get("userId") or r.get("user_id", "") or r.get("user", "")) in dept_uids]
