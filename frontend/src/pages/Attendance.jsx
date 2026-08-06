@@ -3,6 +3,7 @@ import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, R
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
+import { ThemeProvider } from '@aws-amplify/ui-react';
 
 const API_BASE = 'https://d2utvhhrx300xg.cloudfront.net/api';
 const CAMERA_ID = 'CAM-MAIN-001';
@@ -257,16 +258,18 @@ export default function Attendance() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {isLivenessActive ? (
-              <FaceLivenessDetector
-                sessionId={livenessSessionId}
-                region="ap-southeast-1"
-                onAnalysisComplete={handleLivenessAnalysisComplete}
-                onError={(error) => {
-                  setCamError(error.message);
-                  setIsLivenessActive(false);
-                  setLivenessSessionId(null);
-                }}
-              />
+              <ThemeProvider>
+                <FaceLivenessDetector
+                  sessionId={livenessSessionId}
+                  region="ap-southeast-1"
+                  onAnalysisComplete={handleLivenessAnalysisComplete}
+                  onError={(error) => {
+                    setCamError(error.message);
+                    setIsLivenessActive(false);
+                    setLivenessSessionId(null);
+                  }}
+                />
+              </ThemeProvider>
             ) : (
               <>
                 {!currentUser?.face_registered && camActive && !registering && (
