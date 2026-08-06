@@ -214,7 +214,7 @@ export default function Attendance() {
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
             <Camera size={22} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: 'var(--accent-primary)' }} />
-            Điểm danh (Face Liveness)
+            Đang bật camera
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0.25rem 0 0' }}>
             Hôm nay: {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -279,7 +279,7 @@ export default function Attendance() {
                     gap: '0.75rem',
                   }}>
                     <Loader size={40} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
-                    <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang khởi tạo Liveness...'}</p>
+                    <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang nhận diện khuôn mặt...'}</p>
                   </div>
                 )}
                 <video
@@ -341,7 +341,7 @@ export default function Attendance() {
                   borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
                 }}>
-                  <Camera size={18} /> Bật Camera (Chụp thủ công)
+                  <Camera size={18} /> Điểm danh)
                 </button>
               ) : (
                 <>

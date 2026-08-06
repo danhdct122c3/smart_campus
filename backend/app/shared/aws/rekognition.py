@@ -134,29 +134,3 @@ def delete_face(face_id: str) -> bool:
         raise RekognitionError(str(exc)) from exc
 
 
-def create_face_liveness_session() -> str:
-    """
-    Create a new Face Liveness Session.
-    Returns the SessionId.
-    """
-    client = boto3.client("rekognition", region_name="us-east-1")
-    try:
-        response = client.create_face_liveness_session()
-        return response.get("SessionId")
-    except ClientError as exc:
-        raise RekognitionError(str(exc)) from exc
-
-
-def get_face_liveness_session_results(session_id: str) -> dict:
-    """
-    Retrieve results of a Face Liveness Session.
-    Returns a dict containing 'Confidence' and 'ReferenceImage'.
-    """
-    client = boto3.client("rekognition", region_name="us-east-1")
-    try:
-        response = client.get_face_liveness_session_results(
-            SessionId=session_id
-        )
-        return response
-    except ClientError as exc:
-        raise RekognitionError(str(exc)) from exc
