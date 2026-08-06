@@ -68,7 +68,7 @@ export default function Attendance() {
       const res = await fetch(`${API_BASE}/attendance?date=${todayStr}`);
       if (res.ok) {
         const json = await res.json();
-        setHistory(json.data || []);
+        setHistory(json.data?.items || []);
       }
     } catch (e) {
       console.error('Fetch history error:', e);
