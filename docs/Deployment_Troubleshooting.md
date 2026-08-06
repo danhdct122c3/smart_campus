@@ -65,3 +65,52 @@ def handler(event, context):
 ```
 
 *Kết quả:* Khắc phục triệt để lỗi sập Lambda (500), giúp API Gateway nhận được đúng response của FastAPI và trả về đầy đủ các Header CORS. Giao diện Frontend truy cập Backend thành công.
+
+## 3. Lỗi "Access Denied" khi chạy CI/CD Pipeline (AWS CodeBuild)
+
+**Mô tả lỗi:**
+Trong quá trình thiết lập tự động hóa CI/CD bằng AWS CodePipeline, ở bước "Build" (do dịch vụ AWS CodeBuild đảm nhiệm), tiến trình bị thất bại (Failed) và xuất hiện thông báo lỗi liên quan đến quyền truy cập (ví dụ: `AccessDeniedException` khi gọi lệnh `aws lambda update-function-code` hoặc `aws s3 sync`).
+
+**Phân tích nguyên nhân (Root Cause):**
+Kiến trúc bảo mật của AWS tuân theo nguyên tắc "Zero Trust" và "Đặc quyền tối thiểu" (Least Privilege). 
+Mặc định, khi CodeBuild được tạo ra, AWS cấp cho nó một IAM Service Role (vai trò dịch vụ) cơ bản. Role này chỉ có duy nhất quyền ghi Log lên CloudWatch và lấy mã nguồn từ S3 Artifact. Nó **hoàn toàn không có quyền** can thiệp vào các dịch vụ khác như AWS Lambda (để cập nhật Backend) hay Amazon S3 (để upload Frontend).
+
+**Cách giải quyết (Solution):**
+Sử dụng dịch vụ IAM (Identity and Access Management) để cấp thêm các chính sách (Policies) cần thiết cho Service Role của CodeBuild.
+1. Xác định tên Role của CodeBuild (ví dụ: `codebuild-smart-campus-backend-build-service-role`).
+2. Truy cập vào AWS IAM -> Roles -> Tìm tên Role đó.
+3. Trong tab Permissions, chọn Add permissions -> Attach policies.
+4. Bổ sung các quyền sau:
+   - `AWSLambda_FullAccess`: Để CodeBuild có quyền tải file ZIP và cập nhật code cho hàm Lambda.
+   - `AmazonS3FullAccess`: Để CodeBuild có quyền đọc/ghi và đồng bộ mã nguồn tĩnh (HTML/JS/CSS) lên bucket S3 của Frontend.
+
+*Kết quả:* CodePipeline chạy lại thành công (Xanh 100%), luồng triển khai hoàn toàn tự động từ lúc Push code lên GitHub cho tới khi Code lên môi trường thực tế.
+
+## 4. Lỗi "Cannot read properties of undefined (reading 'getUserMedia')" và Lỗi 404 Not Found trên Frontend S3
+
+**Mô tả lỗi:**
+Sau khi deploy thành công Frontend lên AWS S3 (dạng Static Website Hosting), người dùng gặp 2 vấn đề lớn:
+1. Khi vào chức năng Điểm danh khuôn mặt, ứng dụng báo lỗi `Cannot read properties of undefined (reading 'getUserMedia')` và không thể bật Camera.
+2. Khi đang ở một trang con (ví dụ: `/attendance`), nếu nhấn F5 tải lại trang, trình duyệt lập tức báo lỗi `404 Not Found`.
+
+**Phân tích nguyên nhân (Root Cause):**
+- **Vấn đề 1 (Lỗi Camera):** Các trình duyệt hiện đại (Chrome, Edge, Safari, Firefox) có cơ chế bảo mật rất nghiêm ngặt. API `navigator.mediaDevices.getUserMedia` để truy cập thiết bị phần cứng (Camera, Micro) **chỉ được phép hoạt động trên kết nối mã hóa HTTPS** hoặc `localhost`. Đường dẫn mặc định của S3 Website endpoint là `http://...s3-website...` (chưa được mã hóa HTTPs), do đó trình duyệt thẳng tay chặn API này, khiến biến `mediaDevices` bị `undefined`.
+- **Vấn đề 2 (Lỗi 404 React Router):** React.js là một Single Page Application (SPA). Nghĩa là toàn bộ ứng dụng chỉ có duy nhất một file `index.html`. Việc chuyển trang (như `/attendance`) là do Javascript giả lập (Client-side routing). S3 là một File Server thuần túy, khi truy cập `s3.../attendance`, nó sẽ cố gắng tìm kiếm thư mục `attendance` và file `index.html` bên trong thư mục đó, vì không có nên trả về 404.
+
+**Cách giải quyết (Solution):**
+
+*Khắc phục Lỗi 404 (S3 Static Website)*
+Truy cập vào Bucket S3 -> tab **Properties** -> Cuộn xuống dưới cùng mục **Static website hosting** -> Edit:
+- Đảm bảo cả `Index document` và `Error document` đều được điền là: `index.html`. 
+- (S3 sẽ trả về file index.html mỗi khi không tìm thấy đường dẫn, từ đó React Router sẽ có cơ hội tiếp quản và hiển thị đúng component).
+
+*Khắc phục Lỗi Camera (AWS CloudFront)*
+Để có HTTPS cho S3, ta cần đưa trang web ra phía sau mạng phân phối nội dung AWS CloudFront.
+1. Truy cập dịch vụ **CloudFront** -> **Create Distribution**.
+2. **Origin domain:** Chọn mục S3 Website Endpoint (Chú ý: phải nhập đường dẫn dạng website của S3, KHÔNG chọn S3 dạng REST API mặc định).
+3. **Viewer protocol policy:** Chọn `Redirect HTTP to HTTPS` (Bắt buộc dùng HTTPS).
+4. **Web Application Firewall (WAF):** Do not enable (để tiết kiệm chi phí/đỡ phức tạp).
+5. (Đối với SPA, ở tab Error Pages của CloudFront, cấu hình Custom Error Response: HTTP error code 404 -> Trả về `/index.html` với status 200 OK).
+6. Nhấn **Create**.
+
+*Kết quả:* CloudFront cấp phát một tên miền dạng `https://xxx.cloudfront.net`. Khi truy cập qua tên miền này, kết nối được bảo mật 100%, Camera hoạt động mượt mà và các trang con F5 không còn bị 404.

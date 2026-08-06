@@ -9,7 +9,6 @@ from app.core.exceptions import AppException, ErrorCode
 from app.core.responses import APIResponse
 
 from aws_xray_sdk.core import xray_recorder, patch_all
-from aws_xray_sdk.ext.starlette.middleware import XRayMiddleware
 
 # Kích hoạt X-Ray tự động hook vào boto3 và các thư viện hỗ trợ
 patch_all()
@@ -28,13 +27,6 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
-
-    # Thêm X-Ray Middleware
-    application.add_middleware(
-        XRayMiddleware,
-        app=application,
-        name=settings.app_name
     )
 
     application.include_router(
