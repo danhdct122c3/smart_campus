@@ -8,8 +8,13 @@ import './index.css'
 Amplify.configure({
   Auth: {
     Cognito: {
+      userPoolId: 'ap-southeast-1_dummy',
+      userPoolClientId: 'dummy1234567890',
       identityPoolId: 'ap-southeast-1:16d2361e-bff6-40a3-85af-7ebc324a39a6',
       allowGuestAccess: true,
+      loginWith: {
+        email: true,
+      }
     }
   }
 });
