@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield } from 'lucide-react';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
-import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
-import { ThemeProvider } from '@aws-amplify/ui-react';
+
 
 const API_BASE = 'https://d2utvhhrx300xg.cloudfront.net/api';
 const CAMERA_ID = 'CAM-MAIN-001';
@@ -81,9 +80,7 @@ export default function Attendance() {
     fetchHistory();
   }, [fetchHistory]);
 
-  // Liveness session state
-  const [livenessSessionId, setLivenessSessionId] = useState(null);
-  const [isLivenessActive, setIsLivenessActive] = useState(false);
+
 
   // ---------- Camera for Registration ----------
   const startCamera = async () => {
@@ -104,73 +101,7 @@ export default function Attendance() {
     setCamActive(false);
   };
 
-  // ---------- Liveness Attendance Flow ----------
-  const startLivenessSession = async () => {
-    if (scanning || isLivenessActive) return;
-    setScanning(true);
-    setCamError('');
-    try {
-      const res = await fetch(`${API_BASE}/attendance/liveness/session`);
-      const json = await res.json();
-      if (res.ok && json.data?.session_id) {
-        setLivenessSessionId(json.data.session_id);
-        setIsLivenessActive(true);
-      } else {
-        setCamError(json.message || 'Lỗi tạo Liveness Session');
-      }
-    } catch (e) {
-      setCamError('Lỗi kết nối máy chủ: ' + e.message);
-    } finally {
-      setScanning(false);
-    }
-  };
 
-  const handleLivenessAnalysisComplete = async () => {
-    setScanning(true);
-    try {
-      const res = await fetch(`${API_BASE}/attendance/liveness/recognize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: livenessSessionId,
-          camera_id: CAMERA_ID,
-          room_id: ROOM_ID,
-          timestamp: new Date().toISOString(),
-        }),
-      });
-      const json = await res.json();
-
-      if (res.ok && json.success) {
-        const data = json.data;
-        if (data.success) {
-          // Fetch user info to show name
-          let userInfo = null;
-          try {
-            const ur = await fetch(`${API_BASE}/users/${data.attendance?.user_id}`);
-            if (ur.ok) { const uj = await ur.json(); userInfo = uj.data; }
-          } catch { /* non-critical */ }
-
-          setLastResult({ ...data, user: userInfo });
-          setResultType(data.attendance?.is_duplicate ? 'warning' : 'success');
-          fetchHistory(); // refresh history
-        } else {
-          setLastResult({ ...data, user: null });
-          setResultType('warning');
-        }
-      } else {
-        const msg = json.message || 'Lỗi không xác định';
-        setLastResult({ success: false, message: msg, attendance: null, user: null });
-        setResultType('error');
-      }
-    } catch (e) {
-      setLastResult({ success: false, message: 'Lỗi kết nối Backend: ' + e.message, attendance: null, user: null });
-      setResultType('error');
-    } finally {
-      setScanning(false);
-      setIsLivenessActive(false);
-      setLivenessSessionId(null);
-    }
-  };
 
   const captureAndRecognize = useCallback(async () => {
     if (!videoRef.current || scanning) return;
@@ -311,8 +242,8 @@ export default function Attendance() {
         {/* ---- Camera Panel ---- */}
         <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentUser?.face_registered ? '📷 Nhận diện Liveness' : '📸 Đăng ký Khuôn mặt lần đầu'}</h2>
-            {(camActive || isLivenessActive) && (
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentUser?.face_registered ? '📷 Nhận diện khuôn mặt' : '📸 Đăng ký Khuôn mặt lần đầu'}</h2>
+            {camActive && (
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--accent-success)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-success)', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
                 LIVE
@@ -324,23 +255,9 @@ export default function Attendance() {
           <div style={{
             width: '100%', aspectRatio: '4/3', background: '#0a0f1e',
             borderRadius: '12px', overflow: 'hidden', position: 'relative',
-            border: (camActive || isLivenessActive) ? '2px solid var(--accent-primary)' : '2px solid var(--glass-border)',
+            border: camActive ? '2px solid var(--accent-primary)' : '2px solid var(--glass-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {isLivenessActive ? (
-              <ThemeProvider>
-                <FaceLivenessDetector
-                  sessionId={livenessSessionId}
-                  region="us-east-1"
-                  onAnalysisComplete={handleLivenessAnalysisComplete}
-                  onError={(error) => {
-                    setCamError(error.message);
-                    setIsLivenessActive(false);
-                    setLivenessSessionId(null);
-                  }}
-                />
-              </ThemeProvider>
-            ) : (
               <>
                 {!currentUser?.face_registered && camActive && !registering && (
                   <div style={{
@@ -372,14 +289,13 @@ export default function Attendance() {
                   muted
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: camActive ? 'block' : 'none' }}
                 />
-                {!camActive && !isLivenessActive && (
+                {!camActive && (
                   <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                     <CameraOff size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
                     <p style={{ fontSize: '0.875rem' }}>Camera chưa được bật</p>
                   </div>
                 )}
               </>
-            )}
           </div>
 
           {camError && (
@@ -419,32 +335,13 @@ export default function Attendance() {
                 </>
               )
             ) : (
-              !isLivenessActive && !camActive ? (
-                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
-                  <button id="btn-start-liveness" onClick={startLivenessSession} disabled={scanning} style={{
-                    flex: 1, background: scanning ? 'rgba(6,182,212,0.4)' : 'var(--accent-primary)', color: 'white', border: 'none',
-                    borderRadius: '8px', padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
-                  }}>
-                    {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Shield size={18} />}
-                    {scanning ? 'Đang tải...' : 'Liveness 3D'}
-                  </button>
-                  <button onClick={startCamera} style={{
-                    flex: 1, background: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)',
-                    borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
-                  }}>
-                    <Camera size={18} /> Chụp thủ công
-                  </button>
-                </div>
-              ) : isLivenessActive ? (
-                <button id="btn-cancel-liveness" onClick={() => { setIsLivenessActive(false); setLivenessSessionId(null); }} style={{
-                  flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
-                  border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px',
-                  padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+              !camActive ? (
+                <button onClick={startCamera} style={{
+                  flex: 1, background: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)',
+                  borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
                 }}>
-                  <XCircle size={18} /> Hủy kiểm tra
+                  <Camera size={18} /> Bật Camera (Chụp thủ công)
                 </button>
               ) : (
                 <>
