@@ -7,8 +7,10 @@ import './index.css'
 
 Amplify.configure({
   Auth: {
-    identityPoolId: 'ap-southeast-1:16d2361e-bff6-40a3-85af-7ebc324a39a6',
-    region: 'ap-southeast-1',
+    Cognito: {
+      identityPoolId: 'ap-southeast-1:16d2361e-bff6-40a3-85af-7ebc324a39a6',
+      allowGuestAccess: true,
+    }
   }
 });
 
