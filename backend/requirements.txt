@@ -4,3 +4,4 @@ mangum
 boto3
 pydantic-settings
 pydantic[email]
+aws-xray-sdk
