@@ -76,16 +76,8 @@ def create_task(payload: TaskCreate) -> TaskResponse:
     task_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     
-    assignee_id = payload.assignee_id
+    assignee_id = payload.assignee_id or None
     
-    if payload.task_type == TaskType.INCIDENT and payload.department:
-        from app.modules.users.repository import list_users
-        users, _ = list_users(role="MANAGER")
-        for u in users:
-            if u.get("department") == payload.department.value:
-                assignee_id = u.get("user_id")
-                break
-                
     item = {
         "task_id": task_id,
         "title": payload.title,
@@ -119,12 +111,16 @@ def create_task(payload: TaskCreate) -> TaskResponse:
     reporter_name = _get_user_name(payload.reporter_id)
     
     if payload.task_type == TaskType.INCIDENT:
-        # Notify the maintenance manager about the new incident
-        if assignee_id:
-            _send_task_notif(assignee_id, NotificationEventType.INCIDENT_REPORTED, {
-                "task_title": payload.title,
-                "reporter_name": reporter_name,
-            })
+        # Notify ALL managers of the target department to dispatch the incident
+        if payload.department:
+            from app.modules.users.repository import list_users
+            dept_managers, _ = list_users(role="MANAGER")
+            for mgr in dept_managers:
+                if mgr.get("department") == payload.department.value:
+                    _send_task_notif(mgr.get("user_id"), NotificationEventType.INCIDENT_REPORTED, {
+                        "task_title": payload.title,
+                        "reporter_name": reporter_name,
+                    })
     elif assignee_id:
         # Standard task: notify assignee
         _send_task_notif(assignee_id, NotificationEventType.TASK_ASSIGNED, {
@@ -137,7 +133,7 @@ def create_task(payload: TaskCreate) -> TaskResponse:
 def get_task(task_id: str) -> TaskResponse:
     item = repo.get_task(task_id)
     if not item:
-        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
+        raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
     return _item_to_record(item)
 
 def list_tasks(
@@ -169,7 +165,7 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
         
     existing = repo.get_task(task_id)
     if not existing:
-        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
+        raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
 
     is_admin = current_user.get("role") == "ADMIN"
     is_reporter = current_user.get("user_id") == existing.get("reporter_id")
@@ -278,7 +274,7 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
 def update_task_status(task_id: str, payload: TaskStatusUpdate) -> TaskResponse:
     existing = repo.get_task(task_id)
     if not existing:
-        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, message="Task not found")
+        raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
         
     updated_item = repo.update_task_in_db(
         task_id=task_id,
