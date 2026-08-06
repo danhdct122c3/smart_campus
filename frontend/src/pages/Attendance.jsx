@@ -60,7 +60,13 @@ export default function Attendance() {
   // today string
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // ---------- Camera ----------
+import { FaceLivenessDetector } from '@aws-amplify/ui-react-liveness';
+
+  // Liveness session state
+  const [livenessSessionId, setLivenessSessionId] = useState(null);
+  const [isLivenessActive, setIsLivenessActive] = useState(false);
+
+  // ---------- Camera for Registration ----------
   const startCamera = async () => {
     setCamError('');
     try {
@@ -77,27 +83,37 @@ export default function Attendance() {
     if (stream) stream.getTracks().forEach(t => t.stop());
     setStream(null);
     setCamActive(false);
-    setAutoScan(false);
-    autoScanRef.current = false;
   };
 
-  // ---------- Capture + Recognize ----------
-  const captureAndRecognize = useCallback(async () => {
-    if (!videoRef.current || scanning) return;
+  // ---------- Liveness Attendance Flow ----------
+  const startLivenessSession = async () => {
+    if (scanning || isLivenessActive) return;
     setScanning(true);
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = videoRef.current.videoWidth  || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
-    canvas.getContext('2d').drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
-
+    setCamError('');
     try {
-      const res = await fetch(`${API_BASE}/attendance/recognize`, {
+      const res = await fetch(`${API_BASE}/attendance/liveness/session`);
+      const json = await res.json();
+      if (res.ok && json.data?.session_id) {
+        setLivenessSessionId(json.data.session_id);
+        setIsLivenessActive(true);
+      } else {
+        setCamError(json.message || 'Lỗi tạo Liveness Session');
+      }
+    } catch (e) {
+      setCamError('Lỗi kết nối máy chủ: ' + e.message);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleLivenessAnalysisComplete = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch(`${API_BASE}/attendance/liveness/recognize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image_base64: imageBase64,
+          session_id: livenessSessionId,
           camera_id: CAMERA_ID,
           room_id: ROOM_ID,
           timestamp: new Date().toISOString(),
@@ -128,16 +144,14 @@ export default function Attendance() {
         setResultType('error');
       }
     } catch (e) {
-      const isBlocked = e.message.includes('Failed to fetch') || e.message.includes('NetworkError');
-      const msg = isBlocked 
-        ? 'Bị chặn kết nối: Vui lòng kết nối vào mạng WiFi công ty để điểm danh.' 
-        : 'Không kết nối được backend: ' + e.message;
-      setLastResult({ success: false, message: msg, attendance: null, user: null });
+      setLastResult({ success: false, message: 'Lỗi kết nối Backend: ' + e.message, attendance: null, user: null });
       setResultType('error');
     } finally {
       setScanning(false);
+      setIsLivenessActive(false);
+      setLivenessSessionId(null);
     }
-  }, [scanning]);
+  };
 
   const captureAndRegister = useCallback(async () => {
     if (!videoRef.current || registering) return;
@@ -175,33 +189,6 @@ export default function Attendance() {
     }
   }, [registering, currentUser, updateUser]);
 
-
-  // ---------- Auto scan every 3s ----------
-  useEffect(() => {
-    autoScanRef.current = autoScan;
-  }, [autoScan]);
-
-  useEffect(() => {
-    if (!autoScan || !camActive) return;
-    const iv = setInterval(() => {
-      if (autoScanRef.current) captureAndRecognize();
-    }, 3500);
-    return () => clearInterval(iv);
-  }, [autoScan, camActive, captureAndRecognize]);
-
-  // ---------- History ----------
-  const fetchHistory = async () => {
-    setLoadingHist(true);
-    try {
-      const res = await fetch(`${API_BASE}/attendance?date=${todayStr}`);
-      const json = await res.json();
-      if (res.ok && json.data) setHistory(json.data.items || []);
-    } catch { /* ignore */ }
-    finally { setLoadingHist(false); }
-  };
-
-  useEffect(() => { fetchHistory(); }, []);
-
   // ---------- Cleanup ----------
   useEffect(() => () => { if (stream) stream.getTracks().forEach(t => t.stop()); }, [stream]);
 
@@ -226,7 +213,7 @@ export default function Attendance() {
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
             <Camera size={22} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: 'var(--accent-primary)' }} />
-            Điểm danh Khuôn mặt
+            Điểm danh (Face Liveness)
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0.25rem 0 0' }}>
             Hôm nay: {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -254,8 +241,8 @@ export default function Attendance() {
         {/* ---- Camera Panel ---- */}
         <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentUser?.face_registered ? '📷 Camera Nhận diện' : '📸 Đăng ký Khuôn mặt lần đầu'}</h2>
-            {camActive && (
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentUser?.face_registered ? '📷 Nhận diện Liveness' : '📸 Đăng ký Khuôn mặt lần đầu'}</h2>
+            {(camActive || isLivenessActive) && (
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--accent-success)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-success)', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
                 LIVE
@@ -267,58 +254,58 @@ export default function Attendance() {
           <div style={{
             width: '100%', aspectRatio: '4/3', background: '#0a0f1e',
             borderRadius: '12px', overflow: 'hidden', position: 'relative',
-            border: camActive ? '2px solid var(--accent-primary)' : '2px solid var(--glass-border)',
+            border: (camActive || isLivenessActive) ? '2px solid var(--accent-primary)' : '2px solid var(--glass-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {!currentUser?.face_registered && camActive && !registering && (
-              <div style={{
-                position: 'absolute', inset: 0, zIndex: 10,
-                background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                padding: '2rem', textAlign: 'center', pointerEvents: 'none'
-              }}>
-                <div style={{ background: 'var(--accent-warning)', color: '#000', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Bắt buộc</div>
-                <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Tài khoản của bạn chưa có khuôn mặt</p>
-                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', margin: 0 }}>Vui lòng ngồi thẳng, tháo khẩu trang và bấm nút Đăng ký bên dưới để chụp ảnh lưu vào hệ thống.</p>
-              </div>
-            )}
-            {(scanning || registering) && (
-              <div style={{
-                position: 'absolute', inset: 0, zIndex: 11,
-                background: 'rgba(6,182,212,0.15)', backdropFilter: 'blur(4px)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: '0.75rem',
-              }}>
-                <Loader size={40} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
-                <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang nhận diện...'}</p>
-              </div>
-            )}
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: camActive ? 'block' : 'none' }}
-            />
-            {!camActive && (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                <CameraOff size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                <p style={{ fontSize: '0.875rem' }}>Camera chưa được bật</p>
-              </div>
-            )}
-            {/* Corner scan guides */}
-            {camActive && !scanning && (
+            {isLivenessActive ? (
+              <FaceLivenessDetector
+                sessionId={livenessSessionId}
+                region="ap-southeast-1"
+                onAnalysisComplete={handleLivenessAnalysisComplete}
+                onError={(error) => {
+                  setCamError(error.message);
+                  setIsLivenessActive(false);
+                  setLivenessSessionId(null);
+                }}
+              />
+            ) : (
               <>
-                {[['0','0','borderTop','borderLeft'],['0','auto','borderTop','borderRight'],
-                  ['auto','0','borderBottom','borderLeft'],['auto','auto','borderBottom','borderRight']].map(([t,r,bv,bh], i) => (
-                  <div key={i} style={{
-                    position:'absolute', top:t!=='auto'?16:undefined, right:r!=='auto'?16:undefined,
-                    bottom:t==='auto'?16:undefined, left:r==='auto'?16:undefined,
-                    width:24, height:24,
-                    [bv]: '2px solid var(--accent-primary)',
-                    [bh]: '2px solid var(--accent-primary)',
-                  }} />
-                ))}
+                {!currentUser?.face_registered && camActive && !registering && (
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 10,
+                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '2rem', textAlign: 'center', pointerEvents: 'none'
+                  }}>
+                    <div style={{ background: 'var(--accent-warning)', color: '#000', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Bắt buộc</div>
+                    <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Tài khoản của bạn chưa có khuôn mặt</p>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', margin: 0 }}>Vui lòng ngồi thẳng, tháo khẩu trang và bấm nút Đăng ký bên dưới để chụp ảnh lưu vào hệ thống.</p>
+                  </div>
+                )}
+                {(scanning || registering) && (
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 11,
+                    background: 'rgba(6,182,212,0.15)', backdropFilter: 'blur(4px)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: '0.75rem',
+                  }}>
+                    <Loader size={40} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                    <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang khởi tạo Liveness...'}</p>
+                  </div>
+                )}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: camActive ? 'block' : 'none' }}
+                />
+                {!camActive && !isLivenessActive && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                    <CameraOff size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                    <p style={{ fontSize: '0.875rem' }}>Camera chưa được bật</p>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -329,60 +316,58 @@ export default function Attendance() {
 
           {/* Controls */}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {!camActive ? (
-              <button id="btn-start-cam" onClick={startCamera} style={{
-                flex: 1, background: 'var(--accent-primary)', color: 'white', border: 'none',
-                borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
-              }}>
-                <Camera size={18} /> Bật Camera
-              </button>
-            ) : !currentUser?.face_registered ? (
-              <button id="btn-register-face" onClick={captureAndRegister} disabled={registering} style={{
-                flex: 2, background: registering ? 'rgba(16,185,129,0.4)' : 'var(--accent-success)',
-                color: 'white', border: 'none', borderRadius: '8px',
-                padding: '0.75rem', cursor: registering ? 'not-allowed' : 'pointer', fontWeight: 600,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
-              }}>
-                {registering ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={18} />}
-                {registering ? 'Đang đăng ký...' : 'Chụp ảnh & Đăng ký khuôn mặt'}
-              </button>
+            {!currentUser?.face_registered ? (
+              !camActive ? (
+                <button id="btn-start-cam" onClick={startCamera} style={{
+                  flex: 1, background: 'var(--accent-primary)', color: 'white', border: 'none',
+                  borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                }}>
+                  <Camera size={18} /> Bật Camera
+                </button>
+              ) : (
+                <>
+                  <button id="btn-register-face" onClick={captureAndRegister} disabled={registering} style={{
+                    flex: 2, background: registering ? 'rgba(16,185,129,0.4)' : 'var(--accent-success)',
+                    color: 'white', border: 'none', borderRadius: '8px',
+                    padding: '0.75rem', cursor: registering ? 'not-allowed' : 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                    boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
+                  }}>
+                    {registering ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={18} />}
+                    {registering ? 'Đang đăng ký...' : 'Chụp ảnh & Đăng ký khuôn mặt'}
+                  </button>
+                  <button onClick={stopCamera} style={{
+                    background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
+                    border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px',
+                    padding: '0.75rem 1rem', cursor: 'pointer',
+                  }}>
+                    <CameraOff size={18} />
+                  </button>
+                </>
+              )
             ) : (
-              <>
-                <button id="btn-capture" onClick={captureAndRecognize} disabled={scanning} style={{
-                  flex: 2, background: scanning ? 'rgba(6,182,212,0.4)' : 'var(--accent-primary)',
-                  color: 'white', border: 'none', borderRadius: '8px',
-                  padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
+              !isLivenessActive ? (
+                <button id="btn-start-liveness" onClick={startLivenessSession} disabled={scanning} style={{
+                  flex: 1, background: scanning ? 'rgba(6,182,212,0.4)' : 'var(--accent-primary)', color: 'white', border: 'none',
+                  borderRadius: '8px', padding: '0.75rem', cursor: scanning ? 'not-allowed' : 'pointer', fontWeight: 600,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                 }}>
                   {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Shield size={18} />}
-                  {scanning ? 'Đang xử lý...' : 'Nhận diện ngay'}
+                  {scanning ? 'Đang khởi tạo...' : 'Bắt đầu Điểm danh (Face Liveness)'}
                 </button>
-                <button id="btn-auto-scan" onClick={() => setAutoScan(p => !p)} style={{
-                  flex: 1, background: autoScan ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)',
-                  color: autoScan ? 'var(--accent-success)' : 'var(--text-muted)',
-                  border: `1px solid ${autoScan ? 'var(--accent-success)' : 'var(--glass-border)'}`,
-                  borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem'
-                }}>
-                  {autoScan ? '⏸ Tự động' : '▶ Tự động'}
-                </button>
-                <button id="btn-stop-cam" onClick={stopCamera} style={{
-                  background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
+              ) : (
+                <button id="btn-cancel-liveness" onClick={() => { setIsLivenessActive(false); setLivenessSessionId(null); }} style={{
+                  flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
                   border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px',
-                  padding: '0.75rem 1rem', cursor: 'pointer',
+                  padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                 }}>
-                  <CameraOff size={18} />
+                  <XCircle size={18} /> Hủy kiểm tra
                 </button>
-              </>
+              )
             )}
           </div>
-
-          {autoScan && camActive && (
-            <p style={{ fontSize: '0.75rem', color: 'var(--accent-success)', margin: 0, textAlign: 'center' }}>
-              🔄 Đang tự động quét mỗi 3.5 giây...
-            </p>
-          )}
         </Card>
 
         {/* ---- Result Panel ---- */}
