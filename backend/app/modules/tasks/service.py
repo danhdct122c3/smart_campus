@@ -329,7 +329,7 @@ def delete_task(task_id: str, user_id: str) -> bool:
     if not existing:
         raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
 
-    is_admin = current_user.get("role") == "ADMIN"
+    is_admin = current_user.get("role") in ("ADMIN", "MANAGER")
     is_reporter = current_user.get("user_id") == existing.get("reporter_id")
     
     if is_admin:
