@@ -794,61 +794,8 @@ const Analytics = () => {
             </SectionCard>
           )}
 
-          {/* ── Bottom Row: Top Absent + User Lookup ───────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-
-            {/* Top Absent / Cần chú ý */}
-            <SectionCard title={isPM ? 'Nhân viên cần chú ý (phòng ban)' : 'Nhân viên cần chú ý'}
-              icon={AlertTriangle} delay={0.5}>
-              {topAbsentUsers.length === 0 ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                  Không có dữ liệu vắng mặt
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  {topAbsentUsers.map((u, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: '0.75rem',
-                      padding: '0.6rem 0.75rem', borderRadius: '10px',
-                      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'background 0.2s',
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
-                      {/* Avatar */}
-                      <div style={{
-                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                        background: `linear-gradient(135deg, ${u.attendance_rate >= 90 ? '#10b981' : u.attendance_rate >= 70 ? '#f59e0b' : '#ef4444'}30, transparent)`,
-                        border: `1.5px solid ${u.attendance_rate >= 90 ? '#10b981' : u.attendance_rate >= 70 ? '#f59e0b' : '#ef4444'}40`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-primary)',
-                      }}>
-                        {getInitials(u.name)}
-                      </div>
-                      {/* Name + Dept */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {u.name}
-                        </div>
-                        {u.department && (
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '1px 6px', borderRadius: '4px' }}>
-                            {u.department}
-                          </span>
-                        )}
-                      </div>
-                      {/* Progress */}
-                      <div style={{ width: '35%', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <ProgressBar value={u.attendance_rate} height={6} />
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: u.attendance_rate >= 90 ? 'var(--accent-success)' : u.attendance_rate >= 70 ? 'var(--accent-warning)' : 'var(--accent-danger)', minWidth: '36px', textAlign: 'right' }}>
-                          {u.attendance_rate}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-
+          {/* ── Bottom Row: User Lookup ───────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* User Lookup */}
             <SectionCard title="Tra cứu nhân viên" icon={Search} delay={0.6}>
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
