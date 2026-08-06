@@ -280,7 +280,7 @@ export default function Attendance() {
               <ThemeProvider>
                 <FaceLivenessDetector
                   sessionId={livenessSessionId}
-                  region="ap-southeast-1"
+                  region="us-east-1"
                   onAnalysisComplete={handleLivenessAnalysisComplete}
                   onError={(error) => {
                     setCamError(error.message);
