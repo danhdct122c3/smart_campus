@@ -54,7 +54,7 @@ const Notifications = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_URL}/users`);
+      const response = await fetch(`${API_URL}/users?limit=1000`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
