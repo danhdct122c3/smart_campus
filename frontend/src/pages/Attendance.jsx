@@ -735,9 +735,7 @@ export default function Attendance() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  {['#', 'Độ tin cậy', 'Trạng thái', 'Check-in', 'Checkout',
-                    ...(['ADMIN','DIRECTOR','MANAGER'].includes(currentUser?.role?.toUpperCase()) ? ['Hành động'] : [])
-                  ].map(h => (
+                  {['#', 'Độ tin cậy', 'Trạng thái', 'Check-in', 'Checkout'].map(h => (
                     <th key={h} style={{
                       padding: '0.6rem 0.75rem', textAlign: 'left',
                       color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.75rem',
@@ -746,56 +744,29 @@ export default function Attendance() {
                 </tr>
               </thead>
               <tbody>
-                {history.map((item, idx) => {
-                  const isAdmin = ['ADMIN','DIRECTOR','MANAGER'].includes(currentUser?.role?.toUpperCase());
-                  const canProxy = isAdmin && (item.status === 'PRESENT' || item.status === 'LATE') && !item.checkout_time;
-                  return (
-                    <tr key={item.attendance_id || idx} style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'background 0.15s',
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                      <td style={{ padding: '0.7rem 0.75rem' }}>
-                        <span style={{ color: 'var(--accent-primary)' }}>
-                          {Number(item.confidence || 0).toFixed(1)}%
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge status={item.status} /></td>
-                      <td style={{ padding: '0.7rem 0.75rem', color: 'var(--accent-success)', fontFamily: 'monospace', fontWeight: 600 }}>
-                        {formatTime(item.timestamp)}
-                      </td>
-                      <td style={{ padding: '0.7rem 0.75rem', color: item.checkout_time ? '#f59e0b' : 'var(--text-muted)', fontFamily: 'monospace', fontWeight: item.checkout_time ? 600 : 400 }}>
-                        {item.checkout_time ? formatTime(item.checkout_time) : '—'}
-                      </td>
-                      {isAdmin && (
-                        <td style={{ padding: '0.7rem 0.75rem' }}>
-                          {canProxy && (
-                            <button
-                              onClick={() => handleProxyCheckout(item.user_id)}
-                              disabled={proxyCheckoutLoading === item.user_id}
-                              style={{
-                                fontSize: '0.7rem', fontWeight: 600, padding: '3px 10px', borderRadius: '6px',
-                                background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
-                                border: '1px solid rgba(245,158,11,0.3)', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: '4px',
-                              }}
-                            >
-                              {proxyCheckoutLoading === item.user_id
-                                ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                                : <LogOut size={12} />
-                              }
-                              Checkout hộ
-                            </button>
-                          )}
-                          {item.checkout_time && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>✅ Đã checkout</span>}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
+                {history.map((item, idx) => (
+                  <tr key={item.attendance_id || idx} style={{
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    transition: 'background 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                    <td style={{ padding: '0.7rem 0.75rem' }}>
+                      <span style={{ color: 'var(--accent-primary)' }}>
+                        {Number(item.confidence || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge status={item.status} /></td>
+                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--accent-success)', fontFamily: 'monospace', fontWeight: 600 }}>
+                      {formatTime(item.timestamp)}
+                    </td>
+                    <td style={{ padding: '0.7rem 0.75rem', color: item.checkout_time ? '#f59e0b' : 'var(--text-muted)', fontFamily: 'monospace', fontWeight: item.checkout_time ? 600 : 400 }}>
+                      {item.checkout_time ? formatTime(item.checkout_time) : '—'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
