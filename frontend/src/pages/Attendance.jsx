@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield, Wifi, Plus, ShieldCheck } from 'lucide-react';
+import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield, Wifi, Plus, ShieldCheck, LogOut } from 'lucide-react';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
@@ -34,6 +34,22 @@ const formatTime = (iso) => {
   catch { return iso; }
 };
 
+// ----- Checkout window helper (16:30–18:30 VN) -----
+const isInCheckoutWindow = () => {
+  const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const total = vnNow.getHours() * 60 + vnNow.getMinutes();
+  return total >= 16 * 60 + 30 && total <= 18 * 60 + 30;
+};
+
+const timeUntilCheckout = () => {
+  const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const total = vnNow.getHours() * 60 + vnNow.getMinutes();
+  const target = 16 * 60 + 30;
+  if (total >= target) return null;
+  const diff = target - total;
+  return `${Math.floor(diff / 60)}h${diff % 60 > 0 ? (diff % 60) + 'p' : ''}`;
+};
+
 // ========================================================
 export default function Attendance() {
   // Auth context
@@ -57,6 +73,12 @@ export default function Attendance() {
   const [history, setHistory] = useState([]);
   const [loadingHist, setLoadingHist] = useState(false);
 
+  // checkout
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutResult, setCheckoutResult] = useState(null);
+  const [proxyCheckoutLoading, setProxyCheckoutLoading] = useState('');
+  const [inWindow, setInWindow] = useState(isInCheckoutWindow());
+
   // today string
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 
@@ -79,7 +101,52 @@ export default function Attendance() {
     fetchHistory();
   }, [fetchHistory]);
 
+  // Refresh checkout window state every minute
+  useEffect(() => {
+    const timer = setInterval(() => setInWindow(isInCheckoutWindow()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
+  // ---------- Checkout handlers ----------
+  const handleCheckout = useCallback(async () => {
+    if (!currentUser?.user_id || checkoutLoading) return;
+    setCheckoutLoading(true);
+    setCheckoutResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/attendance/checkout?user_id=${currentUser.user_id}`, { method: 'POST' });
+      const json = await res.json();
+      const data = json.data || {};
+      setCheckoutResult({ success: data.success, message: data.message, checkout_time: data.checkout_time });
+      if (data.success) fetchHistory();
+    } catch (e) {
+      setCheckoutResult({ success: false, message: 'Lỗi kết nối: ' + e.message });
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, [currentUser, checkoutLoading, fetchHistory]);
+
+  const handleProxyCheckout = useCallback(async (targetUserId) => {
+    if (!currentUser?.role || proxyCheckoutLoading) return;
+    setProxyCheckoutLoading(targetUserId);
+    try {
+      const res = await fetch(
+        `${API_BASE}/attendance/checkout/proxy?target_user_id=${targetUserId}&requester_role=${currentUser.role}`,
+        { method: 'POST' }
+      );
+      const json = await res.json();
+      const data = json.data || {};
+      if (data.success) {
+        fetchHistory();
+        alert(`✅ Checkout hộ thành công cho người dùng!`);
+      } else {
+        alert(`❌ ${data.message}`);
+      }
+    } catch (e) {
+      alert('Lỗi kết nối: ' + e.message);
+    } finally {
+      setProxyCheckoutLoading('');
+    }
+  }, [currentUser, proxyCheckoutLoading, fetchHistory]);
 
   // ---------- Camera for Registration ----------
   const startCamera = async () => {
@@ -547,6 +614,100 @@ export default function Attendance() {
         </Card>
       </div>
 
+      {/* ---- Checkout Box ---- */}
+      {(() => {
+        const todayCheckin = history.find(r => r.status === 'PRESENT' || r.status === 'LATE');
+        const alreadyCheckedOut = !!todayCheckin?.checkout_time;
+        const canCheckout = inWindow && !!todayCheckin && !alreadyCheckedOut;
+        const after1830 = (() => {
+          const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+          return vnNow.getHours() * 60 + vnNow.getMinutes() > 18 * 60 + 30;
+        })();
+        return (
+          <Card style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                <LogOut size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: '#f59e0b' }} />
+                Checkout hôm nay
+              </h2>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cửa sổ checkout: 16:30 – 18:30</span>
+            </div>
+
+            {/* Checkin + Checkout time display */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '0.9rem 1rem' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 4px' }}>⏰ Giờ Check-in</p>
+                <p style={{ fontWeight: 700, fontSize: '1.1rem', margin: 0, color: 'var(--accent-success)' }}>
+                  {todayCheckin ? formatTime(todayCheckin.timestamp) : '—'}
+                </p>
+                {todayCheckin && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '2px 0 0' }}><StatusBadge status={todayCheckin.status} /></p>}
+              </div>
+              <div style={{ background: alreadyCheckedOut ? 'rgba(245,158,11,0.07)' : 'rgba(255,255,255,0.03)', border: `1px solid ${alreadyCheckedOut ? 'rgba(245,158,11,0.25)' : 'var(--glass-border)'}`, borderRadius: '10px', padding: '0.9rem 1rem' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 4px' }}>📤 Giờ Checkout</p>
+                <p style={{ fontWeight: 700, fontSize: '1.1rem', margin: 0, color: alreadyCheckedOut ? '#f59e0b' : 'var(--text-muted)' }}>
+                  {alreadyCheckedOut ? formatTime(todayCheckin.checkout_time) : '—'}
+                </p>
+              </div>
+            </div>
+
+            {/* Checkout button */}
+            <button
+              id="btn-checkout"
+              onClick={handleCheckout}
+              disabled={!canCheckout || checkoutLoading}
+              style={{
+                width: '100%', padding: '0.85rem', borderRadius: '10px', fontWeight: 700,
+                fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                border: 'none', cursor: canCheckout ? 'pointer' : 'not-allowed', transition: 'all 0.2s',
+                background: alreadyCheckedOut
+                  ? 'rgba(245,158,11,0.1)'
+                  : canCheckout
+                    ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                    : 'rgba(255,255,255,0.05)',
+                color: alreadyCheckedOut ? '#f59e0b' : canCheckout ? 'white' : 'var(--text-muted)',
+                boxShadow: canCheckout ? '0 4px 15px rgba(245,158,11,0.3)' : 'none',
+                opacity: (!todayCheckin || alreadyCheckedOut) ? 0.7 : 1,
+              }}
+            >
+              {checkoutLoading
+                ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</>
+                : alreadyCheckedOut
+                  ? <><CheckCircle size={18} /> Đã Checkout</>
+                  : <><LogOut size={18} /> Checkout</>
+              }
+            </button>
+
+            {/* Status hint */}
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.6rem 0 0', textAlign: 'center' }}>
+              {!todayCheckin
+                ? '⛔ Bạn chưa check-in hôm nay'
+                : alreadyCheckedOut
+                  ? `✅ Đã checkout lúc ${formatTime(todayCheckin.checkout_time)}`
+                  : inWindow
+                    ? '✅ Trong giờ checkout – nút đã sẵn sàng!'
+                    : after1830
+                      ? '⛔ Đã quá giờ checkout hôm nay (sau 18:30)'
+                      : `⏳ Checkout mở lúc 16:30 (còn ${timeUntilCheckout() || '...'})`
+              }
+            </p>
+
+            {/* Checkout result message */}
+            {checkoutResult && (
+              <div style={{
+                marginTop: '0.75rem', padding: '0.75rem', borderRadius: '8px', fontSize: '0.875rem',
+                background: checkoutResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${checkoutResult.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                color: checkoutResult.success ? 'var(--accent-success)' : 'var(--accent-danger)',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+              }}>
+                {checkoutResult.success ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                {checkoutResult.message}
+              </div>
+            )}
+          </Card>
+        );
+      })()}
+
       {/* ---- History Table ---- */}
       <Card style={{ padding: '1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -574,7 +735,9 @@ export default function Attendance() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  {['#', 'Độ tin cậy', 'Trạng thái', 'Thời gian'].map(h => (
+                  {['#', 'Độ tin cậy', 'Trạng thái', 'Check-in', 'Checkout',
+                    ...(['ADMIN','DIRECTOR','MANAGER'].includes(currentUser?.role?.toUpperCase()) ? ['Hành động'] : [])
+                  ].map(h => (
                     <th key={h} style={{
                       padding: '0.6rem 0.75rem', textAlign: 'left',
                       color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.75rem',
@@ -583,26 +746,56 @@ export default function Attendance() {
                 </tr>
               </thead>
               <tbody>
-                {history.map((item, idx) => (
-                  <tr key={item.attendance_id || idx} style={{
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    transition: 'background 0.15s',
-                  }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}>
-                      <span style={{ color: 'var(--accent-primary)' }}>
-                        {Number(item.confidence || 0).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge status={item.status} /></td>
-                    <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      {formatTime(item.timestamp)}
-                    </td>
-                  </tr>
-                ))}
+                {history.map((item, idx) => {
+                  const isAdmin = ['ADMIN','DIRECTOR','MANAGER'].includes(currentUser?.role?.toUpperCase());
+                  const canProxy = isAdmin && (item.status === 'PRESENT' || item.status === 'LATE') && !item.checkout_time;
+                  return (
+                    <tr key={item.attendance_id || idx} style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      transition: 'background 0.15s',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ padding: '0.7rem 0.75rem' }}>
+                        <span style={{ color: 'var(--accent-primary)' }}>
+                          {Number(item.confidence || 0).toFixed(1)}%
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge status={item.status} /></td>
+                      <td style={{ padding: '0.7rem 0.75rem', color: 'var(--accent-success)', fontFamily: 'monospace', fontWeight: 600 }}>
+                        {formatTime(item.timestamp)}
+                      </td>
+                      <td style={{ padding: '0.7rem 0.75rem', color: item.checkout_time ? '#f59e0b' : 'var(--text-muted)', fontFamily: 'monospace', fontWeight: item.checkout_time ? 600 : 400 }}>
+                        {item.checkout_time ? formatTime(item.checkout_time) : '—'}
+                      </td>
+                      {isAdmin && (
+                        <td style={{ padding: '0.7rem 0.75rem' }}>
+                          {canProxy && (
+                            <button
+                              onClick={() => handleProxyCheckout(item.user_id)}
+                              disabled={proxyCheckoutLoading === item.user_id}
+                              style={{
+                                fontSize: '0.7rem', fontWeight: 600, padding: '3px 10px', borderRadius: '6px',
+                                background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+                                border: '1px solid rgba(245,158,11,0.3)', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '4px',
+                              }}
+                            >
+                              {proxyCheckoutLoading === item.user_id
+                                ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                                : <LogOut size={12} />
+                              }
+                              Checkout hộ
+                            </button>
+                          )}
+                          {item.checkout_time && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>✅ Đã checkout</span>}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

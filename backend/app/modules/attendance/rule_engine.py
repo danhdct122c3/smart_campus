@@ -98,3 +98,66 @@ def evaluate(
         session_name=current_session.name,
         reason="",
     )
+
+
+# ── Checkout Rule Engine ───────────────────────────────────────────────────────
+
+CHECKOUT_WINDOW_START = time(16, 30)   # 16:30 VN time
+CHECKOUT_WINDOW_END   = time(18, 30)   # 18:30 VN time
+
+
+def evaluate_checkout(
+    checkout_time: datetime,
+    existing_record: dict | None,
+) -> RuleResult:
+    """
+    Validate whether a checkout action is allowed.
+
+    Rules:
+      1. Must be within 16:30 – 18:30 (Vietnam time).
+      2. Must have an existing check-in record today.
+      3. Must not have already checked out today.
+    """
+    if checkout_time.tzinfo is not None:
+        local_time = checkout_time.astimezone(VIETNAM_TZ)
+    else:
+        local_time = checkout_time.replace(tzinfo=timezone.utc).astimezone(VIETNAM_TZ)
+
+    t = local_time.time()
+
+    # Rule 1: Time window
+    if not (CHECKOUT_WINDOW_START <= t <= CHECKOUT_WINDOW_END):
+        return RuleResult(
+            allowed=False,
+            status="REJECTED",
+            session_name="CHECKOUT",
+            reason=(
+                f"Checkout chỉ được phép từ 16h30 đến 18h30. "
+                f"Thời gian hiện tại: {t.strftime('%H:%M')}."
+            ),
+        )
+
+    # Rule 2: Must have checked in today
+    if not existing_record:
+        return RuleResult(
+            allowed=False,
+            status="REJECTED",
+            session_name="CHECKOUT",
+            reason="Bạn chưa điểm danh Check-in hôm nay.",
+        )
+
+    # Rule 3: Already checked out?
+    if existing_record.get("checkout_time"):
+        return RuleResult(
+            allowed=False,
+            status="REJECTED",
+            session_name="CHECKOUT",
+            reason="Bạn đã checkout hôm nay rồi.",
+        )
+
+    return RuleResult(
+        allowed=True,
+        status="PRESENT",
+        session_name="CHECKOUT",
+        reason="",
+    )

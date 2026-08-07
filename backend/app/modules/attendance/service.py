@@ -39,9 +39,10 @@ from .schemas import (
     AttendanceRecognizeRequest,
     AttendanceRecognizeResponse,
     AttendanceRecord,
+    CheckoutResponse,
 )
 from . import repository as repo
-from .rule_engine import evaluate
+from .rule_engine import evaluate, evaluate_checkout
 
 
 _ALLOWED_MAGIC = {b"\xff\xd8\xff", b"\x89PNG"}
@@ -280,5 +281,47 @@ def _item_to_record(item: dict, is_duplicate: bool = False) -> AttendanceRecord:
         confidence=float(item.get("confidence", 0)),
         timestamp=item.get("timestamp", ""),
         date=item.get("date", ""),
+        checkout_time=item.get("checkout_time"),
         is_duplicate=is_duplicate,
+    )
+
+
+def record_checkout(user_id: str) -> CheckoutResponse:
+    """Business logic for self-checkout or admin proxy checkout.
+
+    Flow:
+      1. Get today's check-in record for the user.
+      2. Run evaluate_checkout() rule engine.
+      3. If allowed → UPDATE checkout_time in DynamoDB.
+      4. Send SES email (non-critical).
+    """
+    vietnam_tz = timezone(timedelta(hours=7))
+    now = datetime.now(vietnam_tz)
+    today = now.strftime("%Y-%m-%d")
+
+    existing = repo.get_today_checkin(user_id, today)
+    rule = evaluate_checkout(now, existing)
+
+    if not rule.allowed:
+        return CheckoutResponse(success=False, message=rule.reason)
+
+    repo.update_checkout_time(existing["record_id"], now.isoformat())
+
+    # Non-critical: send email notification
+    try:
+        user = user_service.get_user(user_id)
+        if user.email:
+            ses.send_checkout_email(
+                to_email=user.email,
+                user_name=user.name,
+                checkout_time=now.isoformat(),
+                session_type=existing.get("session_type", ""),
+            )
+    except Exception:
+        pass
+
+    return CheckoutResponse(
+        success=True,
+        message="Checkout thành công!",
+        checkout_time=now.isoformat(),
     )

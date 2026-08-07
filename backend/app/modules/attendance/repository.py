@@ -9,7 +9,7 @@ GSI: userid-index (PK=user_id)
 from boto3.dynamodb.conditions import Key, Attr
 
 from app.core.config import settings
-from app.shared.aws.dynamodb import put_item, query_items
+from app.shared.aws.dynamodb import put_item, query_items, update_item
 
 TABLE = settings.attendance_table
 
@@ -47,3 +47,28 @@ def list_by_user(user_id: str, date: str | None = None) -> list[dict]:
     if date:
         kwargs["filter_expression"] = Attr("date").begins_with(date)
     return query_items(**kwargs)
+
+
+def get_today_checkin(user_id: str, date: str) -> dict | None:
+    """Get the most recent check-in record for a user on a given date (any session)."""
+    items = query_items(
+        TABLE,
+        key_condition=Key("user_id").eq(user_id),
+        index_name="userid-index",
+        filter_expression=Attr("date").eq(date),
+    )
+    # Return the latest record by timestamp
+    if not items:
+        return None
+    items.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    return items[0]
+
+
+def update_checkout_time(record_id: str, checkout_time: str) -> dict:
+    """Write checkout_time into an existing attendance record."""
+    return update_item(
+        TABLE,
+        key={"record_id": record_id},
+        update_expression="SET checkout_time = :ct",
+        expression_values={":ct": checkout_time},
+    )

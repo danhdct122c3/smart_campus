@@ -41,7 +41,14 @@ class AttendanceRecord(BaseModel):
     confidence: float
     timestamp: str
     date: str
+    checkout_time: Optional[str] = None
     is_duplicate: bool = False
+
+
+class CheckoutResponse(BaseModel):
+    success: bool
+    message: str
+    checkout_time: Optional[str] = None
 
 
 class AttendanceRecognizeResponse(BaseModel):

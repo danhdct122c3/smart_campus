@@ -154,3 +154,66 @@ def verify_email_identity(email: str) -> bool:
     except ClientError as exc:
         print(f"[SES ERROR] Could not verify email {email}: {exc}")
         return False
+
+
+def send_checkout_email(
+    to_email: str,
+    user_name: str,
+    checkout_time: str,
+    session_type: str,
+) -> str | None:
+    """Gửi email thông báo checkout thành công đến người dùng."""
+    from datetime import datetime, timezone, timedelta
+
+    session_label = {
+        "MORNING": "Buổi sáng",
+        "AFTERNOON": "Buổi chiều",
+        "EVENING": "Buổi tối",
+        "WFH": "Làm việc tại nhà",
+    }.get(session_type, session_type)
+
+    # Format timestamp to VN local time
+    try:
+        if checkout_time.endswith("Z"):
+            checkout_time = checkout_time[:-1] + "+00:00"
+        dt = datetime.fromisoformat(checkout_time).astimezone(timezone(timedelta(hours=7)))
+        formatted_time = dt.strftime("%Hh%Mp %d/%m/%Y")
+    except Exception:
+        formatted_time = checkout_time
+
+    subject = "📤 Smart Campus – Xác nhận Checkout"
+    body_html = f"""
+    <!DOCTYPE html><html><body style="font-family: 'Helvetica Neue', Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px;">
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+      <div style="background:linear-gradient(135deg,#f59e0b,#d97706); padding:32px; text-align:center;">
+        <div style="font-size:48px; margin-bottom:8px;">📤</div>
+        <h1 style="color:#ffffff; margin:0; font-size:22px; font-weight:700;">Xác nhận Checkout</h1>
+        <p style="color:rgba(255,255,255,0.85); margin:8px 0 0; font-size:14px;">Smart Campus Attendance System</p>
+      </div>
+      <div style="padding:32px;">
+        <p style="color:#374151; font-size:15px; margin:0 0 8px;">Xin chào <strong>{user_name}</strong>,</p>
+        <p style="color:#6b7280; font-size:14px; margin:0 0 24px;">Bạn đã checkout thành công khỏi hệ thống Smart Campus.</p>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:24px; border-radius:8px; overflow:hidden; border:1px solid #e5e7eb;">
+          <tr>
+            <td style="padding:12px 16px; color:#6b7280; font-size:14px; border-bottom:1px solid #e5e7eb;">📤 Thời gian checkout</td>
+            <td style="padding:12px 16px; color:#111827; font-weight:600; border-bottom:1px solid #e5e7eb;">{formatted_time}</td>
+          </tr>
+          <tr style="background:#f9fafb;">
+            <td style="padding:12px 16px; color:#6b7280; font-size:14px;">📚 Ca làm việc</td>
+            <td style="padding:12px 16px; color:#111827; font-weight:600;">{session_label}</td>
+          </tr>
+        </table>
+        <p style="color:#9ca3af; font-size:13px; margin-top:24px; border-top:1px solid #e5e7eb; padding-top:16px;">
+          Email này được gửi tự động từ hệ thống Smart Campus. Vui lòng không trả lời email này.
+        </p>
+      </div>
+    </div>
+    </body></html>
+    """
+    body_text = (
+        f"Smart Campus – Xác nhận Checkout\n"
+        f"Xin chào {user_name},\n"
+        f"Thời gian checkout: {formatted_time}\n"
+        f"Ca làm việc: {session_label}\n"
+    )
+    return send_email(to_email, subject, body_html, body_text)

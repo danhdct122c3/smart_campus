@@ -9,6 +9,7 @@ from .schemas import (
     AttendanceRecognizeRequest,
     AttendanceRecognizeResponse,
     AttendanceListResponse,
+    CheckoutResponse,
 )
 from . import service
 
@@ -67,4 +68,46 @@ def wfh_checkin(
     user_id: str = Query(..., description="User ID của nhân viên"),
 ):
     data = service.wfh_checkin(user_id)
+    return APIResponse.ok(data)
+
+
+@router.post(
+    "/checkout",
+    response_model=APIResponse[CheckoutResponse],
+    summary="Checkout cuối ngày (16:30 – 18:30)",
+    description="""
+    Nhân viên tự checkout cuối ngày. Chỉ được phép trong khung 16h30–18h30.
+
+    **Điều kiện**:
+    - Đã Check-in hôm nay.
+    - Chưa Checkout hôm nay.
+    - Thời gian hiện tại trong khung 16:30–18:30 (giờ VN).
+    """,
+)
+def checkout(
+    user_id: str = Query(..., description="User ID của nhân viên"),
+):
+    data = service.record_checkout(user_id)
+    return APIResponse.ok(data)
+
+
+@router.post(
+    "/checkout/proxy",
+    response_model=APIResponse[CheckoutResponse],
+    summary="Checkout hộ (chỉ Admin / Manager)",
+    description="""
+    Admin hoặc Manager checkout hộ cho nhân viên quên checkout.
+    Áp dụng đúng các rule nghiệp vụ giống tự checkout.
+    """,
+)
+def checkout_proxy(
+    target_user_id: str = Query(..., description="User ID của nhân viên cần checkout hộ"),
+    requester_role: str = Query(..., description="Role của người thực hiện (ADMIN/DIRECTOR/MANAGER)"),
+):
+    allowed_roles = {"ADMIN", "DIRECTOR", "MANAGER"}
+    if requester_role.upper() not in allowed_roles:
+        from app.core.responses import APIResponse as _R
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Chỉ Admin/Manager được phép checkout hộ.")
+    data = service.record_checkout(target_user_id)
     return APIResponse.ok(data)
