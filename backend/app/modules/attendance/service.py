@@ -182,6 +182,7 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
         publish_attendance_recorded(
             attendance_id=attendance_id,
             user_id=user_id,
+            user_name=user.name,
             camera_id=payload.camera_id,
             room_id=payload.room_id,
             status=rule.status,

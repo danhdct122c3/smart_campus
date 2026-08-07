@@ -35,15 +35,14 @@ logger.setLevel(logging.INFO)
 TEMPLATES: dict[str, str] = {
     "AttendanceRecorded": (
         "Diem danh thanh cong!\n"
-        "User: {userId}\n"
+        "User: {userName}\n"
         "Trang thai: {status}\n"
-        "Phong: {roomId}\n"
-        "Thoi gian: {timestamp}"
+        "Thoi gian: {formatted_timestamp}"
     ),
     "UnknownFaceDetected": (
         "[CANH BAO] Phat hien khuon mat la!\n"
         "Camera: {cameraId}\n"
-        "Thoi gian: {timestamp}"
+        "Thoi gian: {formatted_timestamp}"
     ),
     "FaceRegistered": (
         "Dang ky khuon mat thanh cong!\n"
@@ -55,6 +54,14 @@ TEMPLATES: dict[str, str] = {
 
 
 def _format_message(detail_type: str, detail: dict) -> str:
+    if "timestamp" in detail:
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(detail["timestamp"])
+            detail["formatted_timestamp"] = dt.strftime("%Hh%Mp %d/%m/%Y")
+        except Exception:
+            detail["formatted_timestamp"] = detail["timestamp"]
+            
     template = TEMPLATES.get(detail_type, "Su kien: {detail_type}\n{detail}")
     try:
         return template.format(detail_type=detail_type, detail=detail, **detail)

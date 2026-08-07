@@ -73,6 +73,7 @@ def publish_face_registered(user_id: str, face_id: str, confidence: float) -> st
 def publish_attendance_recorded(
     attendance_id: str,
     user_id: str,
+    user_name: str,
     camera_id: str,
     room_id: str,
     status: str,
@@ -83,6 +84,7 @@ def publish_attendance_recorded(
         detail={
             "attendanceId": attendance_id,
             "userId": user_id,
+            "userName": user_name,
             "cameraId": camera_id,
             "roomId": room_id,
             "status": status,
