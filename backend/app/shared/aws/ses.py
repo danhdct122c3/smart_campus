@@ -136,7 +136,7 @@ def send_attendance_email(
         f"Xin chào {user_name},\n"
         f"Thời gian: {timestamp}\n"
         f"Ca học: {session_label}\n"
-        f"Trạng thái: {status}\n"
+        f"Trạng thái: {status_label}\n"
     )
 
     return send_email(to_email, subject, body_html, body_text)

@@ -119,8 +119,6 @@ export default function Attendance() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_base64: imageBase64,
-          camera_id: "WEB_BROWSER",
-          room_id: "REMOTE",
           timestamp: new Date().toISOString(),
         }),
       });

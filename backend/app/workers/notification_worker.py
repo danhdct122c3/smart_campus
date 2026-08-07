@@ -61,7 +61,14 @@ def _format_message(detail_type: str, detail: dict) -> str:
             detail["formatted_timestamp"] = dt.strftime("%Hh%Mp %d/%m/%Y")
         except Exception:
             detail["formatted_timestamp"] = detail["timestamp"]
-            
+    if "status" in detail:
+        status_map = {
+            "PRESENT": "Đúng giờ",
+            "LATE": "Đi muộn",
+            "ABSENT": "Vắng mặt",
+        }
+        detail["status"] = status_map.get(detail["status"], detail["status"])
+        
     template = TEMPLATES.get(detail_type, "Su kien: {detail_type}\n{detail}")
     try:
         return template.format(detail_type=detail_type, detail=detail, **detail)
