@@ -119,8 +119,8 @@ export default function Attendance() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_base64: imageBase64,
-          camera_id: CAMERA_ID,
-          room_id: ROOM_ID,
+          camera_id: "WEB_BROWSER",
+          room_id: "REMOTE",
           timestamp: new Date().toISOString(),
         }),
       });
@@ -313,20 +313,7 @@ export default function Attendance() {
             Hôm nay: {new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{
-            fontSize: '0.75rem', padding: '4px 12px', borderRadius: '999px',
-            background: 'rgba(6,182,212,0.1)', color: 'var(--accent-primary)', border: '1px solid rgba(6,182,212,0.3)'
-          }}>
-            📍 {ROOM_ID}
-          </span>
-          <span style={{
-            fontSize: '0.75rem', padding: '4px 12px', borderRadius: '999px',
-            background: 'rgba(139,92,246,0.1)', color: 'var(--accent-secondary)', border: '1px solid rgba(139,92,246,0.3)'
-          }}>
-            🎥 {CAMERA_ID}
-          </span>
-        </div>
+
       </div>
 
       {/* Main content: Camera + Result side by side */}
