@@ -284,13 +284,13 @@ export default function Attendance() {
     if (currentUser?.role?.toUpperCase() === 'ADMIN') {
       fetch(`${API_BASE}/security/networks`)
         .then(res => res.json())
-        .then(data => { 
+        .then(data => {
           if (data.data) {
-            setNetworks(data.data.networks || []); 
+            setNetworks(data.data.networks || []);
             setCurrentWafIp(data.data.current_waf_ip);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [currentUser]);
 
@@ -388,7 +388,7 @@ export default function Attendance() {
             <Clock size={20} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Khung giờ Check-in (Đúng giờ)</p>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Khung giờ Check-in</p>
             <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>08:30 - 09:30</p>
           </div>
         </div>
@@ -499,7 +499,7 @@ export default function Attendance() {
                   borderRadius: '8px', padding: '0.75rem', cursor: 'pointer', fontWeight: 600,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', minWidth: '140px'
                 }}>
-                  <Camera size={18} /> Điểm danh
+                  <Camera size={18} /> Check in
                 </button>
               ) : (
                 <>
@@ -511,7 +511,7 @@ export default function Attendance() {
                     boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
                   }}>
                     {scanning ? <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={18} />}
-                    {scanning ? 'Đang nhận diện...' : 'Chụp ảnh Điểm danh'}
+                    {scanning ? 'Đang nhận diện...' : 'Chụp ảnh '}
                   </button>
                   <button onClick={stopCamera} style={{
                     background: 'rgba(239,68,68,0.1)', color: 'var(--accent-danger)',
@@ -544,8 +544,8 @@ export default function Attendance() {
           ) : (
             <div style={{
               flex: 1, background: resultBg, border: `1px solid ${resultType === 'success' ? 'rgba(16,185,129,0.3)'
-                  : resultType === 'warning' ? 'rgba(245,158,11,0.3)'
-                    : 'rgba(239,68,68,0.3)'}`,
+                : resultType === 'warning' ? 'rgba(245,158,11,0.3)'
+                  : 'rgba(239,68,68,0.3)'}`,
               borderRadius: '12px', padding: '1.5rem',
               display: 'flex', flexDirection: 'column', gap: '1rem',
             }}>
@@ -790,10 +790,10 @@ export default function Attendance() {
       {currentUser?.role?.toUpperCase() === 'ADMIN' && (
         <Card title="Quản lý Mạng Công ty (Bảo mật WAF)">
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
+
             {/* Thêm mạng mới */}
             <form onSubmit={handleAddNetwork} style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', border: '1px dashed var(--glass-border)' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Wifi size={16}/> Thêm mạng mới</h3>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Wifi size={16} /> Thêm mạng mới</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Tên mạng (VD: WiFi Công ty)</label>
@@ -851,7 +851,7 @@ export default function Attendance() {
                 </div>
               )}
             </div>
-            
+
           </div>
         </Card>
       )}
