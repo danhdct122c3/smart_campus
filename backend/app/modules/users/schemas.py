@@ -11,10 +11,8 @@ class UserRole(str, Enum):
     ADMIN = "ADMIN"
     DIRECTOR = "DIRECTOR"
     MANAGER = "MANAGER"
-    PO = "PO"
-    PM = "PM"
     STAFF = "STAFF"
-    SECURITY = "SECURITY"
+    TECHNICIAN = "TECHNICIAN"
 
 
 class UserStatus(str, Enum):
@@ -25,7 +23,7 @@ class UserStatus(str, Enum):
 
 class Department(str, Enum):
     IT = "IT"
-    MAINTENANCE = "MAINTENANCE"
+    TECHNICAL = "TECHNICAL"
     SECURITY = "SECURITY"
     HR = "HR"
     ADMIN = "ADMIN"

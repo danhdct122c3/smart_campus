@@ -281,7 +281,7 @@ export default function Attendance() {
   const [wafMsg, setWafMsg] = useState(null);
 
   useEffect(() => {
-    if (currentUser?.role?.toUpperCase() === 'ADMIN') {
+    if (['ADMIN', 'DIRECTOR'].includes(currentUser?.role?.toUpperCase())) {
       fetch(`${API_BASE}/security/networks`)
         .then(res => res.json())
         .then(data => {
@@ -786,8 +786,8 @@ export default function Attendance() {
         )}
       </Card>
 
-      {/* Form Quản lý mạng công ty (Chỉ dành cho Admin) */}
-      {currentUser?.role?.toUpperCase() === 'ADMIN' && (
+      {/* Form Quản lý mạng công ty (Chỉ dành cho Admin / Director) */}
+      {['ADMIN', 'DIRECTOR'].includes(currentUser?.role?.toUpperCase()) && (
         <Card title="Quản lý Mạng Công ty (Bảo mật WAF)">
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 

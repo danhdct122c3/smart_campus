@@ -73,6 +73,14 @@ def _item_to_record(item: dict) -> TaskResponse:
     )
 
 def create_task(payload: TaskCreate) -> TaskResponse:
+    from app.modules.users.repository import get_user_by_id
+    from app.core.exceptions import AppException, ErrorCode
+    
+    reporter = get_user_by_id(payload.reporter_id)
+    if reporter and reporter.get("role") == "STAFF":
+        if payload.task_type != TaskType.INCIDENT:
+            raise AppException(ErrorCode.FORBIDDEN, message="Nhân viên chỉ được tạo yêu cầu hỗ trợ kỹ thuật (INCIDENT)")
+
     task_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     
@@ -167,7 +175,7 @@ def update_task(task_id: str, payload: TaskUpdate, user_id: str) -> TaskResponse
     if not existing:
         raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
 
-    is_admin = current_user.get("role") == "ADMIN"
+    is_admin = current_user.get("role") in ("ADMIN", "DIRECTOR", "MANAGER")
     is_reporter = current_user.get("user_id") == existing.get("reporter_id")
     is_assignee = current_user.get("user_id") == existing.get("assignee_id")
     
@@ -325,7 +333,7 @@ def delete_task(task_id: str, user_id: str) -> bool:
     if not existing:
         raise AppException(ErrorCode.TASK_NOT_FOUND, message="Task not found")
 
-    is_admin = current_user.get("role") in ("ADMIN", "MANAGER")
+    is_admin = current_user.get("role") in ("ADMIN", "DIRECTOR", "MANAGER")
     is_reporter = current_user.get("user_id") == existing.get("reporter_id")
     
     if is_admin:

@@ -10,16 +10,16 @@ const Sidebar = () => {
 
   // Định nghĩa các menu có gán roles được phép truy cập
   const allNavItems = [
-    { name: 'Dashboard', icon: BarChart2, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Công việc', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Nghỉ phép', icon: CalendarDays, path: '/leaves', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Dashboard', icon: BarChart2, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF', 'TECHNICIAN'] },
+    { name: 'Công việc', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF', 'TECHNICIAN'] },
+    { name: 'Nghỉ phép', icon: CalendarDays, path: '/leaves', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF', 'TECHNICIAN'] },
 
-    { name: 'Quản lý Users', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },
+    { name: 'Quản lý Users', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER'] },
 
     // Menu chung ai cũng thấy
-    { name: 'Thông tin cá nhân', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Điểm danh', icon: Camera, path: '/attendance', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Thông báo', icon: Bell, path: '/notifications', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Thông tin cá nhân', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF', 'TECHNICIAN'] },
+    { name: 'Điểm danh', icon: Camera, path: '/attendance', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF', 'TECHNICIAN'] },
+    { name: 'Thông báo', icon: Bell, path: '/notifications', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'STAFF', 'TECHNICIAN'] },
   ];
 
   // Lọc menu theo role của user hiện tại
