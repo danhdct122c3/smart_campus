@@ -75,7 +75,6 @@ def send_attendance_email(
     to_email: str,
     user_name: str,
     timestamp: str,
-    room_id: str,
     status: str,
     session_type: str,
 ) -> str | None:
@@ -113,10 +112,6 @@ def send_attendance_email(
               <td style="padding: 12px 16px; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">📅 Thời gian</td>
               <td style="padding: 12px 16px; color: #111827; font-weight: 600; border-bottom: 1px solid #e5e7eb;">{timestamp}</td>
             </tr>
-            <tr>
-              <td style="padding: 12px 16px; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">🏫 Phòng học</td>
-              <td style="padding: 12px 16px; color: #111827; font-weight: 600; border-bottom: 1px solid #e5e7eb;">{room_id or "N/A"}</td>
-            </tr>
             <tr style="background: #f9fafb;">
               <td style="padding: 12px 16px; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">📚 Ca học</td>
               <td style="padding: 12px 16px; color: #111827; font-weight: 600; border-bottom: 1px solid #e5e7eb;">{session_label}</td>
@@ -140,7 +135,6 @@ def send_attendance_email(
         f"Smart Campus - Thông báo điểm danh\n"
         f"Xin chào {user_name},\n"
         f"Thời gian: {timestamp}\n"
-        f"Phòng học: {room_id or 'N/A'}\n"
         f"Ca học: {session_label}\n"
         f"Trạng thái: {status}\n"
     )

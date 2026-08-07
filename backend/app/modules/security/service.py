@@ -55,29 +55,25 @@ def _risk_gte(risk: RiskLevel, threshold: RiskLevel) -> bool:
 
 
 def handle_unknown_face(
-    camera_id: str,
     s3_key: str,
     timestamp: str,
 ) -> SecurityIncident:
     """Handle UnknownFaceDetected event from WF3."""
     return _create_incident(
         incident_type=IncidentType.UNKNOWN_FACE,
-        description=f"Phát hiện khuôn mặt không nhận dạng được tại camera '{camera_id}' lúc {timestamp}.",
-        camera_id=camera_id,
+        description=f"Phát hiện khuôn mặt không nhận dạng được lúc {timestamp}.",
         s3_key=s3_key,
     )
 
 
 def handle_after_hours_access(
     user_id: str,
-    camera_id: str,
     timestamp: str,
 ) -> SecurityIncident:
     """Handle AttendanceRecorded outside working hours."""
     return _create_incident(
         incident_type=IncidentType.AFTER_HOURS,
         description=f"Người dùng '{user_id}' truy cập ngoài giờ quy định lúc {timestamp}.",
-        camera_id=camera_id,
         user_id=user_id,
     )
 
@@ -85,7 +81,6 @@ def handle_after_hours_access(
 def _create_incident(
     incident_type: IncidentType,
     description: str,
-    camera_id: str | None = None,
     user_id: str | None = None,
     s3_key: str | None = None,
 ) -> SecurityIncident:
@@ -100,7 +95,6 @@ def _create_incident(
         "riskLevel": risk_level.value,
         "status": IncidentStatus.OPEN.value,
         "description": description,
-        "cameraId": camera_id,
         "userId": user_id,
         "s3Key": s3_key,
         "createdAt": now,
@@ -116,7 +110,6 @@ def _create_incident(
             risk_level=risk_level.value,
             incident_type=incident_type.value,
             description=description,
-            camera_id=camera_id,
             user_id=user_id,
         )
     except Exception:
@@ -132,7 +125,6 @@ def _create_incident(
                     "riskLevel": risk_level.value,
                     "incidentType": incident_type.value,
                     "description": description,
-                    "cameraId": camera_id,
                     "userId": user_id,
                     "createdAt": now,
                 },
@@ -186,7 +178,6 @@ def _to_incident(item: dict) -> SecurityIncident:
         risk_level=item["riskLevel"],
         status=item["status"],
         description=item["description"],
-        camera_id=item.get("cameraId"),
         user_id=item.get("userId"),
         s3_key=item.get("s3Key"),
         created_at=item["createdAt"],

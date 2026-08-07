@@ -74,8 +74,6 @@ def publish_attendance_recorded(
     attendance_id: str,
     user_id: str,
     user_name: str,
-    camera_id: str,
-    room_id: str,
     status: str,
     timestamp: str,
 ) -> str:
@@ -85,25 +83,23 @@ def publish_attendance_recorded(
             "attendanceId": attendance_id,
             "userId": user_id,
             "userName": user_name,
-            "cameraId": camera_id,
-            "roomId": room_id,
             "status": status,
             "timestamp": timestamp,
         },
     )
 
 
-def publish_unknown_face_detected(camera_id: str, s3_key: str, timestamp: str) -> str:
+def publish_unknown_face_detected(s3_key: str, timestamp: str) -> str:
     return publish_event(
         detail_type="UnknownFaceDetected",
-        detail={"cameraId": camera_id, "s3Key": s3_key, "timestamp": timestamp},
+        detail={"s3Key": s3_key, "timestamp": timestamp},
     )
 
 
-def publish_attendance_rejected(user_id: str, reason: str, camera_id: str) -> str:
+def publish_attendance_rejected(user_id: str, reason: str) -> str:
     return publish_event(
         detail_type="AttendanceRejected",
-        detail={"userId": user_id, "reason": reason, "cameraId": camera_id},
+        detail={"userId": user_id, "reason": reason},
     )
 
 
@@ -112,7 +108,6 @@ def publish_security_incident_created(
     risk_level: str,
     incident_type: str,
     description: str,
-    camera_id: str | None = None,
     user_id: str | None = None,
 ) -> str:
     return publish_event(
@@ -122,7 +117,6 @@ def publish_security_incident_created(
             "riskLevel": risk_level,
             "incidentType": incident_type,
             "description": description,
-            "cameraId": camera_id,
             "userId": user_id,
         },
     )

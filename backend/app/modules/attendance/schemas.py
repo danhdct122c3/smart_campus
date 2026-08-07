@@ -23,8 +23,6 @@ class AttendanceSessionType(str, Enum):
 
 class AttendanceRecognizeRequest(BaseModel):
     """Payload sent by a camera or kiosk device."""
-    camera_id: str = Field(..., description="Unique ID of the registered camera/kiosk")
-    room_id: str = Field(..., description="Room or location identifier")
     image_base64: str = Field(..., description="Base64-encoded face image (JPEG/PNG)")
     timestamp: Optional[str] = Field(
         None,
@@ -38,8 +36,6 @@ class AttendanceRecord(BaseModel):
     attendance_id: str
     user_id: str
     face_id: str
-    camera_id: str
-    room_id: str
     session_type: str
     status: AttendanceStatus
     confidence: float
@@ -62,6 +58,5 @@ class AttendanceListResponse(BaseModel):
 class AttendanceQueryParams(BaseModel):
     user_id: Optional[str] = None
     date: Optional[str] = None          # YYYY-MM-DD
-    room_id: Optional[str] = None
     status: Optional[AttendanceStatus] = None
 

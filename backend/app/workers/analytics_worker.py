@@ -70,8 +70,6 @@ def handler(event: dict, context) -> dict:
                 "event_type": detail_type,
                 "attendance_id": detail.get("attendanceId"),
                 "user_id": detail.get("userId"),
-                "camera_id": detail.get("cameraId"),
-                "room_id": detail.get("roomId"),
                 "status": detail.get("status"),
                 "timestamp": detail.get("timestamp"),
                 # Partitioning fields for Glue/Athena

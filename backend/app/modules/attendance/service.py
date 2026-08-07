@@ -104,10 +104,9 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
         raise AppException(ErrorCode.FACE_NO_FACE_DETECTED)
     except reko.FaceNotFoundError:
         # Unknown face – publish event and return 404
-        s3_key = f"attendance/unknown/{payload.camera_id}/{capture_time.isoformat()}.jpg"
+        s3_key = f"attendance/unknown/{capture_time.isoformat()}.jpg"
         try:
             publish_unknown_face_detected(
-                camera_id=payload.camera_id,
                 s3_key=s3_key,
                 timestamp=capture_time.isoformat(),
             )
@@ -140,7 +139,6 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             publish_attendance_rejected(
                 user_id=user_id,
                 reason=rule.reason,
-                camera_id=payload.camera_id,
             )
         except Exception:
             pass
@@ -167,8 +165,6 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
         "user_id": user_id,
         "attendance_id": attendance_id,
         "face_id": face_id,
-        "camera_id": payload.camera_id,
-        "room_id": payload.room_id,
         "session_type": rule.session_name,
         "status": rule.status,
         "confidence": str(confidence),
@@ -183,8 +179,6 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             attendance_id=attendance_id,
             user_id=user_id,
             user_name=user.name,
-            camera_id=payload.camera_id,
-            room_id=payload.room_id,
             status=rule.status,
             timestamp=capture_time.isoformat(),
         )
@@ -198,7 +192,6 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
                 to_email=user.email,
                 user_name=user.name,
                 timestamp=capture_time.isoformat(),
-                room_id=payload.room_id,
                 status=rule.status,
                 session_type=rule.session_name,
             )
@@ -266,8 +259,6 @@ def wfh_checkin(user_id: str) -> dict:
         "attendance_id": attendance_id,
         "user_id":       user_id,
         "face_id":       "WFH",
-        "camera_id":     "WFH_SELF_CHECKIN",
-        "room_id":       "WFH",
         "session_type":  "WFH",
         "status":        "PRESENT",
         "confidence":    "100",
@@ -284,8 +275,6 @@ def _item_to_record(item: dict, is_duplicate: bool = False) -> AttendanceRecord:
         attendance_id=item.get("attendance_id") or item.get("attendanceId", ""),
         user_id=item.get("user_id") or item.get("userId", ""),
         face_id=item.get("face_id") or item.get("faceId", ""),
-        camera_id=item.get("camera_id") or item.get("cameraId", ""),
-        room_id=item.get("room_id") or item.get("roomId", ""),
         session_type=item.get("session_type") or item.get("sessionType", ""),
         status=item.get("status", "PRESENT"),
         confidence=float(item.get("confidence", 0)),

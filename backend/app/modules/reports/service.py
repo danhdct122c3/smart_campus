@@ -327,8 +327,7 @@ def get_user_stats(
             UserDailyRecord(
                 date=date_val,
                 session_type=r.get("session_type", "ALL"),
-                status=status,
-                camera_id=r.get("camera_id") or r.get("cameraId") or r.get("camera_id"),
+                status=r.get("status"),
                 timestamp=r.get("timestamp"),
             )
         )
@@ -460,7 +459,6 @@ def get_my_analytics(
                 date=date_val,
                 session_type=r.get("session_type", "ALL"),
                 status=status,
-                camera_id=r.get("camera_id") or r.get("cameraId"),
                 timestamp=r.get("timestamp"),
             )
         )

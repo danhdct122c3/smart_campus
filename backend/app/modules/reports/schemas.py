@@ -61,7 +61,6 @@ class UserDailyRecord(BaseModel):
     date: str
     session_type: str
     status: str                  # PRESENT | LATE | ABSENT
-    camera_id: Optional[str] = None
     timestamp: Optional[str] = None
 
 

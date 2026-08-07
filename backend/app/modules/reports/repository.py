@@ -8,8 +8,6 @@ Athena table schema (populated by analytics_worker.py → Kinesis Firehose → S
         event_type  STRING,
         attendance_id STRING,
         user_id     STRING,
-        camera_id   STRING,
-        room_id     STRING,
         status      STRING,   -- PRESENT | LATE
         timestamp   STRING,   -- ISO 8601
         year        STRING,
@@ -120,14 +118,13 @@ def query_user_stats_from_athena(user_id: str, start: str, end: str) -> list[dic
     """
     Query a single user's attendance records from Athena.
 
-    Returns list of dicts: attendance_id, user_id, camera_id, status, timestamp
+    Returns list of dicts: attendance_id, user_id, status, timestamp
     Raises AthenaQueryError on failure.
     """
     sql = f"""
         SELECT
             attendance_id,
             user_id,
-            camera_id,
             status,
             timestamp,
             SUBSTR(timestamp, 1, 10) AS date
