@@ -1,21 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield } from 'lucide-react';
+import { Camera, CameraOff, CheckCircle, XCircle, AlertTriangle, Clock, Users, RefreshCw, Loader, Shield, Wifi, Plus, ShieldCheck } from 'lucide-react';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
 
 const API_BASE = 'https://d2utvhhrx300xg.cloudfront.net/api';
-const CAMERA_ID = 'CAM-MAIN-001';
-const ROOM_ID = 'ROOM-A101';
+
 
 // ----- Status badge helper -----
 const StatusBadge = ({ status }) => {
   const map = {
-    PRESENT:   { color: 'var(--accent-success)',  label: 'Đúng giờ' },
-    LATE:      { color: 'var(--accent-warning)',  label: 'Muộn' },
-    INACTIVE:  { color: 'var(--text-muted)',      label: 'Không hoạt động' },
-    REJECTED:  { color: 'var(--accent-danger)',   label: 'Từ chối' },
-    DUPLICATE: { color: '#06b6d4',               label: 'Trùng lặp' },
+    PRESENT: { color: 'var(--accent-success)', label: 'Đúng giờ' },
+    LATE: { color: 'var(--accent-warning)', label: 'Muộn' },
+    INACTIVE: { color: 'var(--text-muted)', label: 'Không hoạt động' },
+    REJECTED: { color: 'var(--accent-danger)', label: 'Từ chối' },
+    DUPLICATE: { color: '#06b6d4', label: 'Trùng lặp' },
   };
   const cfg = map[status] || { color: 'var(--text-muted)', label: status };
   return (
@@ -42,20 +41,20 @@ export default function Attendance() {
   const [registering, setRegistering] = useState(false);
 
   // webcam
-  const videoRef    = useRef(null);
-  const [stream,    setStream]    = useState(null);
+  const videoRef = useRef(null);
+  const [stream, setStream] = useState(null);
   const [camActive, setCamActive] = useState(false);
-  const [camError,  setCamError]  = useState('');
+  const [camError, setCamError] = useState('');
 
   // recognition
-  const [scanning,     setScanning]     = useState(false);
-  const [lastResult,   setLastResult]   = useState(null);   // { success, message, attendance, user }
-  const [resultType,   setResultType]   = useState(null);   // 'success' | 'error' | 'warning'
-  const [autoScan,     setAutoScan]     = useState(false);
-  const autoScanRef    = useRef(false);
+  const [scanning, setScanning] = useState(false);
+  const [lastResult, setLastResult] = useState(null);   // { success, message, attendance, user }
+  const [resultType, setResultType] = useState(null);   // 'success' | 'error' | 'warning'
+  const [autoScan, setAutoScan] = useState(false);
+  const autoScanRef = useRef(false);
 
   // history
-  const [history,     setHistory]     = useState([]);
+  const [history, setHistory] = useState([]);
   const [loadingHist, setLoadingHist] = useState(false);
 
   // today string
@@ -109,7 +108,7 @@ export default function Attendance() {
     setCamError('');
 
     const canvas = document.createElement('canvas');
-    canvas.width  = videoRef.current.videoWidth  || 640;
+    canvas.width = videoRef.current.videoWidth || 640;
     canvas.height = videoRef.current.videoHeight || 480;
     canvas.getContext('2d').drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
@@ -133,7 +132,7 @@ export default function Attendance() {
           try {
             const ur = await fetch(`${API_BASE}/users/${data.attendance?.user_id}`);
             if (ur.ok) { const uj = await ur.json(); userInfo = uj.data; }
-          } catch {}
+          } catch { }
           setLastResult({ ...data, user: userInfo });
           setResultType(data.attendance?.is_duplicate ? 'warning' : 'success');
           fetchHistory();
@@ -161,7 +160,7 @@ export default function Attendance() {
     setCamError('');
 
     const canvas = document.createElement('canvas');
-    canvas.width  = videoRef.current.videoWidth  || 640;
+    canvas.width = videoRef.current.videoWidth || 640;
     canvas.height = videoRef.current.videoHeight || 480;
     canvas.getContext('2d').drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
@@ -198,14 +197,107 @@ export default function Attendance() {
   const resultIcon = resultType === 'success'
     ? <CheckCircle size={32} color="var(--accent-success)" />
     : resultType === 'warning'
-    ? <AlertTriangle size={32} color="var(--accent-warning)" />
-    : <XCircle size={32} color="var(--accent-danger)" />;
+      ? <AlertTriangle size={32} color="var(--accent-warning)" />
+      : <XCircle size={32} color="var(--accent-danger)" />;
 
   const resultBg = resultType === 'success'
     ? 'rgba(16,185,129,0.08)'
     : resultType === 'warning'
-    ? 'rgba(245,158,11,0.08)'
-    : 'rgba(239,68,68,0.08)';
+      ? 'rgba(245,158,11,0.08)'
+      : 'rgba(239,68,68,0.08)';
+
+  // --- Admin WAF Network Management ---
+  const [networks, setNetworks] = useState([]);
+  const [currentWafIp, setCurrentWafIp] = useState(null);
+  const [newNetName, setNewNetName] = useState('');
+  const [newNetIp, setNewNetIp] = useState('');
+  const [isAddingNet, setIsAddingNet] = useState(false);
+  const [isApplyingIp, setIsApplyingIp] = useState('');
+  const [wafMsg, setWafMsg] = useState(null);
+
+  useEffect(() => {
+    if (currentUser?.role?.toUpperCase() === 'ADMIN') {
+      fetch(`${API_BASE}/security/networks`)
+        .then(res => res.json())
+        .then(data => { 
+          if (data.data) {
+            setNetworks(data.data.networks || []); 
+            setCurrentWafIp(data.data.current_waf_ip);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentUser]);
+
+  const handleFetchCurrentIp = async () => {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      setNewNetIp(data.ip);
+    } catch (err) {
+      alert('Không thể tự động lấy IP: ' + err.message);
+    }
+  };
+
+  const handleAddNetwork = async (e) => {
+    e.preventDefault();
+    if (!newNetName || !newNetIp) return;
+    setIsAddingNet(true);
+    setWafMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/security/networks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newNetName, ip: newNetIp })
+      });
+      const data = await res.json();
+      if (res.ok && data.data) {
+        setNetworks([...networks, data.data]);
+        setNewNetName('');
+        setNewNetIp('');
+        setWafMsg({ success: true, text: 'Đã thêm mạng mới vào danh sách.' });
+      } else throw new Error(data.message || 'Lỗi thêm mạng');
+    } catch (err) {
+      setWafMsg({ success: false, text: err.message });
+    } finally { setIsAddingNet(false); }
+  };
+
+  const handleDeleteNetwork = async (netId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa mạng này?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/security/networks/${netId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setNetworks(networks.filter(n => n.id !== netId));
+        setWafMsg({ success: true, text: 'Đã xóa mạng thành công.' });
+      } else {
+        const data = await res.json();
+        throw new Error(data.message || 'Lỗi xóa mạng');
+      }
+    } catch (err) {
+      setWafMsg({ success: false, text: err.message });
+    }
+  };
+
+  const handleApplyWafIp = async (net) => {
+    setIsApplyingIp(net.id);
+    setWafMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/security/waf-ip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: net.ip })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCurrentWafIp(net.ip);
+        setWafMsg({ success: true, text: `Áp dụng mạng "${net.name}" (${net.ip}) làm mạng Công ty thành công!` });
+      } else throw new Error(data.message || 'Lỗi cập nhật WAF');
+    } catch (err) {
+      setWafMsg({ success: false, text: err.message });
+    } finally { setIsApplyingIp(''); }
+  };
 
   return (
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '100%' }}>
@@ -259,44 +351,44 @@ export default function Attendance() {
             border: camActive ? '2px solid var(--accent-primary)' : '2px solid var(--glass-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-              <>
-                {!currentUser?.face_registered && camActive && !registering && (
-                  <div style={{
-                    position: 'absolute', inset: 0, zIndex: 10,
-                    background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    padding: '2rem', textAlign: 'center', pointerEvents: 'none'
-                  }}>
-                    <div style={{ background: 'var(--accent-warning)', color: '#000', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Bắt buộc</div>
-                    <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Tài khoản của bạn chưa có khuôn mặt</p>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', margin: 0 }}>Vui lòng ngồi thẳng, tháo khẩu trang và bấm nút Đăng ký bên dưới để chụp ảnh lưu vào hệ thống.</p>
-                  </div>
-                )}
-                {(scanning || registering) && (
-                  <div style={{
-                    position: 'absolute', inset: 0, zIndex: 11,
-                    background: 'rgba(6,182,212,0.15)', backdropFilter: 'blur(4px)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    gap: '0.75rem',
-                  }}>
-                    <Loader size={40} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
-                    <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang nhận diện khuôn mặt...'}</p>
-                  </div>
-                )}
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: camActive ? 'block' : 'none' }}
-                />
-                {!camActive && (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                    <CameraOff size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                    <p style={{ fontSize: '0.875rem' }}>Camera chưa được bật</p>
-                  </div>
-                )}
-              </>
+            <>
+              {!currentUser?.face_registered && camActive && !registering && (
+                <div style={{
+                  position: 'absolute', inset: 0, zIndex: 10,
+                  background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  padding: '2rem', textAlign: 'center', pointerEvents: 'none'
+                }}>
+                  <div style={{ background: 'var(--accent-warning)', color: '#000', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>Bắt buộc</div>
+                  <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Tài khoản của bạn chưa có khuôn mặt</p>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', margin: 0 }}>Vui lòng ngồi thẳng, tháo khẩu trang và bấm nút Đăng ký bên dưới để chụp ảnh lưu vào hệ thống.</p>
+                </div>
+              )}
+              {(scanning || registering) && (
+                <div style={{
+                  position: 'absolute', inset: 0, zIndex: 11,
+                  background: 'rgba(6,182,212,0.15)', backdropFilter: 'blur(4px)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: '0.75rem',
+                }}>
+                  <Loader size={40} color="var(--accent-primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                  <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{registering ? 'Đang trích xuất đặc trưng khuôn mặt...' : 'Đang nhận diện khuôn mặt...'}</p>
+                </div>
+              )}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: camActive ? 'block' : 'none' }}
+              />
+              {!camActive && (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                  <CameraOff size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                  <p style={{ fontSize: '0.875rem' }}>Camera chưa được bật</p>
+                </div>
+              )}
+            </>
           </div>
 
           {camError && (
@@ -386,10 +478,9 @@ export default function Attendance() {
             </div>
           ) : (
             <div style={{
-              flex: 1, background: resultBg, border: `1px solid ${
-                resultType === 'success' ? 'rgba(16,185,129,0.3)'
-                : resultType === 'warning' ? 'rgba(245,158,11,0.3)'
-                : 'rgba(239,68,68,0.3)'}`,
+              flex: 1, background: resultBg, border: `1px solid ${resultType === 'success' ? 'rgba(16,185,129,0.3)'
+                  : resultType === 'warning' ? 'rgba(245,158,11,0.3)'
+                    : 'rgba(239,68,68,0.3)'}`,
               borderRadius: '12px', padding: '1.5rem',
               display: 'flex', flexDirection: 'column', gap: '1rem',
             }}>
@@ -532,6 +623,76 @@ export default function Attendance() {
           </div>
         )}
       </Card>
+
+      {/* Form Quản lý mạng công ty (Chỉ dành cho Admin) */}
+      {currentUser?.role?.toUpperCase() === 'ADMIN' && (
+        <Card title="Quản lý Mạng Công ty (Bảo mật WAF)">
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* Thêm mạng mới */}
+            <form onSubmit={handleAddNetwork} style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', border: '1px dashed var(--glass-border)' }}>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Wifi size={16}/> Thêm mạng mới</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Tên mạng (VD: WiFi Công ty)</label>
+                  <input value={newNetName} onChange={e => setNewNetName(e.target.value)} required style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.875rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Địa chỉ IP Public (IPv4)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input value={newNetIp} onChange={e => setNewNetIp(e.target.value)} required style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.875rem', fontFamily: 'monospace' }} />
+                    <button type="button" onClick={handleFetchCurrentIp} title="Lấy IP hiện tại" style={{ background: 'var(--bg-card)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '6px', padding: '0 0.75rem', cursor: 'pointer' }}><RefreshCw size={14} /></button>
+                  </div>
+                </div>
+              </div>
+              <button type="submit" disabled={isAddingNet} style={{ background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '6px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, cursor: isAddingNet ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {isAddingNet ? <Loader size={14} className="spin" /> : <Plus size={14} />} Thêm vào danh sách
+              </button>
+            </form>
+
+            {/* Thông báo kết quả WAF */}
+            {wafMsg && (
+              <div style={{ padding: '0.75rem', borderRadius: '8px', fontSize: '0.875rem', background: wafMsg.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: '1px solid', borderColor: wafMsg.success ? 'var(--status-success)' : 'var(--status-error)', color: wafMsg.success ? 'var(--status-success)' : 'var(--status-error)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {wafMsg.success ? <CheckCircle size={16} /> : null} {wafMsg.text}
+              </div>
+            )}
+
+            {/* Danh sách mạng */}
+            <div>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.75rem 0' }}>Danh sách mạng đã lưu</h3>
+              {networks.length === 0 ? (
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Chưa có mạng nào. Vui lòng thêm mạng mới.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {networks.map(net => {
+                    const isActive = currentWafIp === net.ip;
+                    return (
+                      <div key={net.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: isActive ? 'rgba(34, 197, 94, 0.05)' : 'rgba(255,255,255,0.02)', border: isActive ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {net.name}
+                            {isActive && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--accent-primary)', color: 'white' }}>Đang áp dụng</span>}
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace' }}>{net.ip}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => handleApplyWafIp(net)} disabled={isApplyingIp === net.id || isActive} style={{ background: isActive ? 'transparent' : 'rgba(34, 197, 94, 0.15)', color: isActive ? 'var(--text-muted)' : 'var(--status-success)', border: isActive ? '1px solid var(--glass-border)' : '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: isActive ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {isApplyingIp === net.id ? <Loader size={14} className="spin" /> : <ShieldCheck size={14} />} {isActive ? 'Đã áp dụng' : 'Áp dụng'}
+                          </button>
+                          <button onClick={() => handleDeleteNetwork(net.id)} disabled={isActive} title={isActive ? "Không thể xóa mạng đang áp dụng" : "Xóa mạng này"} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: isActive ? 'not-allowed' : 'pointer', opacity: isActive ? 0.5 : 1 }}>
+                            Xóa
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </Card>
+      )}
 
       {/* CSS animations */}
       <style>{`
