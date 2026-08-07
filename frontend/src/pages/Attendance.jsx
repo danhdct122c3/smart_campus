@@ -382,32 +382,14 @@ export default function Attendance() {
       </div>
 
       {/* Check-in time info */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--accent-success)', padding: '0.5rem', borderRadius: '8px' }}>
             <Clock size={20} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ca Sáng (Đúng giờ)</p>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Trước 07:30</p>
-          </div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--accent-warning)', padding: '0.5rem', borderRadius: '8px' }}>
-            <Clock size={20} />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ca Chiều (Đúng giờ)</p>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Trước 13:30</p>
-          </div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6', padding: '0.5rem', borderRadius: '8px' }}>
-            <Clock size={20} />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ca Tối (Đúng giờ)</p>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Trước 18:00</p>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Khung giờ Check-in (Đúng giờ)</p>
+            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>08:30 - 09:30</p>
           </div>
         </div>
       </div>

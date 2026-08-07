@@ -24,12 +24,8 @@ class Session:
 
 
 SESSIONS: list[Session] = [
-    # Cover 00:00 to 11:59:59 (late after 07:30)
-    Session("MORNING",   time(0, 0),  time(7, 30), time(11, 59, 59, 999999)),
-    # Cover 12:00 to 17:29:59 (late after 13:30)
-    Session("AFTERNOON", time(12, 0), time(13, 30), time(17, 29, 59, 999999)),
-    # Cover 17:30 to 23:59:59 (late after 18:00)
-    Session("EVENING",   time(17, 30), time(18, 0), time(23, 59, 59, 999999)),
+    # One single session: starts at 06:00, late after 09:30, ends at 23:59:59
+    Session("FULLDAY", time(6, 0), time(9, 30), time(23, 59, 59, 999999)),
 ]
 
 
