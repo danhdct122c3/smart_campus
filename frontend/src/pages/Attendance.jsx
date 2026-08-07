@@ -31,7 +31,7 @@ const StatusBadge = ({ status }) => {
 // ----- Format timestamp -----
 const formatTime = (iso) => {
   if (!iso) return '—';
-  try { return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+  try { return new Date(iso).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
   catch { return iso; }
 };
 
@@ -59,7 +59,7 @@ export default function Attendance() {
   const [loadingHist, setLoadingHist] = useState(false);
 
   // today string
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 
   const fetchHistory = useCallback(async () => {
     setLoadingHist(true);
@@ -218,7 +218,7 @@ export default function Attendance() {
             Đang bật camera
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0.25rem 0 0' }}>
-            Hôm nay: {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            Hôm nay: {new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
