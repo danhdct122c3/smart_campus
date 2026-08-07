@@ -11,15 +11,15 @@ const Sidebar = () => {
   // Định nghĩa các menu có gán roles được phép truy cập
   const allNavItems = [
     { name: 'Dashboard', icon: BarChart2, path: '/', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Tasks (Công việc)', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Công việc', icon: CheckSquare, path: '/tasks', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
     { name: 'Nghỉ phép', icon: CalendarDays, path: '/leaves', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
 
-    { name: 'Users & Faces', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },
+    { name: 'Quản lý Users', icon: Users, path: '/users', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PM', 'PO'] },
 
     // Menu chung ai cũng thấy
-    { name: 'My Profile', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Attendance', icon: Camera, path: '/attendance', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
-    { name: 'Notifications', icon: Bell, path: '/notifications', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Thông tin cá nhân', icon: UserCircle, path: '/profile', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Điểm danh', icon: Camera, path: '/attendance', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
+    { name: 'Thông báo', icon: Bell, path: '/notifications', roles: ['ADMIN', 'DIRECTOR', 'MANAGER', 'PO', 'PM', 'STAFF', 'SECURITY', 'MAINTENANCE'] },
   ];
 
   // Lọc menu theo role của user hiện tại
@@ -36,8 +36,8 @@ const Sidebar = () => {
       zIndex: 10
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
-        <div style={{ 
-          width: '40px', height: '40px', 
+        <div style={{
+          width: '40px', height: '40px',
           background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
           borderRadius: '10px',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
