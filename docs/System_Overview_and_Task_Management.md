@@ -69,7 +69,7 @@ Dưới đây là cấu trúc Schema hiện tại cho 5 bảng DynamoDB cốt l�
 - `user_id` (PK) - UUID
 - `email` (String) - Global Secondary Index (GSI)
 - `full_name` (String)
-- `role` (String) - `STUDENT`, `STAFF`, `ADMIN`
+- `role` (String) - `ADMIN`, `DIRECTOR`, `MANAGER`, `STAFF`, `TECHNICIAN`
 - `is_active` (Boolean)
 - `created_at` (String)
 
@@ -84,7 +84,8 @@ Dưới đây là cấu trúc Schema hiện tại cho 5 bảng DynamoDB cốt l�
 - `user_id` (String) - (GSI 1)
 - `date` (String) - (GSI 2, format: YYYY-MM-DD)
 - `timestamp` (String) - ISO 8601
-- `status` (String) - `PRESENT`, `LATE`, `ABSENT`
+- `status` (String) - `PRESENT`, `LATE`, `EARLY_LEAVE`, `ABSENT`
+- `type` (String) - `CHECK_IN`, `CHECK_OUT`
 - `camera_id` (String)
 - `confidence` (Float) - Tỷ lệ chính xác của Rekognition
 
@@ -112,7 +113,7 @@ Dưới đây là cấu trúc Schema hiện tại cho 5 bảng DynamoDB cốt l�
 
 ### 4.1. Phân loại Task (Task Types)
 1. **SECURITY_CHECK:** Task khẩn cấp sinh ra từ WF7 (ví dụ: yêu cầu bảo vệ đến cổng A kiểm tra người lạ).
-2. **MAINTENANCE:** Task bảo trì thiết bị (camera hỏng, máy lạnh hư).
+2. **INCIDENT:** Task hỗ trợ kỹ thuật, sự cố (camera hỏng, máy lạnh hư). STAFF chỉ được phép tạo loại này.
 3. **GENERAL:** Task công việc chung giao cho nhân sự.
 
 ### 4.2. Luồng hoạt động (Event-Driven Flow)
@@ -130,7 +131,7 @@ Dưới đây là cấu trúc Schema hiện tại cho 5 bảng DynamoDB cốt l�
 |:---|:---|:---|
 | `taskId` (PK) | String | UUID của task |
 | `assigneeId` | String | ID của nhân viên nhận task (dùng cho GSI để filter) |
-| `taskType` | String | `SECURITY_CHECK`, `MAINTENANCE`, `GENERAL` |
+| `taskType` | String | `SECURITY_CHECK`, `INCIDENT`, `GENERAL` |
 | `status` | String | `TODO`, `IN_PROGRESS`, `DONE`, `CANCELLED` |
 | `priority` | String | `LOW`, `MEDIUM`, `HIGH`, `URGENT` |
 | `title` | String | Tiêu đề công việc |

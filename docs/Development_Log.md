@@ -433,7 +433,9 @@ Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm
 
 ---
 
-## 20. Hoàn thiện Tính năng Chống Gian lận (Face Liveness)
+## 20. Hoàn thiện Tính năng Chống Gian lận (Face Liveness) - [HIỆN TẠI ĐANG TẮT]
+
+> **Lưu ý:** Hiện tại tính năng Face Liveness đang được tắt trên toàn hệ thống để đơn giản hóa quá trình điểm danh. Nghiệp vụ dưới đây là tài liệu thiết kế nếu hệ thống bật lại tính năng này.
 **Mục tiêu:**
 - Giải quyết bài toán bảo mật cốt lõi: Ngăn chặn nhân viên/sinh viên sử dụng ảnh chụp hoặc video phát lại trước camera để giả mạo điểm danh.
 - Tích hợp chuẩn AWS Amplify Liveness (Workflow 9).
@@ -458,3 +460,23 @@ Trang Analytics mới nay có khả năng tự thay đổi hình thù và phạm
 **Kết quả:**
 - Hệ thống chặn 100% các cuộc tấn công Presentation Attack (PA) như đưa ảnh giấy, màn hình điện thoại vào camera.
 - Đảm bảo luồng điểm danh (Workflow 3) bảo mật tuyệt đối, là mảnh ghép cuối cùng hoàn thiện Đồ án Smart Campus trên AWS.
+
+---
+
+## Giai đoạn 21: Cập nhật Nghiệp vụ Điểm danh (Checkout), Phân quyền & Fix Bug Hệ thống (2026-08-07)
+
+### 21.1 – Hoàn thiện Nghiệp vụ Điểm danh (Attendance Checkout)
+- Bổ sung luồng **Check-out** vào hệ thống điểm danh.
+- Thiết lập **khung giờ hợp lệ**: `8h30-9h30` (Check-in) và `17h30-18h30` (Check-out).
+- Tích hợp logic xử lý linh hoạt cho **Work-From-Home (WFH)**: Nhân viên WFH không cần kết nối mạng công ty để thao tác Check-out.
+- Hiển thị khung thời gian rõ ràng trên giao diện UI để nhân viên dễ dàng theo dõi.
+
+### 21.2 – Tái cấu trúc Phân quyền & Phòng ban (Roles & Departments)
+- **Chuẩn hóa Roles:** Lược bỏ các role dư thừa (`PO`, `PM`, `SECURITY`), cấu trúc lại với 5 roles tinh gọn: `ADMIN`, `DIRECTOR`, `MANAGER`, `STAFF`, `TECHNICIAN`.
+- **Chuẩn hóa Department:** Đổi tên phòng ban `MAINTENANCE` thành `TECHNICAL` để phù hợp với ngữ cảnh thực tế doanh nghiệp.
+- Mở quyền cho `DIRECTOR`: Cho phép quản lý danh sách Users và cấu hình mạng nội bộ (WAF).
+- Giới hạn quyền `STAFF`: Chỉ được phép tạo Task báo cáo sự cố (INCIDENT / Hỗ trợ kỹ thuật), không được tạo Task giao việc chung.
+
+### 21.3 – Khắc phục Sự cố Hệ thống (Bug Fixes)
+- **Fix Bug 500 Backend:** Viết script migration cập nhật trực tiếp DynamoDB, đồng bộ hóa các dữ liệu cũ (role, department) theo định nghĩa mới, giải quyết dứt điểm lỗi hệ thống khi gọi API `users` và `tasks`.
+- **Fix Bug Hiển thị Notification:** Sửa lỗi giao diện hiển thị `user_id` (chuỗi UUID) thay vì Tên người nhận bằng cách bổ sung `limit=1000` khi fetch API người dùng, đảm bảo Frontend có thể mapping toàn bộ tên nhân sự.

@@ -18,7 +18,7 @@ Smart Campus Platform được xây dựng theo mô hình **Serverless + Event-D
 | **Event-Driven** | Các module giao tiếp qua EventBridge + SQS, giảm coupling |
 | **Defense in Depth** | Bảo mật đa lớp: WAF → Cognito JWT → RBAC trong code |
 | **Hybrid Analytics** | OLTP (DynamoDB) tách biệt OLAP (Athena + S3 Data Lake) |
-| **AI-Powered Security** | Nhận diện khuôn mặt + Liveness Detection chống gian lận |
+| **AI-Powered Security** | Nhận diện khuôn mặt (Amazon Rekognition) |
 | **Reliable Messaging** | SQS đảm bảo không mất dữ liệu, retry tự động + Dead Letter Queue |
 
 ---
@@ -48,7 +48,6 @@ graph TB
     end
 
     subgraph AI["🤖 AI / ML Services"]
-        Liveness["Rekognition\nFace Liveness Detection\n(Anti-Spoofing)"]
         Rekognition["Rekognition\nSearchFacesByImage\n(Face Recognition)"]
         Bedrock["Amazon Bedrock\nClaude 3 Sonnet\n(AI Assistant)"]
     end
@@ -88,8 +87,7 @@ graph TB
     WAF -->|"Valid IP"| APIGW
     APIGW -->|"JWT Verify"| Cognito
     Cognito -->|"Authorized"| Lambda
-    Lambda -->|"1. Liveness Check"| Liveness
-    Lambda -->|"2. Face Search"| Rekognition
+    Lambda -->|"Face Search"| Rekognition
     Lambda -->|"NL2SQL"| Bedrock
     Lambda <-->|"Read/Write"| DynamoDB
     Lambda -->|"Upload Image"| S3_Images
@@ -118,43 +116,38 @@ sequenceDiagram
     participant FE as Frontend (Camera)
     participant WAF as AWS WAF
     participant L as Lambda
-    participant FL as Rekognition Face Liveness
     participant FR as Rekognition SearchFaces
     participant DB as DynamoDB
     participant EB as EventBridge
 
-    E->>FE: Bấm Check-in
-    FE->>WAF: POST /attendance/check-in
+    E->>FE: Bấm Check-in / Check-out
+    FE->>WAF: POST /attendance/check-in hoặc /attendance/check-out
 
-    alt IP không hợp lệ (ngoài mạng công ty)
-        WAF-->>FE: 403 Forbidden
-    else IP hợp lệ (mạng công ty)
-        WAF->>L: Forward request
+    alt WFH (Làm việc tại nhà)
+        WAF-->>L: Bỏ qua check IP (đối với Check-out)
+    else Tại văn phòng (Office)
+        alt IP không hợp lệ (ngoài mạng công ty)
+            WAF-->>FE: 403 Forbidden
+        else IP hợp lệ (mạng công ty)
+            WAF->>L: Forward request
+        end
+    end
 
-        Note over L,FL: Bước 1 - Liveness Detection
-        L->>FL: CreateFaceLivenessSession
-        FL-->>FE: session_id
-        FE->>FL: Stream video frames (SDK)
-        L->>FL: GetFaceLivenessSessionResults
+    Note over L: Kiểm tra khung giờ (8h30-9h30 Check-in, 17h30-18h30 Check-out)
+    alt Ngoài khung giờ cho phép
+        L-->>FE: 400 - Ngoài khung giờ điểm danh
+    else Trong khung giờ
+        Note over L,FR: Nhận diện khuôn mặt (Face Recognition)
+        L->>FR: SearchFacesByImage
 
-        alt Confidence < 80% (anh gia / video replay)
-            FL-->>L: Liveness FAILED
-            L-->>FE: 400 - Phat hien gian lan!
-        else Confidence >= 80% (nguoi that)
-            FL-->>L: Liveness PASSED
-
-            Note over L,FR: Buoc 2 - Face Recognition
-            L->>FR: SearchFacesByImage
-
-            alt Khong nhan dien duoc
-                FR-->>L: Unknown Face
-                L-->>FE: 404 - Chua dang ky khuon mat
-            else Nhan dien thanh cong
-                FR-->>L: user_id + confidence
-                L->>DB: Ghi ban ghi diem danh
-                L->>EB: Publish AttendanceRecorded
-                L-->>FE: 200 - Diem danh thanh cong!
-            end
+        alt Không nhận diện được
+            FR-->>L: Unknown Face
+            L-->>FE: 404 - Chưa đăng ký khuôn mặt
+        else Nhận diện thành công
+            FR-->>L: user_id + confidence
+            L->>DB: Ghi bản ghi điểm danh (Check-in/Check-out)
+            L->>EB: Publish AttendanceRecorded
+            L-->>FE: 200 - Điểm danh thành công!
         end
     end
 ```
@@ -209,7 +202,6 @@ graph LR
 |---|---|---|
 | **Amazon Rekognition – IndexFaces** | Lap chi muc khuon mat khi dang ky | WF2 |
 | **Amazon Rekognition – SearchFacesByImage** | Nhan dien khuon mat khi diem danh | WF3 |
-| **Amazon Rekognition – Face Liveness** | Phat hien gian lan (anh gia / video replay) | WF3 |
 | **Amazon Bedrock (Claude 3)** | AI Assistant – NL2SQL tieng Viet to Athena | WF6 |
 
 ### 5.3 Analytics Services
@@ -288,7 +280,7 @@ smart-campus-datalake-{account}-ap-southeast-1/
 |---|---|---|---|---|
 | **WF1** | User Authentication | HTTP Request | Cognito, API Gateway | Hoan thanh |
 | **WF2** | Face Registration | HTTP Request | Rekognition IndexFaces, S3 | Hoan thanh |
-| **WF3** | Attendance Check-in | HTTP Request | WAF, Rekognition Liveness, Rekognition Search | Hoan thanh |
+| **WF3** | Attendance Check-in | HTTP Request | WAF, Rekognition Search | Hoan thanh |
 | **WF4** | Notification | Event | EventBridge, SNS, SES | Hoan thanh |
 | **WF5** | Analytics & Reporting | HTTP Request | Glue, Athena, S3 Data Lake | Hoan thanh |
 | **WF6** | AI Assistant | HTTP Request | Bedrock Claude 3, Athena | Tam hoan (cho quota) |
@@ -309,7 +301,7 @@ Phase 1 — Core Platform (Hoan thanh)
 └── WF8: Task & Leave Management
 
 Phase 2 — Security & Reliability Enhancement (Dang trien khai)
-├── Rekognition Face Liveness (chong gian lan anh)
+├── Rekognition Face Liveness (Tam hoan)
 ├── AWS WAF IP Restriction (chi mang cong ty)
 ├── Amazon SQS Analytics Queue (dam bao du lieu Data Lake)
 ├── Amazon SQS Notification Queue (dam bao gui thong bao)
