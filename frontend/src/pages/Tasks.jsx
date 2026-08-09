@@ -353,6 +353,11 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
               <Plus size={14} /> Thêm việc con
             </Btn>
           )}
+          {(currentUser?.role === 'MANAGER' && task.department === currentUser?.department && task.task_type === 'INCIDENT') && !task.assignee_id && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
+            <Btn variant="primary" size="md" style={{ background: 'transparent', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--accent-success)' }} onClick={() => { onSelfAssign(task); onClose(); }}>
+              <UserCheck size={14} /> Tự làm
+            </Btn>
+          )}
           <Btn variant="ghost" size="md" style={{ marginLeft: 'auto' }} onClick={onClose}>Đóng</Btn>
         </div>
       </div>
@@ -368,7 +373,7 @@ const TaskDetailDrawer = ({ task, users, currentUser, onClose, onUpdateStatus, o
 
 
 // ── Task Row (list item) ──────────────────────────────────────────────────────
-const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubtask, onViewDetail, onEdit, onDelete }) => {
+const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubtask, onViewDetail, onEdit, onDelete, onSelfAssign }) => {
   const [expanded, setExpanded] = useState(false);
 
   const getUser = (id) => users.find(x => x.user_id === id) || { name: id || '—', role: '' };
@@ -560,7 +565,12 @@ const TaskRow = ({ task, users, currentUser, onUpdateStatus, onSubmit, onAddSubt
                 <Plus size={13} /> Thêm việc con
               </Btn>
             )}
-            {(isReporter || isAdmin || (isAssignee && currentUser?.role === 'MANAGER' && task.task_type === 'INCIDENT')) && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
+            {(currentUser?.role === 'MANAGER' && task.department === currentUser?.department && task.task_type === 'INCIDENT') && !task.assignee_id && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
+              <Btn variant="primary" style={{ background: 'transparent', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--accent-success)' }} onClick={() => onSelfAssign(task)}>
+                <UserCheck size={13} /> Tự làm
+              </Btn>
+            )}
+            {(isReporter || isAdmin || (currentUser?.role === 'MANAGER' && task.department === currentUser?.department && task.task_type === 'INCIDENT')) && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
               <Btn variant="dashed" onClick={() => onEdit(task)}>
                 <Edit2 size={13} /> {task.task_type === 'INCIDENT' ? 'Phân công' : 'Sửa'}
               </Btn>
@@ -953,6 +963,24 @@ export default function Tasks() {
     }
   };
 
+  const handleSelfAssign = async (task) => {
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${task.task_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': currentUser.user_id },
+        body: JSON.stringify({ assignee_id: currentUser.user_id, status: 'IN_PROGRESS' })
+      });
+      if (res.ok) {
+        fetchTasks(false);
+      } else {
+        const err = await res.json();
+        showToast(`Lỗi: ${err.message || 'Không thể tự nhận việc'}`);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Filter pipeline (moved to backend)
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(tasks.length / ITEMS_PER_PAGE);
@@ -1079,6 +1107,7 @@ export default function Tasks() {
                 onViewDetail={handleOpenDetailTask}
                 onEdit={handleEditTask}
                 onDelete={handleDeleteTask}
+                onSelfAssign={handleSelfAssign}
               />
             ))}
             {tasks.length > 0 && (
@@ -1131,6 +1160,7 @@ export default function Tasks() {
           onUpdateStatus={(id, s) => { updateStatus(id, s); setDetailTask(null); }}
           onSubmit={t => { handleOpenSubmitModal(t); setDetailTask(null); }}
           onAddSubtask={id => { openSubtaskModal(id); setDetailTask(null); }}
+          onSelfAssign={handleSelfAssign}
           aggregatedFiles={aggregatedFiles}
           loadingAggregated={loadingAggregated}
         />
