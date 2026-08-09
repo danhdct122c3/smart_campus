@@ -1,7 +1,7 @@
 """Analytics Worker (Workflow 5 – Analytics Pipeline).
 
 Consumes AttendanceRecorded events from EventBridge and streams data to:
-    Kinesis Firehose → S3 Data Lake → Glue Catalog → Athena → QuickSight
+    S3 Data Lake (Direct Put) → Glue Catalog → Athena → QuickSight
 
 Published Events:
     None (fire-and-forget streaming)
@@ -10,6 +10,7 @@ Published Events:
 import json
 import logging
 import boto3
+import uuid
 from functools import lru_cache
 
 from app.core.config import settings
@@ -20,23 +21,29 @@ logger.setLevel(logging.INFO)
 
 
 @lru_cache
-def get_firehose_client():
-    return boto3.client("firehose", region_name=settings.aws_region)
+def get_s3_client():
+    return boto3.client("s3", region_name=settings.aws_region)
 
 
-DELIVERY_STREAM = "smart-campus-attendance-stream"
-
-
-def _send_to_firehose(record: dict) -> str:
-    """Stream a single attendance record to Kinesis Firehose → S3 Data Lake."""
-    client = get_firehose_client()
-    # Firehose expects newline-delimited JSON
-    data = json.dumps(record, ensure_ascii=False, default=str) + "\n"
-    response = client.put_record(
-        DeliveryStreamName=DELIVERY_STREAM,
-        Record={"Data": data.encode("utf-8")},
+def _write_to_s3(record: dict) -> str:
+    """Stream a single attendance record directly to S3 Data Lake."""
+    client = get_s3_client()
+    data = json.dumps(record, ensure_ascii=False, default=str)
+    
+    # Generate unique filename with partitioning prefix
+    # E.g., year=2024/month=12/day=05/uuid.json
+    year = record.get("year", "0000")
+    month = record.get("month", "00")
+    day = record.get("day", "00")
+    file_name = f"year={year}/month={month}/day={day}/{uuid.uuid4().hex}.json"
+    
+    client.put_object(
+        Bucket=settings.data_lake_bucket,
+        Key=file_name,
+        Body=data.encode("utf-8"),
+        ContentType="application/json"
     )
-    return response["RecordId"]
+    return file_name
 
 
 def handler(event: dict, context) -> dict:
@@ -78,8 +85,9 @@ def handler(event: dict, context) -> dict:
                 "day": detail.get("timestamp", "")[8:10] if detail.get("timestamp") else None,
             }
 
-            record_id = _send_to_firehose(analytics_record)
-            logger.info("Streamed to Firehose. MsgId=%s, RecordId=%s", message_id, record_id)
+            # Write directly to S3
+            record_id = _write_to_s3(analytics_record)
+            logger.info("Wrote to S3 Data Lake. MsgId=%s, File=%s", message_id, record_id)
 
         except Exception as exc:
             logger.error("Failed to process message %s: %s", message_id, exc, exc_info=True)
