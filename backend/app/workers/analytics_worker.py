@@ -31,7 +31,6 @@ def _write_to_s3(record: dict) -> str:
     data = json.dumps(record, ensure_ascii=False, default=str)
     
     # Generate unique filename with partitioning prefix
-    # E.g., year=2024/month=12/day=05/uuid.json
     year = record.get("year", "0000")
     month = record.get("month", "00")
     day = record.get("day", "00")
@@ -85,7 +84,6 @@ def handler(event: dict, context) -> dict:
                 "day": detail.get("timestamp", "")[8:10] if detail.get("timestamp") else None,
             }
 
-            # Write directly to S3
             record_id = _write_to_s3(analytics_record)
             logger.info("Wrote to S3 Data Lake. MsgId=%s, File=%s", message_id, record_id)
 
