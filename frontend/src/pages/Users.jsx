@@ -503,6 +503,7 @@ const Users = () => {
                       <option value="DIRECTOR" style={{ color: 'black' }}>Giám đốc (Director)</option>
                       <option value="MANAGER" style={{ color: 'black' }}>Quản lý (Manager)</option>
                       <option value="SECURITY" style={{ color: 'black' }}>Bảo vệ (Security)</option>
+                      <option value="TECHNICIAN" style={{ color: 'black' }}>Kỹ thuật viên (Technician)</option>
                     </>
                   )}
                 </select>
@@ -521,7 +522,7 @@ const Users = () => {
                     <>
                       <option value="NONE" style={{ color: 'black' }}>Không thuộc phòng ban nào</option>
                       <option value="IT" style={{ color: 'black' }}>Công nghệ thông tin (IT)</option>
-                      <option value="MAINTENANCE" style={{ color: 'black' }}>Bảo trì cơ sở vật chất (Maintenance)</option>
+                      <option value="TECHNICAL" style={{ color: 'black' }}>Bảo trì cơ sở vật chất (Technical)</option>
                       <option value="SECURITY" style={{ color: 'black' }}>An ninh bảo vệ (Security)</option>
                       <option value="HR" style={{ color: 'black' }}>Nhân sự (HR)</option>
                       <option value="ADMIN" style={{ color: 'black' }}>Hành chính (Admin)</option>

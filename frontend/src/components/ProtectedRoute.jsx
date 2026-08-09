@@ -13,7 +13,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   // Nếu route có yêu cầu role cụ thể, nhưng user hiện tại không nằm trong danh sách
   if (allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role)) {
     // Tự động chuyển hướng về trang chủ đích phù hợp với vai trò của họ
-    if (['STAFF', 'SECURITY', 'MAINTENANCE'].includes(currentUser.role)) {
+    if (['STAFF', 'SECURITY', 'TECHNICIAN'].includes(currentUser.role)) {
       return <Navigate to="/tasks" replace />;
     }
     if (['MANAGER', 'PO', 'PM'].includes(currentUser.role)) {

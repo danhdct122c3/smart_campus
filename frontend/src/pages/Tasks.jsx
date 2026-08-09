@@ -672,7 +672,7 @@ export default function Tasks() {
         } else if (currentUser.role === 'MANAGER' || currentUser.role === 'PM') {
           url += `&department=${encodeURIComponent(currentUser.department || '')}`;
         } else {
-          // STAFF, SECURITY, MAINTENANCE
+          // STAFF, SECURITY, TECHNICIAN
           url += `&user_id=${currentUser.user_id}`;
         }
       }
@@ -909,7 +909,7 @@ export default function Tasks() {
 
     let candidates = [];
     if (currentUser.role === 'ADMIN' || currentUser.role === 'DIRECTOR') candidates = users.filter(u => u.role === 'MANAGER');
-    else if (currentUser.role === 'MANAGER') candidates = users.filter(u => u.role === 'STAFF' || u.role === 'SECURITY' || u.role === 'MAINTENANCE');
+    else if (currentUser.role === 'MANAGER') candidates = users.filter(u => u.role === 'STAFF' || u.role === 'SECURITY' || u.role === 'TECHNICIAN');
 
     if (newTask.department) {
       candidates = candidates.filter(u => u.department === newTask.department);
@@ -982,8 +982,8 @@ export default function Tasks() {
             </span>
           </div>
 
-          {currentUser?.department !== 'MAINTENANCE' && (
-            <Btn variant="warning" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'HIGH', due_date: '', parent_task_id: null, task_type: 'INCIDENT', department: 'MAINTENANCE' }); setShowModal(true); }}>
+          {currentUser?.department !== 'TECHNICAL' && (
+            <Btn variant="warning" size="md" onClick={() => { setNewTask({ title: '', description: '', assignee_id: '', priority: 'HIGH', due_date: '', parent_task_id: null, task_type: 'INCIDENT', department: 'TECHNICAL' }); setShowModal(true); }}>
               <AlertTriangle size={16} /> Báo cáo sự cố
             </Btn>
           )}
@@ -1161,7 +1161,7 @@ export default function Tasks() {
                   onChange={e => {
                     const ttype = e.target.value;
                     if (ttype === 'INCIDENT') {
-                      setNewTask({ ...newTask, task_type: ttype, department: 'MAINTENANCE', assignee_id: '', due_date: '' });
+                      setNewTask({ ...newTask, task_type: ttype, department: 'TECHNICAL', assignee_id: '', due_date: '' });
                     } else {
                       setNewTask({ ...newTask, task_type: ttype });
                     }
@@ -1184,7 +1184,7 @@ export default function Tasks() {
                 >
                   <option value="" style={{ color: '#000' }}>-- Chọn phòng ban --</option>
                   <option value="IT" style={{ color: '#000' }}>IT (Công nghệ thông tin)</option>
-                  <option value="MAINTENANCE" style={{ color: '#000' }}>Bảo trì (Maintenance)</option>
+                  <option value="TECHNICAL" style={{ color: '#000' }}>Bảo trì (Technical)</option>
                   <option value="SECURITY" style={{ color: '#000' }}>Bảo vệ (Security)</option>
                   <option value="HR" style={{ color: '#000' }}>Nhân sự (HR)</option>
                   <option value="ADMIN" style={{ color: '#000' }}>Hành chính (Admin)</option>

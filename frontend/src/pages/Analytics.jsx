@@ -506,7 +506,7 @@ const Analytics = () => {
                   <>
                     <option value="ALL" style={{ background: '#1e293b' }}>Tất cả bộ phận</option>
                     <option value="IT" style={{ background: '#1e293b' }}>IT</option>
-                    <option value="MAINTENANCE" style={{ background: '#1e293b' }}>Bảo trì</option>
+                    <option value="TECHNICAL" style={{ background: '#1e293b' }}>Bảo trì</option>
                     <option value="SECURITY" style={{ background: '#1e293b' }}>An ninh</option>
                     <option value="HR" style={{ background: '#1e293b' }}>Nhân sự</option>
                     <option value="ADMIN" style={{ background: '#1e293b' }}>Ban Giám đốc</option>

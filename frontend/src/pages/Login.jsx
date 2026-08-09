@@ -39,7 +39,7 @@ const Login = () => {
         setErrorMsg('Vui lòng tạo mật khẩu mới cho lần đăng nhập đầu tiên.');
       } else {
         // Điều hướng thông minh dựa trên Role
-        if (['STAFF', 'SECURITY', 'MAINTENANCE'].includes(result.role)) navigate('/my-tasks');
+        if (['STAFF', 'SECURITY', 'TECHNICIAN'].includes(result.role)) navigate('/my-tasks');
         else if (['MANAGER', 'PO', 'PM'].includes(result.role)) navigate('/tasks');
         else navigate('/'); // Admin
       }
@@ -64,7 +64,7 @@ const Login = () => {
     setIsLoading(false);
 
     if (result.success) {
-      if (['STAFF', 'SECURITY', 'MAINTENANCE'].includes(result.role)) navigate('/my-tasks');
+      if (['STAFF', 'SECURITY', 'TECHNICIAN'].includes(result.role)) navigate('/my-tasks');
       else if (['MANAGER', 'PO', 'PM'].includes(result.role)) navigate('/tasks');
       else navigate('/'); 
     } else {

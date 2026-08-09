@@ -1,7 +1,7 @@
 """Analytics Worker (Workflow 5 – Analytics Pipeline).
 
 Consumes AttendanceRecorded events from EventBridge and streams data to:
-    S3 Data Lake (Direct Put) → Glue Catalog → Athena → QuickSight
+    S3 Data Lake (Direct Put) → Glue Catalog → Athena
 
 Published Events:
     None (fire-and-forget streaming)
@@ -71,7 +71,7 @@ def handler(event: dict, context) -> dict:
                 logger.info("Skipping non-attendance event: %s (MsgId: %s)", detail_type, message_id)
                 continue
 
-            # Build analytics record (flattened for Athena/QuickSight)
+            # Build analytics record (flattened for Athena)
             analytics_record = {
                 "event_type": detail_type,
                 "attendance_id": detail.get("attendanceId"),
