@@ -59,6 +59,3 @@ smart-campus/
 
 ---
 
-## 💰 Ước tính chi phí vận hành
-Đối với một khuôn viên doanh nghiệp tầm trung (khoảng 200 người dùng, ~15.000 lượt quét khuôn mặt/tháng), chi phí hạ tầng thực tế được ước tính tối ưu ở mức siêu rẻ: **~ $30.22 / tháng**.
-*(Do không sử dụng máy chủ vật lý hay VPS, doanh nghiệp không tốn phí duy trì tài nguyên nhàn rỗi).*
