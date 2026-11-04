@@ -15,9 +15,10 @@ phases:
   post_build:
     commands:
       - echo "Deploying to AWS S3 Bucket..."
-      # Đồng bộ thư mục dist lên S3, xóa những file cũ không còn tồn tại trên S3
-      - aws s3 sync dist/ s3://smart-campus-frontend-2026 --delete
+      # Đồng bộ thư mục dist lên S3 (vào thư mục dist/ theo đúng Origin path của CloudFront)
+      - aws s3 sync dist/ s3://smart-campus-frontend-73035530327-ap-southeast-1-an/dist/ --delete
       - echo "Invalidating CloudFront Cache..."
-      - aws cloudfront create-invalidation --distribution-id E2OV5WZYS81HRJ --paths "/*"
+      # Thay YOUR_CLOUDFRONT_DISTRIBUTION_ID bằng ID phân phối CloudFront mới của bạn
+      - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
       - echo "Frontend deployment complete!"
 

@@ -3,7 +3,8 @@ import { Users as UsersIcon, Plus, MoreVertical, ShieldCheck, ShieldAlert, X, Lo
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE_URL = 'https://d2utvhhrx300xg.cloudfront.net/api/users';
+const API_ROOT = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = `${API_ROOT}/users`;
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -41,7 +42,7 @@ const Users = () => {
     setShowTaskModal(true);
     setLoadingTasks(true);
     try {
-      const res = await fetch(`https://d2utvhhrx300xg.cloudfront.net/api/users/${user.user_id}/tasks`);
+      const res = await fetch(`${API_BASE_URL}/${user.user_id}/tasks`);
       const json = await res.json();
       setUserTasks(json.data?.items || []);
     } catch (err) {
@@ -246,7 +247,7 @@ const Users = () => {
     setFaceSubmitting(true);
     setFaceResult(null);
     try {
-      const res = await fetch('https://d2utvhhrx300xg.cloudfront.net/api/faces/register', {
+      const res = await fetch(`${API_ROOT}/faces/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: faceUserId, image_base64: capturedImage }),

@@ -3,7 +3,7 @@ import { UserCircle, Loader, KeyRound, CheckCircle2, Edit2, ShieldCheck, Wifi, P
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE_URL = 'https://d2utvhhrx300xg.cloudfront.net/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const Profile = () => {
   const { currentUser, setCurrentUser } = useAuth();

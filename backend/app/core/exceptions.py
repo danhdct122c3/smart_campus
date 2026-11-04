@@ -46,6 +46,9 @@ class ErrorCode(Enum):
     AWS_EVENTBRIDGE_ERROR   = ("AWS_003", status.HTTP_503_SERVICE_UNAVAILABLE, "Lỗi phát sự kiện EventBridge.")
     INTERNAL_ERROR          = ("SYS_001", status.HTTP_500_INTERNAL_SERVER_ERROR, "Lỗi hệ thống nội bộ.")
     VALIDATION_ERROR        = ("SYS_002", status.HTTP_422_UNPROCESSABLE_ENTITY, "Lỗi kiểm tra dữ liệu đầu vào.")
+    BAD_REQUEST             = ("SYS_003", status.HTTP_400_BAD_REQUEST, "Yêu cầu không hợp lệ.")
+    RESOURCE_NOT_FOUND      = ("SYS_004", status.HTTP_404_NOT_FOUND, "Không tìm thấy tài nguyên yêu cầu.")
+    INTERNAL_SERVER_ERROR   = ("SYS_005", status.HTTP_500_INTERNAL_SERVER_ERROR, "Lỗi máy chủ nội bộ.")
 
     def __init__(self, code: str, http_status: int, default_message: str):
         self.code = code

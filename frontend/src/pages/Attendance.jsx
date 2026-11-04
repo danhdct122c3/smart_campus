@@ -4,7 +4,7 @@ import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
 
-const API_BASE = 'https://d2utvhhrx300xg.cloudfront.net/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 
 // ----- Status badge helper -----
