@@ -195,7 +195,7 @@ from .schemas import NetworkItem, AddNetworkRequest, NetworkListResponse
 def get_current_waf_ip() -> str | None:
     waf = boto3.client("wafv2", region_name="us-east-1")
     ip_set_name = "SmartCampusIPSet"
-    ip_set_id = "4ebe5eff-235c-4a55-8c04-c1155b3118e0"
+    ip_set_id = "9e63d7eb-63d8-4d59-8590-af462625f754"
     try:
         res = waf.get_ip_set(
             Name=ip_set_name,
@@ -229,7 +229,7 @@ def add_network(payload: AddNetworkRequest) -> NetworkItem:
 def update_waf_ip(ip: str) -> None:
     waf = boto3.client("wafv2", region_name="us-east-1")
     ip_set_name = "SmartCampusIPSet"
-    ip_set_id = "4ebe5eff-235c-4a55-8c04-c1155b3118e0"
+    ip_set_id = "9e63d7eb-63d8-4d59-8590-af462625f754"
     
     res = waf.get_ip_set(
         Name=ip_set_name,
