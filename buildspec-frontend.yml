@@ -16,7 +16,7 @@ phases:
     commands:
       - echo "Deploying to AWS S3 Bucket..."
       # Đồng bộ thư mục dist lên S3 (vào thư mục dist/ theo đúng Origin path của CloudFront)
-      - aws s3 sync dist/ s3://smart-campus-frontend-73035530327-ap-southeast-1-an/dist/ --delete
+      - aws s3 sync dist/ s3://smart-campus-frontend-730355530327-ap-southeast-1-an/dist/ --delete --region ap-southeast-1
       - echo "Invalidating CloudFront Cache..."
       # Thay YOUR_CLOUDFRONT_DISTRIBUTION_ID bằng ID phân phối CloudFront mới của bạn
       - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"

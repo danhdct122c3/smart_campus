@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy-backend:
-    name: 🚀 Deploy Backend (AWS Lambda)
+    name:  Deploy Backend 
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -45,7 +45,7 @@ jobs:
             --zip-file fileb://backend/lambda_function.zip
 
   deploy-frontend:
-    name: 🌐 Deploy Frontend (S3 + CloudFront)
+    name:  Deploy Frontend 
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -73,7 +73,7 @@ jobs:
 
       - name: Sync to Amazon S3
         run: |
-          aws s3 sync frontend/dist/ s3://smart-campus-frontend-73035530327-ap-southeast-1-an/dist/ --delete
+          aws s3 sync frontend/dist/ s3://smart-campus-frontend-730355530327-ap-southeast-1-an/dist/ --delete --region ap-southeast-1
 
       - name: Invalidate CloudFront Cache
         run: |
