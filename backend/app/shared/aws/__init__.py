@@ -15,6 +15,7 @@ from .eventbridge import (
     publish_event,
     publish_face_registered,
     publish_attendance_recorded,
+    publish_attendance_checkout,
     publish_unknown_face_detected,
     publish_attendance_rejected,
     publish_security_incident_created,
@@ -33,7 +34,7 @@ __all__ = [
     "index_face", "search_faces_by_image", "delete_face",
     "RekognitionError", "NoFaceDetectedError", "MultipleFacesError", "FaceNotFoundError",
     # EventBridge
-    "publish_event", "publish_face_registered", "publish_attendance_recorded",
+    "publish_event", "publish_face_registered", "publish_attendance_recorded", "publish_attendance_checkout",
     "publish_unknown_face_detected", "publish_attendance_rejected",
     "publish_security_incident_created", "publish_notification_sent",
     # SNS

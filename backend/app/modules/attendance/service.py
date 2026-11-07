@@ -29,6 +29,7 @@ from app.core.exceptions import AppException, ErrorCode
 from app.shared.aws import (
     rekognition as reko,
     publish_attendance_recorded,
+    publish_attendance_checkout,
     publish_unknown_face_detected,
     publish_attendance_rejected,
     ses,
@@ -174,7 +175,8 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
     }
     repo.save_record(item)
 
-    # ── Step 7: Publish AttendanceRecorded ────────────────────────────────────
+    # ── Step 7: Publish AttendanceRecorded event to EventBridge ──────────────
+    # Notification Worker sẽ nhận event qua SQS và gửi email SES bất đồng bộ
     try:
         publish_attendance_recorded(
             attendance_id=attendance_id,
@@ -182,22 +184,11 @@ def recognize_and_record(payload: AttendanceRecognizeRequest) -> AttendanceRecog
             user_name=user.name,
             status=rule.status,
             timestamp=capture_time.isoformat(),
+            user_email=user.email,
+            session_type=rule.session_name,
         )
     except Exception:
         pass  # Non-critical
-
-    # ── Step 8: Send personal email via SES ───────────────────────────────────
-    if user.email:
-        try:
-            ses.send_attendance_email(
-                to_email=user.email,
-                user_name=user.name,
-                timestamp=capture_time.isoformat(),
-                status=rule.status,
-                session_type=rule.session_name,
-            )
-        except Exception:
-            pass
 
     return AttendanceRecognizeResponse(
         success=True,
@@ -307,15 +298,16 @@ def record_checkout(user_id: str) -> CheckoutResponse:
 
     repo.update_checkout_time(existing["record_id"], now.isoformat())
 
-    # Non-critical: send email notification
+    # Publish AttendanceCheckOut event to EventBridge (Notification Worker sẽ gửi email SES ngầm)
     try:
         user = user_service.get_user(user_id)
-        if user.email:
-            ses.send_checkout_email(
-                to_email=user.email,
+        if user:
+            publish_attendance_checkout(
+                user_id=user_id,
                 user_name=user.name,
                 checkout_time=now.isoformat(),
                 session_type=existing.get("session_type", ""),
+                user_email=user.email,
             )
     except Exception:
         pass

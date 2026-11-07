@@ -76,16 +76,45 @@ def publish_attendance_recorded(
     user_name: str,
     status: str,
     timestamp: str,
+    user_email: str | None = None,
+    session_type: str | None = None,
 ) -> str:
+    detail = {
+        "attendanceId": attendance_id,
+        "userId": user_id,
+        "userName": user_name,
+        "status": status,
+        "timestamp": timestamp,
+    }
+    if user_email:
+        detail["userEmail"] = user_email
+    if session_type:
+        detail["sessionType"] = session_type
     return publish_event(
         detail_type="AttendanceRecorded",
-        detail={
-            "attendanceId": attendance_id,
-            "userId": user_id,
-            "userName": user_name,
-            "status": status,
-            "timestamp": timestamp,
-        },
+        detail=detail,
+    )
+
+
+def publish_attendance_checkout(
+    user_id: str,
+    user_name: str,
+    checkout_time: str,
+    session_type: str | None = None,
+    user_email: str | None = None,
+) -> str:
+    detail = {
+        "userId": user_id,
+        "userName": user_name,
+        "checkoutTime": checkout_time,
+    }
+    if session_type:
+        detail["sessionType"] = session_type
+    if user_email:
+        detail["userEmail"] = user_email
+    return publish_event(
+        detail_type="AttendanceCheckOut",
+        detail=detail,
     )
 
 
