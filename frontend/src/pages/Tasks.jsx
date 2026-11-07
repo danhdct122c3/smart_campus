@@ -746,10 +746,11 @@ export default function Tasks() {
     if (selectedFiles && selectedFiles.length > 0) {
       for (const file of selectedFiles) {
         try {
-          const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_type: file.type }) });
+          const mimeType = file.type || 'application/octet-stream';
+          const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_type: mimeType }) });
           const prd = await pr.json();
           if (prd.success) {
-            await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+            await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: file });
             finalFileUrls.push(prd.data.public_url);
           }
         } catch (e) { showToast(`Lỗi upload file ${file.name}!`); setUploading(false); return; }
@@ -867,10 +868,11 @@ export default function Tasks() {
     if (submissionFiles && submissionFiles.length > 0) {
       for (const file of submissionFiles) {
         try {
-          const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_type: file.type }) });
+          const mimeType = file.type || 'application/octet-stream';
+          const pr = await fetch(`${API_BASE}/tasks/upload-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_type: mimeType }) });
           const prd = await pr.json();
           if (prd.success) {
-            await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+            await fetch(prd.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: file });
             finalFileUrls.push(prd.data.public_url);
           }
         } catch (e) { showToast(`Lỗi upload file báo cáo ${file.name}!`); setSubmitting(false); return; }

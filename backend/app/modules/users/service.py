@@ -14,7 +14,7 @@ from . import repository as repo
 settings = get_settings()
 
 def get_cognito_client():
-    if not settings.cognito_user_pool_id or not settings.cognito_client_id:
+    if not settings.cognito_user_pool_id:
         return None
     return boto3.client('cognito-idp', region_name=settings.aws_region)
 
@@ -64,19 +64,25 @@ def create_user(payload: UserCreate) -> UserResponse:
     cognito_client = get_cognito_client()
     if cognito_client:
         try:
+            user_attrs = [
+                {'Name': 'email', 'Value': email},
+                {'Name': 'email_verified', 'Value': 'true'},
+            ]
+            if payload.name:
+                user_attrs.append({'Name': 'name', 'Value': payload.name})
+
             cognito_client.admin_create_user(
                 UserPoolId=settings.cognito_user_pool_id,
                 Username=email,
-                UserAttributes=[
-                    {'Name': 'email', 'Value': email},
-                    {'Name': 'email_verified', 'Value': 'true'},
-                ],
-                # Không truyền MessageAction='SUPPRESS' để Cognito tự gửi thư.
+                UserAttributes=user_attrs,
+                DesiredDeliveryMediums=['EMAIL'],
+                # Không truyền MessageAction='SUPPRESS' để Cognito tự gửi thư mời & mật khẩu tạm
             )
+            print(f"Successfully created user in Cognito with invitation email: {email}")
         except cognito_client.exceptions.UsernameExistsException:
-            pass # Nếu đã tồn tại trên Cognito thì bỏ qua
+            print(f"User {email} already exists in Cognito, skipping creation.")
         except Exception as e:
-            print(f"Failed to create user in Cognito: {e}")
+            print(f"[ERROR] Failed to create user in Cognito ({email}): {type(e).__name__} - {e}")
             # Vẫn tiếp tục tạo trên DynamoDB
     
     repo.create_user(item)

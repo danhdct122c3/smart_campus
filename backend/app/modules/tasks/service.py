@@ -356,7 +356,7 @@ def delete_task(task_id: str, user_id: str) -> bool:
     else:
         raise AppException(ErrorCode.FORBIDDEN, message="Bạn không có quyền xóa công việc này")
 
-def get_presigned_upload_url(file_name: str, file_type: str) -> dict:
+def get_presigned_upload_url(file_name: str, file_type: str | None = None) -> dict:
     """Generate a presigned URL to upload a task attachment to S3."""
     from app.shared.aws.s3 import get_s3_client
     from app.core.config import settings
@@ -364,6 +364,7 @@ def get_presigned_upload_url(file_name: str, file_type: str) -> dict:
     s3_client = get_s3_client()
     
     key = f"tasks/{uuid.uuid4()}/{file_name}"
+    content_type = file_type if file_type else "application/octet-stream"
     
     try:
         url = s3_client.generate_presigned_url(
@@ -371,7 +372,7 @@ def get_presigned_upload_url(file_name: str, file_type: str) -> dict:
             Params={
                 'Bucket': settings.image_bucket,
                 'Key': key,
-                'ContentType': file_type
+                'ContentType': content_type
             },
             ExpiresIn=3600
         )
